@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Starter</title>
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* foundation */
+      --page-bg: #f5f7fa;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --text-main: #111827;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --line-soft: rgba(15, 23, 42, 0.06);
+      --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+
+      /* accent */
+      --accent: #ff7a2f;
+      --accent-soft: rgba(255, 122, 47, 0.12);
+
+      /* radius */
+      --radius-card: 14px;
+      --radius-block: 12px;
+      --radius-pill: 999px;
+
+      /* spacing */
+      --space-page-x: 24px;
+      --space-page-y: 24px;
+      --space-section: 28px;
+      --space-card: 20px;
+      --space-gap: 16px;
+
+      /* layout */
+      --page-max-width: 1160px;
+      --grid-columns: 4;
+      --main-left: 2fr;
+      --main-right: 1fr;
+      --split-columns: 2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--page-bg);
+      color: var(--text-main);
+    }
+
+    .page {
+      max-width: var(--page-max-width);
+      margin: 0 auto;
+      padding: var(--space-page-y) var(--space-page-x) 40px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: var(--space-section);
+    }
+
+    .page-title {
+      margin: 18px 0 0;
+      font-size: 32px;
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+    }
+
+    .page-subtitle {
+      margin: 14px 0 0;
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.7;
+      max-width: 640px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .section {
+      margin-bottom: var(--space-section);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    .section-note {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      gap: var(--space-gap);
+    }
+
+    .grid-summary {
+      grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+    }
+
+    .grid-main {
+      grid-template-columns: minmax(0, var(--main-left)) minmax(280px, var(--main-right));
+    }
+
+    .grid-split {
+      grid-template-columns: repeat(var(--split-columns), minmax(0, 1fr));
+    }
+
+    .grid-sub {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: var(--space-card);
+    }
+
+    .card-muted {
+      background: var(--surface-muted);
+    }
+
+    .metric-label {
+      margin: 0 0 10px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .metric-value {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .metric-meta {
+      margin: 10px 0 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ghost-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: inset 0 0 0 1px var(--line-soft);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.3;
+      font-weight: 600;
+    }
+
+    .card-meta {
+      margin: 6px 0 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .chart-shell,
+    .mini-chart,
+    .stack-block {
+      background: var(--surface-muted);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chart-shell {
+      min-height: 240px;
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .mini-chart-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .mini-chart {
+      min-height: 84px;
+      border-radius: var(--radius-block);
+      padding: 12px;
+    }
+
+    .note-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .note-item {
+      padding: 14px;
+      border-radius: var(--radius-block);
+      background: var(--surface);
+    }
+
+    .note-title {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .note-meta {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stack-block {
+      min-height: 92px;
+      padding: 14px;
+      border-radius: var(--radius-block);
+    }
+
+    .placeholder-label {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--line-soft);
+      white-space: nowrap;
+    }
+
+    .data-table th {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .data-table td:last-child,
+    .data-table th:last-child {
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      .grid-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-main,
+      .grid-split,
+      .mini-chart-row,
+      .grid-sub {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 20px 16px 32px;
+      }
+
+      .page-header,
+      .section-header,
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .grid-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .page-title {
+        font-size: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <div>
+        <span class="eyebrow">Dashboard</span>
+        <h1 class="page-title">页面标题</h1>
+        <p class="page-subtitle">这里放页面说明、筛选范围或当前数据上下文。</p>
+      </div>
+    </header>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Section Title</h2>
+      </div>
+      <div class="grid grid-summary">
+        <article class="card">
+          <p class="metric-label">Card Title</p>
+          <p class="metric-value">128</p>
+          <p class="metric-meta">Card Meta</p>
+        </article>
+        <article class="card">
+          <p class="metric-label">Card Title</p>
+          <p class="metric-value">64%</p>
+          <p class="metric-meta">Card Meta</p>
+        </article>
+        <article class="card">
+          <p class="metric-label">Card Title</p>
+          <p class="metric-value">18</p>
+          <p class="metric-meta">Card Meta</p>
+        </article>
+        <article class="card">
+          <p class="metric-label">Card Title</p>
+          <p class="metric-value">9</p>
+          <p class="metric-meta">Card Meta</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Section Title</h2>
+      </div>
+      <div class="grid grid-main">
+        <article class="card">
+          <div class="toolbar">
+            <div>
+              <h3 class="card-title">Card Title</h3>
+              <p class="card-meta">Card Meta</p>
+            </div>
+          </div>
+          <div class="chart-shell"><span class="placeholder-label">Canvas Placeholder</span></div>
+          <div class="grid grid-sub" style="margin-top: 14px;">
+            <div class="mini-chart"><span class="placeholder-label">Surface</span></div>
+            <div class="mini-chart"><span class="placeholder-label">Surface</span></div>
+            <div class="mini-chart"><span class="placeholder-label">Surface</span></div>
+          </div>
+        </article>
+
+        <aside class="card">
+          <div class="toolbar">
+            <div>
+              <h3 class="card-title">Card Title</h3>
+              <p class="card-meta">Card Meta</p>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="stack-block"><span class="placeholder-label">Stack Item</span></div>
+            <div class="stack-block"><span class="placeholder-label">Stack Item</span></div>
+            <div class="stack-block"><span class="placeholder-label">Stack Item</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Section Title</h2>
+      </div>
+      <div class="grid grid-split">
+        <article class="card">
+          <div class="toolbar">
+            <div>
+              <h3 class="card-title">Card Title</h3>
+              <p class="card-meta">Card Meta</p>
+            </div>
+          </div>
+          <div class="chart-shell"><span class="placeholder-label">Canvas Placeholder</span></div>
+        </article>
+
+        <article class="card">
+          <div class="toolbar">
+            <div>
+              <h3 class="card-title">Card Title</h3>
+              <p class="card-meta">Card Meta</p>
+            </div>
+          </div>
+          <div class="chart-shell"><span class="placeholder-label">Canvas Placeholder</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Section Title</h2>
+      </div>
+      <article class="card">
+        <div class="toolbar">
+          <div>
+            <h3 class="card-title">Card Title</h3>
+            <p class="card-meta">Card Meta</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Column A</th>
+                <th>Column B</th>
+                <th>Column C</th>
+                <th>Column D</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Sample</td>
+                <td>Sample</td>
+                <td>Sample</td>
+                <td>Sample</td>
+              </tr>
+              <tr>
+                <td>Sample</td>
+                <td>Sample</td>
+                <td>Sample</td>
+                <td>Sample</td>
+              </tr>
+              <tr>
+                <td>Sample</td>
+                <td>Sample</td>
+                <td>Sample</td>
+                <td>Sample</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
