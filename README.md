@@ -55,6 +55,58 @@ These rules are documented in:
 
 ## How To Use
 
+### Trigger
+
+- Skill name: `$dashboard-html`
+- Output format: `standalone HTML`
+- Best for: `dashboard`, `analytics panel`, `status page`, `internal report page`, `generic card-based UI`
+
+### Install Or Share
+
+If someone only needs the skill itself, share this directory:
+
+- `/.agents/skills/dashboard-html/`
+
+That folder already includes:
+
+- `SKILL.md`
+- `agents/openai.yaml`
+- `assets/templates/starter.html`
+- `references/*.md`
+- `examples/*.md`
+
+### Distribution
+
+Recommended distribution unit:
+
+- `/.agents/skills/dashboard-html/`
+
+Keep these files:
+
+- `SKILL.md`
+- `agents/openai.yaml`
+- `assets/templates/starter.html`
+- `references/topic.md`
+- `references/output.md`
+- `references/testing.md`
+
+Optional but useful:
+
+- `references/test-cases.md`
+- `references/test-log-template.md`
+- `examples/*.md`
+- `assets/templates/test-ops-dashboard.html`
+
+No `dist` directory is required.
+
+This skill is distributed as source files because:
+
+- there is no build step
+- there is no compiled runtime artifact
+- the skill directory itself is the final usable form
+
+### Usage Rules
+
 Use the skill when you want Codex to create or refine a lightweight dashboard page such as:
 
 - KPI overview
@@ -69,6 +121,22 @@ Example prompt style:
 Use $dashboard-html to create a responsive standalone HTML dashboard.
 Keep the layout generic, avoid business-specific components, and preserve editable placeholders.
 ```
+
+Another example:
+
+```txt
+Use $dashboard-html to build a lightweight dashboard in standalone HTML.
+Make it responsive across desktop, tablet, and mobile.
+Do not lock the content into fixed business widgets.
+```
+
+### What The Skill Will Try To Preserve
+
+- a single centered page shell
+- lightweight card-based dashboard structure
+- responsive behavior across desktop, tablet, and mobile
+- generic layout primitives instead of hard-coded business modules
+- editable placeholders when the user does not define exact content
 
 ## Testing
 
