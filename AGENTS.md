@@ -41,6 +41,7 @@ README.md              -> 项目入口说明
 PRODUCT.md             -> 产品定位、用户画像、设计原则
 PROJECT.md             -> 当前项目状态和进度
 HANDOFF.md             -> 交接上下文
+docs/ROUTING.md        -> 请求分流和默认路由
 docs/ARCHITECTURE.md   -> 架构和模块职责
 docs/ENVIRONMENT.md    -> 环境、依赖、启动
 docs/TESTING.md        -> 测试和验收
@@ -51,6 +52,7 @@ docs/LESSONS.md        -> 错误复盘
 ```
 
 写文档前先看 `docs/DOCUMENTATION.md` 确认边界。
+处理用户请求前，如需判断分流或默认起稿方式，先看 `docs/ROUTING.md`。
 
 ## 收尾 Checklist
 
