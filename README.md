@@ -1,61 +1,90 @@
 ---
 layer: entry
 type: guide
-last_verified: 2026-06-04
-depends_on: [INSTALL.md]
+last_verified: 2026-06-30
+depends_on: [PROJECT.md, AGENTS.md, docs/SKILL_ENGINEERING.md]
 ---
 
-# 项目说明
+# project10-dashboard-skill
 
-> 本文件是安装 Project OS 后给目标项目的 README 模板。
-> 请按当前项目真实情况填写，不要保留源仓库自己的历史描述。
->
-> 用途：回答“这是什么项目、怎么开始、关键文档在哪”。
-> 什么时候更新：安装方式、入口说明、对外使用方式、关键路径变化时。
-> 不要写什么：AI 运行细则、当前交接、详细历史、内部路由实现。
+Lightweight standalone HTML dashboard skill for generative UI.
 
-## 项目定位
+This repository packages a small Codex skill focused on generating or refining dashboard-style HTML pages that:
 
-- 项目名：`未记录`
-- 一句话定位：`未记录`
-- 目标用户：`未记录`
-- 解决的问题：`未记录`
+- stay in standalone HTML
+- work across desktop, tablet, and mobile
+- use lightweight layout primitives instead of rigid business components
+- preserve a reusable starter template for card-based dashboards
 
-## 当前阶段
+## What Is In This Repo
 
-- 当前阶段：`未记录`
-- 当前状态：`未记录`
-- 当前优先级：`未记录`
+- `/.agents/skills/dashboard-html/`
+  The main skill directory.
+- `/.agents/skills/dashboard-html/SKILL.md`
+  Skill entry, role, boundaries, and workflow.
+- `/.agents/skills/dashboard-html/assets/templates/starter.html`
+  The local starter template for dashboard generation.
+- `/.agents/skills/dashboard-html/references/`
+  Layout, output, testing, and prompt reference docs.
+- `/docs/SKILL_ENGINEERING.md`
+  Higher-level notes about how the skill is structured and maintained.
 
-## 协作文档
+## Skill Positioning
 
-- AI 运行规则：`AGENTS.md`
-- 产品定义：`PRODUCT.md`
-- 当前项目状态：`PROJECT.md`
-- 当前交接上下文：`HANDOFF.md`
-- 文档命名规范：`docs/NAMING.md`
-- 架构说明：`docs/ARCHITECTURE.md`
-- 环境说明：`docs/ENVIRONMENT.md`
-- 测试与验收：`docs/TESTING.md`
-- 运行手册：`docs/RUNBOOK.md`
-- 结构性变更记录：`docs/CHANGELOG.md`
+- Name: `dashboard-html`
+- Format: `standalone HTML`
+- Primary use case: `generative UI dashboards`
+- Design goal: `lightweight, editable, responsive, and content-agnostic`
 
-## 开始方式
+## Layout Model
 
-直接对 AI 说：
+The skill is intentionally based on generic layout primitives instead of fixed dashboard modules.
+
+Current primitives:
+
+- `surface`
+- `stack`
+- `grid`
+- `split`
+- `canvas`
+- `table-area`
+
+These rules are documented in:
+
+- [`references/topic.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/references/topic.md)
+
+## How To Use
+
+Use the skill when you want Codex to create or refine a lightweight dashboard page such as:
+
+- KPI overview
+- analytics panel
+- status page
+- internal report page
+- generic card-based dashboard shell
+
+Example prompt style:
 
 ```txt
-帮我初始化这个项目
+Use $dashboard-html to create a responsive standalone HTML dashboard.
+Keep the layout generic, avoid business-specific components, and preserve editable placeholders.
 ```
 
-或：
+## Testing
 
-```txt
-这个项目有点乱，帮我接管一下
-```
+Suggested validation lives here:
 
-检查 AI 工程完整度：
+- [`references/testing.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/references/testing.md)
+- [`references/test-cases.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/references/test-cases.md)
+- [`references/test-log-template.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/references/test-log-template.md)
 
-```bash
-bash scripts/ai-project.sh report .
-```
+Starter template preview source:
+
+- [`starter.html`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/assets/templates/starter.html)
+
+## Collaboration Docs
+
+- [`AGENTS.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/AGENTS.md)
+- [`PROJECT.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/PROJECT.md)
+- [`HANDOFF.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/HANDOFF.md)
+- [`docs/SKILL_ENGINEERING.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/docs/SKILL_ENGINEERING.md)
