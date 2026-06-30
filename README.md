@@ -81,6 +81,10 @@ Recommended distribution unit:
 
 - `/.agents/skills/dashboard-html/`
 
+Latest package download:
+
+- [dashboard-html.zip](https://raw.githubusercontent.com/lijinmei915/project10-dashboard-skill/main/release/dashboard-html.zip)
+
 Keep these files:
 
 - `SKILL.md`
