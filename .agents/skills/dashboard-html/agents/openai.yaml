@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dashboard HTML"
+  short_description: "生成适配桌面与手机端的轻量生成式 UI dashboard HTML"
+  default_prompt: "Use $dashboard-html to create or refine a lightweight standalone HTML dashboard with consistent cards, spacing, and responsive behavior across desktop and mobile."
+
+policy:
+  allow_implicit_invocation: true
