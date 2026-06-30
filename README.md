@@ -73,7 +73,6 @@ That folder already includes:
 - `agents/openai.yaml`
 - `assets/templates/starter.html`
 - `references/*.md`
-- `examples/*.md`
 
 ### Distribution
 
@@ -92,7 +91,6 @@ Keep these files:
 - `assets/templates/starter.html`
 - `references/topic.md`
 - `references/output.md`
-- `examples/*.md`
 
 No `dist` directory is required.
 

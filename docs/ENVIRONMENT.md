@@ -22,7 +22,6 @@ depends_on: [README.md, PROJECT.md]
 - 当前无应用级启动命令
 - 可直接打开以下模板文件进行静态预览：
   - `.agents/skills/dashboard-html/assets/templates/starter.html`
-  - `.agents/skills/dashboard-html/assets/templates/test-ops-dashboard.html`
 
 ## 运行限制
 

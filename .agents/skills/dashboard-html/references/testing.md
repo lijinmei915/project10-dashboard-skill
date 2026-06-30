@@ -4,8 +4,7 @@
 
 ## 建议测试方式
 
-- 逐个使用 `examples/` 里的输入触发 `$dashboard-html`。
-- 具体测试输入可直接参考 `references/test-cases.md`。
+- 逐个使用 `references/test-cases.md` 里的输入触发 `$dashboard-html`。
 - 检查输出是否明显沿用了 `assets/templates/starter.html` 的基础骨架，而不是每次重新发明一套布局。
 - 每次输出后，先确认交付物是完整独立 HTML 页面，再按下面的验收清单检查页面结构、视觉一致性和多端适配。
 - 若基础示例和至少 1 个复合 dashboard 示例都满足清单，可认为当前 skill 规则基本稳定。

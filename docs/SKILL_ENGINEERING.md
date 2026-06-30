@@ -30,7 +30,7 @@ last_verified: 2026-06-13
 
 ## 自动补文件
 
-- 默认：`SKILL.md` + `examples/` + 可选 `agents/openai.yaml`。
+- 默认：`SKILL.md` + 可选 `agents/openai.yaml` + 按需的 `references/` 或 `assets/`。
 - 需要稳定领域资料或流程规则：增加 `references/`。
 - 目标产物需要模板、报告、视觉或可复用资产：增加 `assets/` 和 `references/design.md`。
 - 验收需要校验、转换、打包或本地工具：增加 `scripts/`、`schemas/`、`fixtures/`、`tests/`。

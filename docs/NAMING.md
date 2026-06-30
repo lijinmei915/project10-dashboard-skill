@@ -70,11 +70,10 @@ Skill 相关文件放在 `.agents/skills/<skill-name>/` 下：
 |------|------|
 | `.agents/skills/<skill-name>/SKILL.md` | skill 入口、触发条件、工作流 |
 | `.agents/skills/<skill-name>/references/*.md` | skill 细规则、输出要求、验收方法 |
-| `.agents/skills/<skill-name>/examples/*.md` | 示例输入和预期输出 |
 | `.agents/skills/<skill-name>/assets/templates/*.html` | HTML 起始模板或输出骨架 |
 | `.agents/skills/<skill-name>/agents/*.yaml` | 特定 AI 平台的 skill 展示与默认提示 |
 
-规则：skill 根目录使用短横线英文名；`references/`、`examples/`、`assets/templates/` 使用语义化小写文件名，不要出现 `misc.md`、`final.html` 这类弱语义命名。
+规则：skill 根目录使用短横线英文名；`references/`、`assets/templates/` 使用语义化小写文件名，不要出现 `misc.md`、`final.html` 这类弱语义命名。
 
 ## 子目录命名
 

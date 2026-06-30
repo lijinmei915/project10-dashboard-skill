@@ -28,4 +28,4 @@ Create lightweight standalone HTML dashboards for generative UI.
 
 ## Verification
 
-- Run the sample prompts in `examples/` and check the manual acceptance list in `references/testing.md`.
+- Use the sample prompts in `references/test-cases.md` and check the manual acceptance list in `references/testing.md`.

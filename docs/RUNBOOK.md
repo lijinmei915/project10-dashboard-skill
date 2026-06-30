@@ -15,8 +15,6 @@ depends_on: [docs/ENVIRONMENT.md, docs/TESTING.md]
 
 - 预览基础模板：
   打开 `.agents/skills/dashboard-html/assets/templates/starter.html`
-- 预览测试模板：
-  打开 `.agents/skills/dashboard-html/assets/templates/test-ops-dashboard.html`
 - 查看 skill 规则：
   阅读 `.agents/skills/dashboard-html/SKILL.md` 与 `references/`
 

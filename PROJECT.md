@@ -30,7 +30,7 @@ depends_on: [AGENTS.md]
 
 - 入口层：`README.md`、`AGENTS.md`、`PROJECT.md`、`HANDOFF.md` 提供项目入口、协作规则与状态说明。
 - 规则层：`docs/SKILL_ENGINEERING.md` 定义 Skill 工程边界；`.agents/skills/dashboard-html/SKILL.md` 定义单个 Skill 的触发与工作流骨架。
-- 执行层：`.agents/skills/dashboard-html/agents/openai.yaml`、`examples/`、`references/` 提供 agent 配置、示例输入和参考资料占位。
+- 执行层：`.agents/skills/dashboard-html/agents/openai.yaml`、`references/`、`assets/templates/` 提供 agent 配置、规则文档和输出模板。
 
 ## 当前进度
 

@@ -27,8 +27,6 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
   提供默认 dashboard HTML 起始骨架
 - `references/*.md`
   提供布局规则、输出约束、测试方式和测试样例
-- `examples/*.md`
-  提供示例输入
 
 ## 信息流
 

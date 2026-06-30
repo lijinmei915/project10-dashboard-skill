@@ -15,6 +15,6 @@ depends_on: [PROJECT.md, HANDOFF.md]
 
 - 初始化 Git 仓库并发布到 GitHub
 - 将示例 skill 收敛为 `dashboard-html`
-- 建立 `dashboard-html` 的 `SKILL.md`、`references/`、`examples/`、`assets/templates/` 结构
+- 建立 `dashboard-html` 的 `SKILL.md`、`references/`、`assets/templates/` 结构
 - 调整 starter 模板为轻量、响应式、通用占位的 dashboard 骨架
 - 补齐治理文档最小集合，消除主文档中的断链引用
