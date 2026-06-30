@@ -83,7 +83,7 @@ Recommended distribution unit:
 
 Latest package download:
 
-- [dashboard-html.zip](https://raw.githubusercontent.com/lijinmei915/project10-dashboard-skill/main/release/dashboard-html.zip)
+- [dashboard-html.zip](https://github.com/lijinmei915/project10-dashboard-skill/releases/download/v0.1.0/dashboard-html.zip)
 
 Keep these files:
 
@@ -92,14 +92,7 @@ Keep these files:
 - `assets/templates/starter.html`
 - `references/topic.md`
 - `references/output.md`
-- `references/testing.md`
-
-Optional but useful:
-
-- `references/test-cases.md`
-- `references/test-log-template.md`
 - `examples/*.md`
-- `assets/templates/test-ops-dashboard.html`
 
 No `dist` directory is required.
 
