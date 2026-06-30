@@ -22,8 +22,9 @@ Create lightweight standalone HTML dashboards for generative UI.
 ## Workflow
 
 1. Start from `assets/templates/starter.html`.
-2. Read the primitive layout rules in `references/topic.md` and the output constraints in `references/output.md` only when needed.
-3. Validate the result with `references/testing.md`.
+2. If the user request implies layout choices such as summary, split view, stack, canvas, or table-like content, route those choices through `references/topic.md`.
+3. Read the primitive layout rules in `references/topic.md` and the output constraints in `references/output.md` only when needed.
+4. Validate the result with `references/testing.md`.
 
 ## Verification
 
