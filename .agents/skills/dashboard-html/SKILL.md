@@ -6,6 +6,8 @@ description: >
 
 # Dashboard Card Layout Skill
 
+> Package refreshed: 2026-07-01
+
 ## Role
 
 Create lightweight standalone HTML dashboards for generative UI.
