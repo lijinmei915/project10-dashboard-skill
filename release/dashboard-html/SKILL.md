@@ -1,16 +1,20 @@
 ---
 name: dashboard-html
 description: >
-  Create or refine a lightweight standalone HTML dashboard for generative UI. Use when the user asks for a dashboard, KPI overview, analytics panel, status page, internal report page, or card-based HTML UI that must work across desktop and mobile. Start from the local starter template and apply the referenced layout and output rules.
+  Create or refine a lightweight standalone HTML dashboard for generative UI. Use when the user asks for a dashboard, KPI overview, analytics panel, status page, internal report page, or card-based HTML UI that must work across desktop and mobile. Triggers include requests to make a dashboard, redesign a dashboard layout, keep a dashboard lightweight, preserve card-based structure, or produce standalone dashboard HTML from the local starter template.
 ---
 
 # Dashboard Card Layout Skill
 
 > Package refreshed: 2026-07-01
 
-## Role
+## What This Skill Preserves
 
-Create lightweight standalone HTML dashboards for generative UI.
+This skill keeps dashboard output:
+
+1. Layout-flexible: allow different module combinations and layout primitives
+2. Style-stable: preserve the starter template's visual baseline unless the user explicitly asks for a visual redesign
+3. Responsive by default: keep the result usable across desktop, tablet, and mobile
 
 中文说明：
 生成轻量的 dashboard 独立 HTML 页面，默认从本地模板出发，并按参考文件控制布局、输出和验收。
@@ -24,8 +28,8 @@ Create lightweight standalone HTML dashboards for generative UI.
 ## Workflow
 
 1. Start from `assets/templates/starter.html`.
-2. If the user request implies layout choices such as summary, split view, stack, canvas, or table-like content, route those choices through `references/topic.md`.
-3. Read the primitive layout rules in `references/topic.md` and the output constraints in `references/output.md` only when needed.
+2. Route layout choices such as summary, split view, stack, canvas, table-like content, or layout changes through `references/topic.md`.
+3. Route output guardrails such as HTML completeness, header retention, starter style preservation, and visual baseline through `references/output.md`.
 4. Validate the result with `references/testing.md`.
 
 ## Verification
