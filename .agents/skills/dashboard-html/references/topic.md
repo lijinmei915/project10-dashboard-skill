@@ -28,6 +28,13 @@
 | Mobile page padding | `16px` |
 | Section gap | `28px` |
 
+## 深色模式
+
+- 深色模式只替换颜色 token，不重置布局原语、圆角、间距或卡片层级。
+- 默认深色 token：page background `#111827`、card background `#1f2937`、muted surface `#172033`、primary text `#f9fafb`、secondary text `#cbd5e1`。
+- 深色卡片阴影使用 `0 2px 10px rgba(0,0,0,0.22)`；保持同一阴影尺度，不改成厚重悬浮效果。
+- 用户要求深色界面时，可将初始 `data-theme` 设为 `dark`；需要切换能力时，保留轻量 theme toggle。
+
 ## 卡片样式
 
 - 卡片背景、圆角、阴影和内边距默认使用上面的 token 表。
@@ -47,6 +54,16 @@
 - `split`：非等宽分栏区域，适合主内容和辅助内容并列，但列宽应可调，不要写死。
 - `canvas`：大面积承载区，适合图表、白板、地图、媒体、复杂自定义内容。
 - `table-area`：结构化数据区，适合表格或行列型信息，但不限制具体业务内容。
+
+## 容器语义
+
+| 类型 | 用途 | 规则 |
+|------|------|------|
+| `surface` | 真实信息卡片或独立面板 | 使用 Card token，默认无外描边 |
+| `content-area` | 图表、列表、媒体等真实内容承载区 | 落在 `surface` 内，不保留 placeholder 外框 |
+| `placeholder` | starter 的空状态提示 | 仅无真实内容时显示；填充真实内容后移除 |
+
+`content-area` 和 `placeholder` 是内容状态，不是新增布局原语。
 
 不要把当前 starter 理解成固定模板：
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -42,6 +42,22 @@
       --split-columns: 2;
     }
 
+    html[data-theme="dark"] {
+      color-scheme: dark;
+
+      --page-bg: #111827;
+      --surface: #1f2937;
+      --surface-muted: #172033;
+      --text-main: #f9fafb;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --line-soft: rgba(226, 232, 240, 0.12);
+      --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.22);
+
+      --accent: #fb923c;
+      --accent-soft: rgba(251, 146, 60, 0.16);
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -70,6 +86,29 @@
     .page-header > div {
       flex: 1 1 auto;
       min-width: 0;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: inset 0 0 0 1px var(--line-soft);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 10px 12px;
+    }
+
+    .theme-icon {
+      font-size: 18px;
+      line-height: 1;
     }
 
     .page-title {
@@ -358,6 +397,10 @@
         <h1 class="page-title">页面标题</h1>
         <p class="page-subtitle">这里放页面说明、筛选范围或当前数据上下文。</p>
       </div>
+      <button class="theme-toggle" type="button" aria-pressed="false">
+        <span class="theme-icon" aria-hidden="true">☼</span>
+        <span class="theme-label">深色</span>
+      </button>
     </header>
 
     <section class="section">
@@ -497,5 +540,19 @@
       </article>
     </section>
   </main>
+  <script>
+    const themeToggle = document.querySelector(".theme-toggle");
+    const themeIcon = document.querySelector(".theme-icon");
+    const themeLabel = document.querySelector(".theme-label");
+    const root = document.documentElement;
+
+    themeToggle.addEventListener("click", () => {
+      const isDark = root.dataset.theme === "dark";
+      root.dataset.theme = isDark ? "light" : "dark";
+      themeIcon.textContent = isDark ? "☼" : "☾";
+      themeLabel.textContent = isDark ? "深色" : "浅色";
+      themeToggle.setAttribute("aria-pressed", String(!isDark));
+    });
+  </script>
 </body>
 </html>
