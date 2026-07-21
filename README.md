@@ -82,7 +82,7 @@ Recommended distribution unit:
 
 Latest package download:
 
-- [dashboard-html.zip](https://github.com/lijinmei915/project10-dashboard-skill/releases/download/v0.2.0/dashboard-html.zip)
+- [dashboard-html.zip](https://github.com/lijinmei915/project10-dashboard-skill/releases/download/v0.2.1/dashboard-html.zip)
 - Last package refresh: `2026-07-21`
 
 Keep these files:
