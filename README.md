@@ -82,8 +82,8 @@ Recommended distribution unit:
 
 Latest package download:
 
-- [dashboard-html.zip](https://github.com/lijinmei915/project10-dashboard-skill/releases/download/v0.1.0/dashboard-html.zip)
-- Last package refresh: `2026-07-01`
+- [dashboard-html.zip](https://github.com/lijinmei915/project10-dashboard-skill/releases/download/v0.2.0/dashboard-html.zip)
+- Last package refresh: `2026-07-21`
 
 Keep these files:
 
@@ -124,6 +124,23 @@ Another example:
 Use $dashboard-html to build a lightweight dashboard in standalone HTML.
 Make it responsive across desktop, tablet, and mobile.
 Do not lock the content into fixed business widgets.
+```
+
+### Optional Visual Settings
+
+You may add either or both of these to a prompt:
+
+- Theme: `light` or `dark`
+- Theme accent: any clear color name or CSS color value, such as `blue`, `墨绿`, or `#0f766e`
+
+When omitted, the skill uses a light theme with an orange accent. The
+conversation determines the initial theme; generated pages do not include a
+theme switcher. The accent changes non-semantic emphasis only; success,
+warning, and error colors keep their meaning.
+
+```txt
+Use $dashboard-html to create a responsive project status dashboard.
+Use dark mode with a teal theme accent, and preserve semantic status colors.
 ```
 
 ### What The Skill Will Try To Preserve

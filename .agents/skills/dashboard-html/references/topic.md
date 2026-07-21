@@ -23,6 +23,8 @@
 | Card radius | `14px` |
 | Card padding | `20px` |
 | Dense card padding | `16px` |
+| Accent | `#ff7a2f` |
+| Accent soft | `rgba(255,122,47,0.12)` |
 | Page max width | `1160px` |
 | Desktop page padding | `24px` |
 | Mobile page padding | `16px` |
@@ -33,7 +35,17 @@
 - 深色模式只替换颜色 token，不重置布局原语、圆角、间距或卡片层级。
 - 默认深色 token：page background `#111827`、card background `#1f2937`、muted surface `#172033`、primary text `#f9fafb`、secondary text `#cbd5e1`。
 - 深色卡片阴影使用 `0 2px 10px rgba(0,0,0,0.22)`；保持同一阴影尺度，不改成厚重悬浮效果。
-- 用户要求深色界面时，可将初始 `data-theme` 设为 `dark`；需要切换能力时，保留轻量 theme toggle。
+- 用户要求深色界面时，将初始 `data-theme` 设为 `dark`；主题由对话确定，不生成页面内切换控件。
+- `data-theme` 只是选择器；深色输出必须保留完整的 `html[data-theme="dark"]` token 覆盖和 `color-scheme: dark`，不能只改属性或 `:root`。
+- 用户只要求切换主题时，只替换颜色 token（必要时阴影 token）；字号、行高、间距、布局、尺寸、圆角和结构保持不变，不自行做可读性优化。
+
+## 主题色
+
+- 默认主题色为橙色：`--accent: #ff7a2f`、`--accent-soft: rgba(255,122,47,0.12)`。
+- 用户可给出任意明确的 CSS 色值，或明确的中文 / 英文颜色名称；将非 CSS 名称转换为具体 CSS 色值后再写入页面。蓝色、绿色、黄色、橙色、黑色只是常见示例，不是可选范围。
+- 对应的 `--accent-soft` 默认使用同色 `12%` 透明度；明确 CSS 色值可写为 `color-mix(in srgb, <color> 12%, transparent)`。
+- 自定义主题色只覆盖 `--accent` 和 `--accent-soft`，用于选中态、中性标签和非语义强调；不要替换成功、提醒、错误等状态色。
+- 自定义覆盖要放在 `:root` 和 `html[data-theme="dark"]` token 块之后，并使用 `html[data-theme]` 选择器，保证深色模式也能保持用户指定的主题色。
 
 ## 卡片样式
 
