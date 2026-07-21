@@ -31,7 +31,7 @@ This skill keeps dashboard output:
 
 ## Workflow
 
-1. Start from `assets/templates/starter.html`.
+1. Reuse `assets/templates/starter.html` for visual tokens, theme logic, and responsive foundations; do not inherit its fixed modules, section order, or placeholder content.
 2. Route layout and theme choices such as summary, split view, stack, canvas, table-like content, dark mode, or any explicit theme accent through `references/topic.md`.
 3. Route output guardrails such as HTML completeness, header retention, starter style preservation, and visual baseline through `references/output.md`.
 4. Validate the result with `references/testing.md`.

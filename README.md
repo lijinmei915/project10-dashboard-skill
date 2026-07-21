@@ -159,7 +159,7 @@ Suggested validation lives here:
 - [`references/test-cases.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/references/test-cases.md)
 - [`references/test-log-template.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/references/test-log-template.md)
 
-Starter template preview source:
+Minimal visual base source (no fixed dashboard modules):
 
 - [`starter.html`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/.agents/skills/dashboard-html/assets/templates/starter.html)
 
