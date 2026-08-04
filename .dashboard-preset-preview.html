@@ -1,0 +1,2376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Token 预设工具</title>
+  <style>
+    :root {
+      --tool-bg: #f4f4f5;
+      --tool-surface: #ffffff;
+      --tool-text: #18181b;
+      --tool-muted: #71717a;
+      --tool-line: #e4e4e7;
+      --tool-accent: #18181b;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      background: var(--tool-bg);
+      color: var(--tool-text);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    button { cursor: pointer; }
+
+    .workspace {
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 24px 64px;
+      transition: padding-right .22s ease;
+    }
+
+    .design-drawer {
+      position: fixed;
+      z-index: 80;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(420px, calc(100vw - 16px));
+      padding: 0 14px;
+      border-left: 1px solid var(--tool-line);
+      background: rgba(250, 250, 250, .98);
+      box-shadow: -12px 0 32px rgba(24, 24, 27, .10);
+      opacity: 0;
+      overflow-y: auto;
+      pointer-events: none;
+      transform: translateX(102%);
+      transition: transform .22s ease, opacity .18s ease;
+    }
+
+    body[data-design-mode="true"] .design-drawer {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    .design-drawer-header {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+      gap: 16px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--tool-line);
+      background: rgba(250, 250, 250, .98);
+    }
+
+    .workspace-intro { min-width: 0; }
+    .workspace-intro h1 { margin: 0; color: var(--tool-text); font-size: 14px; line-height: 1.25; }
+    .design-drawer-close {
+      display: inline-grid;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      padding: 0;
+      place-items: center;
+      border: 1px solid var(--tool-line);
+      border-radius: 6px;
+      background: var(--tool-surface);
+      color: var(--tool-muted);
+    }
+    .design-drawer-close:hover { border-color: #d4d4d8; color: var(--tool-text); }
+    .design-drawer-close:focus-visible { outline: 0; border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .12); }
+    .design-drawer-close svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 2; }
+    .design-drawer-actions { display: flex; align-items: center; gap: 6px; }
+    .design-save-status { margin-right: 4px; color: var(--tool-muted); font-size: 10px; white-space: nowrap; }
+    .design-action-button {
+      display: inline-grid;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      place-items: center;
+      border: 1px solid var(--tool-line);
+      border-radius: 6px;
+      background: var(--tool-surface);
+      color: var(--tool-muted);
+    }
+    .design-action-button:hover { border-color: #d4d4d8; color: var(--tool-text); }
+    .design-action-button.is-dirty { border-color: var(--tool-text); background: var(--tool-text); color: #fff; }
+    .design-action-button.is-dirty:hover { border-color: #3f3f46; background: #3f3f46; color: #fff; }
+    .design-action-button:focus-visible { outline: 0; border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .12); }
+    .design-action-button:disabled { cursor: not-allowed; opacity: .38; }
+    .design-action-button:disabled:hover { border-color: var(--tool-line); color: var(--tool-muted); }
+    .design-action-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+
+    .token-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      gap: 8px;
+      padding: 8px 0 12px;
+    }
+
+    .settings-tabs {
+      position: sticky;
+      z-index: 29;
+      top: 46px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2px;
+      padding: 8px 0 6px;
+      background: rgba(250, 250, 250, .98);
+    }
+    .settings-tabs button {
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--tool-muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .settings-tabs button[aria-pressed="true"] { border-color: var(--tool-line); background: #fff; color: var(--tool-text); box-shadow: 0 1px 3px rgba(24, 24, 27, .06); }
+    .design-drawer[data-settings-tab="global"] #cardContextBand { display: none; }
+    .design-drawer[data-settings-tab="local"] .toolbar-band:not(#cardContextBand) { display: none; }
+    #cardContextBand[data-empty="true"] { min-height: 170px; align-content: center; text-align: center; }
+    #cardContextBand[data-empty="true"] .toolbar-band-title { display: none; }
+    #cardContextBand[data-empty="true"] .context-card-name { color: var(--tool-muted); font-size: 11px; font-weight: 500; white-space: normal; }
+
+    .toolbar-band { display: grid; align-content: start; align-self: start; min-width: 0; gap: 8px; padding: 10px; border: 1px solid var(--tool-line); border-radius: 6px; background: rgba(255, 255, 255, .82); }
+    .toolbar-band--full { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; }
+    .toolbar-band-title { display: flex; align-items: center; gap: 7px; min-height: 18px; padding-bottom: 6px; border-bottom: 1px solid #eeeeef; color: #27272a; font-size: 11px; font-weight: 700; }
+    .toolbar-band-title::before { width: 3px; height: 12px; flex: 0 0 3px; border-radius: 999px; background: var(--tool-accent); content: ""; }
+    .toolbar-band-title .toggle { height: 18px; margin-left: auto; gap: 6px; font-size: 10px; font-weight: 600; }
+    .context-card-name { min-width: 0; overflow: hidden; color: var(--tool-muted); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .context-card-hint { color: var(--tool-muted); font-size: 11px; line-height: 1.6; }
+    .context-reset { margin-left: auto; padding: 0; border: 0; background: transparent; color: var(--tool-muted); font-size: 10px; }
+    .context-reset:hover { color: var(--tool-text); }
+    #sectionTitleBand[data-enabled="false"] .toolbar-band-controls { display: none; }
+    .toolbar-band--full .toolbar-band-title { padding-bottom: 6px; border-bottom: 1px solid #eeeeef; }
+    .toolbar-band-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 7px 8px; min-width: 0; }
+    .toolbar-band--full .toolbar-band-controls { display: grid; grid-template-columns: minmax(0, 1fr); align-items: end; gap: 8px; }
+    .control-group { display: grid; min-width: 0; gap: 3px; }
+    .conditional-field { min-width: 0; }
+    .conditional-field > .control-group { width: 100%; }
+    .toolbar-band:not(.toolbar-band--full) .control-group,
+    .toolbar-band:not(.toolbar-band--full) .mini-control { width: 100%; }
+    .control-group > span { color: var(--tool-muted); font-size: 10px; font-weight: 650; }
+    .section-composer-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: flex-end; width: 100%; gap: 7px 8px; }
+    .mini-control { display: grid; min-width: 0; gap: 3px; }
+    .mini-control > span { color: var(--tool-muted); font-size: 10px; font-weight: 600; }
+    .mini-control .control-select { width: 100%; min-width: 0; }
+    .section-composer-controls .range-control input { width: 58px; }
+
+    .segmented {
+      display: inline-flex;
+      min-height: 30px;
+      padding: 2px;
+      border: 1px solid var(--tool-line);
+      border-radius: 7px;
+      background: #f4f4f5;
+    }
+
+    .segmented button {
+      min-height: 24px;
+      padding: 3px 8px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #52525b;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      background: #fff;
+      color: #18181b;
+      box-shadow: 0 1px 4px rgba(24, 24, 27, .10);
+      font-weight: 650;
+    }
+
+    .preset-tabs { flex-wrap: wrap; }
+    .control-select {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 30px;
+      min-width: 100px;
+      padding: 0 30px 0 10px;
+      border: 1px solid var(--tool-line);
+      border-radius: 6px;
+      background-color: #fff;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23687586' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 14px 14px;
+      color: var(--tool-text);
+      font-size: 11px;
+      line-height: 28px;
+      text-align: left;
+      transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .control-select:hover { border-color: #d4d4d8; background-color: #fafafa; }
+    .control-select:focus-visible { outline: 0; border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .12); }
+    .control-select:disabled { cursor: not-allowed; opacity: .55; }
+
+    .custom-select { position: relative; width: 100%; min-width: 100px; }
+    .custom-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 30px;
+      gap: 10px;
+      padding: 0 8px 0 10px;
+      border: 1px solid var(--tool-line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--tool-text);
+      font-size: 11px;
+      line-height: 1;
+      text-align: left;
+      transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .custom-select-trigger:hover { border-color: #d4d4d8; background: #fafafa; }
+    .custom-select-trigger:focus-visible { outline: 0; border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .12); }
+    .custom-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .custom-select-chevron { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: var(--tool-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; transition: transform .15s ease; }
+    .custom-select[data-open="true"] .custom-select-chevron { transform: rotate(180deg); }
+    .custom-select-listbox {
+      position: absolute;
+      z-index: 100;
+      top: calc(100% + 4px);
+      left: 0;
+      width: max-content;
+      min-width: 100%;
+      max-width: min(240px, 80vw);
+      max-height: 220px;
+      overflow: auto;
+      padding: 4px;
+      border: 1px solid var(--tool-line);
+      border-radius: 6px;
+      outline: 0;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(24, 24, 27, .13);
+    }
+    .custom-select-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 28px;
+      gap: 14px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--tool-text);
+      font-size: 11px;
+      line-height: 1.35;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .custom-select-option:hover,
+    .custom-select-option[data-active="true"] { background: #f4f4f5; }
+    .custom-select-check { width: 14px; height: 14px; flex: 0 0 14px; visibility: hidden; fill: none; stroke: var(--tool-accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.25; }
+    .custom-select-option[aria-selected="true"] { color: var(--tool-text); font-weight: 650; }
+    .custom-select-option[aria-selected="true"] .custom-select-check { visibility: visible; }
+
+    .color-control { display: flex; align-items: center; gap: 7px; height: 30px; }
+    .color-control input[type="color"] { width: 30px; height: 30px; padding: 3px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; }
+    .color-control input[type="color"]:disabled { cursor: not-allowed; opacity: .42; }
+    .color-value { min-width: 60px; color: var(--tool-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .page-background-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+    .page-background-control > .custom-select { min-width: 0; }
+    .page-background-custom { display: inline-flex; align-items: center; }
+    .page-background-custom[hidden] { display: none !important; }
+    .page-background-custom input[type="color"] { width: 30px; height: 30px; padding: 3px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; }
+    .range-control { display: flex; align-items: center; gap: 7px; height: 30px; }
+    .range-control input { width: 88px; accent-color: var(--tool-accent); }
+    .range-value { min-width: 34px; color: var(--tool-muted); font-size: 11px; }
+
+    .logo-control { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+    .logo-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+    .logo-action {
+      display: inline-flex;
+      align-items: center;
+      height: 30px;
+      padding: 0 9px;
+      border: 1px solid var(--tool-line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--tool-text);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    button.logo-action { color: var(--tool-muted); }
+    .logo-status { max-width: 110px; overflow: hidden; color: var(--tool-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 34px;
+      color: var(--tool-muted);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toggle input { width: 30px; height: 17px; appearance: none; border-radius: 999px; background: #d4d4d8; transition: background .15s ease; }
+    .toggle input::before { display: block; width: 13px; height: 13px; margin: 2px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(24, 24, 27, .22); content: ""; transition: transform .15s ease; }
+    .toggle input:checked { background: var(--tool-accent); }
+    .toggle input:checked::before { transform: translateX(13px); }
+
+    .dashboard {
+      --page-bg: #f5f7fa;
+      --outer-bg: #f3eee9;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --text-main: #172033;
+      --text-secondary: #667085;
+      --text-muted: #98a2b3;
+      --page-text-main: #172033;
+      --page-text-secondary: #667085;
+      --accent-seed: #ff7a2f;
+      --accent-structure: #d95f14;
+      --accent-soft: #fff1e8;
+      --accent-on-soft: #9a3e0d;
+      --accent-on-solid: #18181b;
+      --accent-line: #edc7af;
+      --icon-accent: #a76032;
+      --icon-soft: #f5ebe5;
+      --icon-on-solid: #ffffff;
+      --chart-accent: #e8684a;
+      --chart-bi-1: #e8684a;
+      --chart-bi-2: #f6bd16;
+      --chart-1: #5b8ff9;
+      --chart-2: #5ad8a6;
+      --chart-3: #5d7092;
+      --chart-4: #f6bd16;
+      --chart-5: #e8684a;
+      --chart-6: #6dc8ec;
+      --accent: var(--accent-structure);
+      --success: #27a77f;
+      --danger: #ef5b5b;
+      --line: rgba(15, 23, 42, .08);
+      --shadow: 0 2px 10px rgba(15, 23, 42, .05);
+      --radius: 12px;
+      --frame-width: 1px;
+      --space: 18px;
+      --card-gap: 12px;
+      --font-scale: 1;
+      --hero-bg: var(--surface);
+      --section-number-display: none;
+      --section-rule-display: none;
+      --section-label-bg: transparent;
+      --section-pad-x: 0px;
+      --section-pad-y: 0px;
+      --section-leading-pad: 0px;
+      --section-bottom-pad: 0px;
+      --section-border-left: 0 solid transparent;
+      --section-border-bottom: 0 solid transparent;
+      --section-marker-display: none;
+      --section-kicker-display: none;
+      --section-title-size: 15px;
+      --card-title-size: 14px;
+      --section-kicker-size: 8px;
+      --section-marker-height: 15.75px;
+      --report-shell-radius: max(var(--radius), 8px);
+      --report-shell-shadow: 0 4px 18px rgba(15, 23, 42, .06);
+      --report-shell-max: 1000px;
+      --readable-content-max: 1000px;
+      --texture-color: color-mix(in srgb, var(--text-main) 7%, transparent);
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 8px;
+      background: var(--page-bg);
+      color: var(--page-text-main);
+      font-size: calc(14px * var(--font-scale));
+    }
+
+    body[data-page-texture="dots"], .dashboard[data-page-texture="dots"] {
+      background-image: radial-gradient(circle, var(--texture-color) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    body[data-page-texture="grid"], .dashboard[data-page-texture="grid"] {
+      background-image: linear-gradient(var(--texture-color) 1px, transparent 1px), linear-gradient(90deg, var(--texture-color) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    body[data-page-texture="lines"], .dashboard[data-page-texture="lines"] {
+      background-image: repeating-linear-gradient(0deg, transparent 0 15px, var(--texture-color) 15px 16px);
+    }
+
+    .report-hero {
+      --hero-text-main: var(--page-text-main);
+      --hero-text-secondary: var(--page-text-secondary);
+      overflow: hidden;
+      background: var(--hero-bg);
+    }
+
+    .hero-copy { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 28px 40px; }
+    .brand { display: flex; order: 0; align-items: center; max-width: min(220px, 100%); }
+    .brand img { display: block; width: auto; max-width: 100%; height: auto; max-height: 28px; object-fit: contain; }
+    .hero-title { order: 2; max-width: 580px; margin: 0; color: var(--hero-text-main); font-size: calc(32px * var(--font-scale)); font-weight: 760; line-height: 1.22; text-wrap: balance; overflow-wrap: anywhere; }
+    .hero-kicker { display: none; order: 1; max-width: 760px; margin: 0; color: var(--hero-text-secondary); font-size: calc(10px * var(--font-scale)); letter-spacing: .04em; text-wrap: balance; }
+    .hero-attribution { display: inline-flex; order: 3; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%; gap: 9px; margin-top: 16px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: var(--hero-text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .attribution-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .attribution-item > span { overflow-wrap: anywhere; }
+    .attribution-item svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .attribution-separator { width: 3px; height: 3px; flex: 0 0 3px; border-radius: 50%; background: currentColor; opacity: .45; }
+
+    .report-body { display: grid; gap: calc(var(--space) * 1.45); padding: calc(var(--space) * 1.7) calc(var(--space) * 2.2) calc(var(--space) * 2.2); }
+    .section { min-width: 0; }
+    .section-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; padding: var(--section-pad-y) var(--section-pad-x) calc(var(--section-pad-y) + var(--section-bottom-pad)) calc(var(--section-pad-x) + var(--section-leading-pad)); border-bottom: var(--section-border-bottom); border-left: var(--section-border-left); border-radius: calc(var(--radius) * .55); background: var(--section-label-bg); }
+    .section-heading::before { display: var(--section-marker-display); width: 4px; height: var(--section-marker-height); flex: 0 0 4px; border-radius: 999px; background: var(--accent-structure); content: ""; }
+    .section-number { display: var(--section-number-display); color: var(--accent-structure); font-size: calc(25px * var(--font-scale)); font-weight: 750; line-height: 1; }
+    .section-heading h2 { margin: 0; color: var(--page-text-main); font-size: var(--section-title-size); line-height: 1.3; }
+    .section-heading small { display: var(--section-kicker-display); color: var(--page-text-secondary); font-size: var(--section-kicker-size); letter-spacing: .04em; }
+    .section-heading small:empty { display: none; }
+    .section-rule { display: var(--section-rule-display); flex: 1; height: 1px; margin-left: 7px; background: var(--accent-line); }
+    .dashboard[data-section-visibility="hidden"] .section-heading { display: none; }
+
+    .surface { min-width: 0; border: 0; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text-main); }
+    .card-title { display: flex; align-items: center; gap: 8px; }
+    .card-title-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: calc(var(--radius) * .55); color: var(--title-icon-accent); }
+    .card-title-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .dashboard[data-card-title-icon="none"] .card-title-icon { display: none; }
+    .dashboard[data-card-title-icon="line"] .card-title-icon { width: 20px; height: 20px; flex-basis: 20px; border-radius: 0; }
+    .dashboard[data-card-title-icon="soft"] .card-title-icon { background: var(--title-icon-soft); color: var(--title-icon-accent); }
+    .dashboard[data-card-title-icon="solid"] .card-title-icon { background: var(--title-icon-accent); color: var(--title-icon-on-solid); }
+    .dashboard[data-card-title-icon-color="neutral"] { --title-icon-accent: var(--icon-neutral); --title-icon-soft: var(--icon-neutral-soft); --title-icon-on-solid: var(--icon-neutral-on-solid); }
+    .summary { display: grid; grid-template-columns: minmax(0, 1fr) 200px; align-items: center; gap: var(--space); padding: calc(var(--space) * 1.25); }
+    .summary-card-title { display: none; grid-column: 1 / -1; margin: 0; font-size: var(--card-title-size); line-height: 1.35; }
+    .dashboard[data-section-visibility="hidden"] .summary-card-title { display: flex; }
+    .summary-copy { position: relative; padding: 3px 18px; }
+    .summary-copy::before { position: absolute; top: -7px; left: -2px; color: var(--accent-structure); content: "“"; font-size: calc(28px * var(--font-scale)); font-weight: 750; }
+    .summary-copy p { margin: 0; color: var(--text-secondary); font-size: calc(12px * var(--font-scale)); line-height: 1.9; }
+    .summary-copy strong { color: var(--accent-on-soft); font-size: calc(16px * var(--font-scale)); }
+    .summary-score { border-left: 1px solid var(--accent-line); text-align: center; }
+    .summary-score strong { display: block; color: var(--accent-structure); font-size: calc(34px * var(--font-scale)); line-height: 1; }
+    .summary-score span { display: block; margin-top: 8px; color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); }
+    .metric { padding: var(--space); }
+    .metric-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .metric-label { color: var(--text-secondary); font-size: calc(var(--card-title-size) * .86); }
+    .metric-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: calc(var(--radius) * .6); color: var(--icon-accent); }
+    .metric-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .metric-icon::before { display: none; width: 17px; height: 17px; background: currentColor; content: ""; mask-position: center; mask-repeat: no-repeat; mask-size: contain; }
+    .metric strong { display: block; margin-top: 10px; font-size: calc(28px * var(--font-scale)); line-height: 1; }
+    .metric em { display: block; margin-top: 9px; color: var(--success); font-size: calc(10px * var(--font-scale)); font-style: normal; font-weight: 650; }
+
+    .dashboard[data-kpi-icon="none"] .metric-icon { display: none; }
+    .dashboard[data-kpi-icon="outline"] .metric-icon { border: 1px solid color-mix(in srgb, var(--icon-accent) 35%, transparent); background: transparent; }
+    .dashboard[data-kpi-icon="filled"] .metric-icon { background: transparent; color: var(--icon-accent); }
+    .dashboard[data-kpi-icon="filled"] .metric-icon svg { display: none; }
+    .dashboard[data-kpi-icon="filled"] .metric-icon::before { display: block; }
+    .metric:nth-child(1) .metric-icon::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M2 21v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2zM17 11a4 4 0 0 0 0-8 6 6 0 0 1 0 8zm1 2a5 5 0 0 0-2 .42A8 8 0 0 1 19 19v2h3v-3a5 5 0 0 0-4-5z'/%3E%3C/svg%3E"); }
+    .metric:nth-child(2) .metric-icon::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 20h18v2H1V2h2zM6 13h3v5H6zm5-5h3v10h-3zm5-4h3v14h-3z'/%3E%3C/svg%3E"); }
+    .metric:nth-child(3) .metric-icon::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10h4l2-7 5 16 2-9h5v4h-2l-4 8-5-13-1 5H3z'/%3E%3C/svg%3E"); }
+    .dashboard[data-kpi-icon="gradient"] .metric-icon { background: linear-gradient(135deg, color-mix(in srgb, var(--icon-accent) 72%, var(--surface)), var(--icon-accent)); box-shadow: 0 5px 12px color-mix(in srgb, var(--icon-accent) 18%, transparent); color: var(--icon-on-solid); }
+    .dashboard[data-kpi-icon="glass"] .metric-icon { border: 1px solid color-mix(in srgb, var(--icon-accent) 28%, transparent); background: var(--icon-soft); color: var(--icon-accent); box-shadow: inset 0 1px rgba(255, 255, 255, .35); }
+    .dashboard[data-kpi-layout="horizontal"] .metric,
+    .metric[data-kpi-layout="horizontal"] { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: 12px; align-items: center; }
+    .dashboard[data-kpi-layout="horizontal"] .metric .metric-head,
+    .metric[data-kpi-layout="horizontal"] .metric-head { display: contents; }
+    .dashboard[data-kpi-layout="horizontal"] .metric .metric-icon,
+    .metric[data-kpi-layout="horizontal"] .metric-icon { grid-column: 1; grid-row: 1 / 4; width: 36px; height: 36px; border-radius: 50%; }
+    .dashboard[data-kpi-layout="horizontal"] .metric .metric-label,
+    .metric[data-kpi-layout="horizontal"] .metric-label { grid-column: 2; grid-row: 1; }
+    .dashboard[data-kpi-layout="horizontal"] .metric strong,
+    .metric[data-kpi-layout="horizontal"] strong { grid-column: 2; grid-row: 2; margin-top: 3px; font-size: calc(22px * var(--font-scale)); }
+    .dashboard[data-kpi-layout="horizontal"] .metric em,
+    .metric[data-kpi-layout="horizontal"] em { grid-column: 2; grid-row: 3; margin-top: 5px; }
+    .metric[data-kpi-layout="stacked"] { display: block !important; }
+    .metric[data-kpi-layout="stacked"] .metric-head { display: flex !important; }
+    .metric[data-kpi-layout="stacked"] .metric-icon,
+    .metric[data-kpi-layout="stacked"] .metric-label,
+    .metric[data-kpi-layout="stacked"] strong,
+    .metric[data-kpi-layout="stacked"] em { grid-column: auto !important; grid-row: auto !important; }
+    .metric[data-kpi-layout="stacked"] .metric-icon { width: 32px !important; height: 32px !important; border-radius: calc(var(--radius) * .6) !important; }
+    .metric[data-kpi-layout="stacked"] strong { margin-top: 10px !important; font-size: calc(28px * var(--font-scale)) !important; }
+    .metric[data-kpi-layout="stacked"] em { margin-top: 9px !important; }
+    .dashboard[data-kpi-layout="horizontal"][data-kpi-icon="none"] .metric:not([data-kpi-icon]),
+    .dashboard[data-kpi-layout="horizontal"] .metric[data-kpi-icon="none"],
+    .metric[data-kpi-layout="horizontal"][data-kpi-icon="none"] { grid-template-columns: minmax(0, 1fr); }
+    .dashboard[data-kpi-layout="horizontal"][data-kpi-icon="none"] .metric:not([data-kpi-icon]) .metric-label,
+    .dashboard[data-kpi-layout="horizontal"][data-kpi-icon="none"] .metric:not([data-kpi-icon]) strong,
+    .dashboard[data-kpi-layout="horizontal"][data-kpi-icon="none"] .metric:not([data-kpi-icon]) em,
+    .dashboard[data-kpi-layout="horizontal"] .metric[data-kpi-icon="none"] .metric-label,
+    .dashboard[data-kpi-layout="horizontal"] .metric[data-kpi-icon="none"] strong,
+    .dashboard[data-kpi-layout="horizontal"] .metric[data-kpi-icon="none"] em { grid-column: 1; }
+
+    .content-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); gap: var(--card-gap); }
+    .panel { padding: var(--space); }
+    .panel h3 { margin: 0; font-size: var(--card-title-size); }
+    .panel-note { margin: 4px 0 0; color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .bar-chart { display: flex; align-items: end; gap: 9px; height: 150px; padding-top: 22px; }
+    .bar { flex: 1; min-width: 8px; height: var(--height); border-radius: 4px 4px 0 0; background: var(--chart-accent); }
+    .dashboard[data-chart-palette="bichrome"] .bar:nth-child(odd) { background: var(--chart-bi-1); }
+    .dashboard[data-chart-palette="bichrome"] .bar:nth-child(even) { background: var(--chart-bi-2); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 1) { background: var(--chart-1); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 2) { background: var(--chart-2); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 3) { background: var(--chart-3); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 4) { background: var(--chart-4); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 5) { background: var(--chart-5); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n) { background: var(--chart-6); }
+    .chart-axis { display: flex; justify-content: space-between; margin-top: 6px; color: var(--text-muted); font-size: calc(9px * var(--font-scale)); }
+    .ranking { display: grid; margin-top: 13px; }
+    .ranking-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 60px; align-items: center; gap: 8px; min-height: 31px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .ranking-row:last-child { border-bottom: 0; }
+    .ranking-row b { overflow: hidden; color: var(--text-main); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .rank-bar { height: 5px; overflow: hidden; border-radius: 999px; background: var(--accent-soft); }
+    .rank-bar::after { display: block; width: var(--width); height: 100%; border-radius: inherit; background: var(--chart-accent); content: ""; }
+    .dashboard[data-chart-palette="bichrome"] .ranking-row:nth-child(odd) .rank-bar::after { background: var(--chart-bi-1); }
+    .dashboard[data-chart-palette="bichrome"] .ranking-row:nth-child(even) .rank-bar::after { background: var(--chart-bi-2); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 1) .rank-bar::after { background: var(--chart-1); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 2) .rank-bar::after { background: var(--chart-2); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 3) .rank-bar::after { background: var(--chart-3); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 4) .rank-bar::after { background: var(--chart-4); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 5) .rank-bar::after { background: var(--chart-5); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n) .rank-bar::after { background: var(--chart-6); }
+    .dashboard .surface[data-chart-palette="monochrome"] .bar, .dashboard .surface[data-chart-palette="monochrome"] .rank-bar::after { background: var(--chart-accent) !important; }
+    .dashboard .surface[data-chart-palette="bichrome"] .bar:nth-child(odd), .dashboard .surface[data-chart-palette="bichrome"] .ranking-row:nth-child(odd) .rank-bar::after { background: var(--chart-bi-1) !important; }
+    .dashboard .surface[data-chart-palette="bichrome"] .bar:nth-child(even), .dashboard .surface[data-chart-palette="bichrome"] .ranking-row:nth-child(even) .rank-bar::after { background: var(--chart-bi-2) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 1), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 1) .rank-bar::after { background: var(--chart-1) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 2), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 2) .rank-bar::after { background: var(--chart-2) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 3), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 3) .rank-bar::after { background: var(--chart-3) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 4), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 4) .rank-bar::after { background: var(--chart-4) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 5), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 5) .rank-bar::after { background: var(--chart-5) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n) .rank-bar::after { background: var(--chart-6) !important; }
+    .surface[data-card-title-icon="none"] .card-title-icon { display: none; }
+    .surface[data-card-title-icon="line"] .card-title-icon { display: grid; width: 20px; height: 20px; flex-basis: 20px; border-radius: 0; background: transparent; color: var(--title-icon-accent); }
+    .surface[data-card-title-icon="soft"] .card-title-icon { display: grid; background: var(--title-icon-soft); color: var(--title-icon-accent); }
+    .surface[data-card-title-icon="solid"] .card-title-icon { display: grid; background: var(--title-icon-accent); color: var(--title-icon-on-solid); }
+    .surface[data-card-title-icon-color="neutral"] { --title-icon-accent: var(--icon-neutral); --title-icon-soft: var(--icon-neutral-soft); --title-icon-on-solid: var(--icon-neutral-on-solid); }
+    .surface[data-card-title-icon-color="accent"] { --title-icon-accent: var(--icon-theme-accent); --title-icon-soft: var(--icon-theme-soft); --title-icon-on-solid: var(--icon-theme-on-solid); }
+    .surface[data-icon-color="neutral"] { --icon-accent: var(--icon-neutral); --icon-soft: var(--icon-neutral-soft); --icon-on-solid: var(--icon-neutral-on-solid); }
+    .surface[data-kpi-icon="none"] .metric-icon { display: none; }
+    .surface[data-kpi-icon="outline"] .metric-icon { display: grid; border: 1px solid color-mix(in srgb, var(--icon-accent) 35%, transparent); background: transparent; color: var(--icon-accent); }
+    .surface[data-kpi-icon="outline"] .metric-icon svg,
+    .surface[data-kpi-icon="gradient"] .metric-icon svg,
+    .surface[data-kpi-icon="glass"] .metric-icon svg { display: block; }
+    .surface[data-kpi-icon="outline"] .metric-icon::before,
+    .surface[data-kpi-icon="gradient"] .metric-icon::before,
+    .surface[data-kpi-icon="glass"] .metric-icon::before { display: none; }
+    .surface[data-kpi-icon="filled"] .metric-icon { display: grid; background: transparent; color: var(--icon-accent); }
+    .surface[data-kpi-icon="filled"] .metric-icon svg { display: none; }
+    .surface[data-kpi-icon="filled"] .metric-icon::before { display: block; }
+    .surface[data-kpi-icon="gradient"] .metric-icon { display: grid; background: linear-gradient(135deg, color-mix(in srgb, var(--icon-accent) 72%, var(--surface)), var(--icon-accent)); color: var(--icon-on-solid); }
+    .surface[data-kpi-icon="glass"] .metric-icon { display: grid; border: 1px solid color-mix(in srgb, var(--icon-accent) 28%, transparent); background: var(--icon-soft); color: var(--icon-accent); }
+
+    .health-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, .55fr); gap: var(--card-gap); }
+    .health-table { display: grid; margin-top: 13px; }
+    .health-row { display: grid; grid-template-columns: minmax(150px, 1.4fr) minmax(90px, .7fr) minmax(90px, .7fr) 72px; align-items: center; gap: 10px; min-height: 38px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .health-row:last-child { border-bottom: 0; }
+    .health-row--head { min-height: 30px; color: var(--text-muted); font-size: calc(9px * var(--font-scale)); font-weight: 650; }
+    .health-row strong { overflow: hidden; color: var(--text-main); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .health-score { color: var(--text-main); font-weight: 700; }
+    .health-state { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); font-weight: 650; }
+    .health-state::before { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--success); content: ""; }
+    .health-state[data-tone="warning"]::before { background: var(--warning); }
+    .health-state[data-tone="danger"]::before { background: var(--danger); }
+    .risk-list { display: grid; gap: 9px; margin-top: 14px; }
+    .risk-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 43px; padding: 0 12px; border: 1px solid var(--line); border-radius: calc(var(--radius) * .65); background: var(--surface-muted); }
+    .risk-item span { color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .risk-item strong { color: var(--text-main); font-size: calc(16px * var(--font-scale)); }
+
+    .dashboard[data-header="brand"] { --hero-bg: linear-gradient(110deg, var(--accent-soft) 0%, var(--surface) 62%); }
+    .dashboard[data-header="minimal"] { --hero-bg: transparent; }
+    .dashboard[data-header="minimal"] .hero-copy { padding-top: 22px; padding-bottom: 18px; }
+    .dashboard[data-header="minimal"] .hero-title { font-size: calc(24px * var(--font-scale)); }
+    .dashboard[data-header="minimal"] .hero-attribution { margin-top: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+    .dashboard[data-header="surface"] .report-hero,
+    .dashboard[data-header="brand"] .report-hero {
+      --hero-text-main: var(--text-main);
+      --hero-text-secondary: var(--text-secondary);
+    }
+    .dashboard[data-header="hidden"] .report-hero { display: none; }
+    .dashboard[data-header="band"] { --hero-bg: var(--accent-seed); color: var(--accent-on-solid); }
+    .dashboard[data-header="band"] .report-hero {
+      --hero-text-main: var(--accent-on-solid);
+      --hero-text-secondary: var(--accent-on-solid);
+    }
+    .dashboard[data-header="band"] .hero-copy,
+    .dashboard[data-header="band"] .hero-kicker,
+    .dashboard[data-header="band"] .hero-attribution { color: var(--accent-on-solid); }
+    .dashboard[data-header="band"] .hero-attribution { border-color: color-mix(in srgb, var(--accent-on-solid) 24%, transparent); background: color-mix(in srgb, var(--accent-on-solid) 10%, transparent); }
+    .dashboard[data-header="band"] .hero-attribution { border-color: rgba(255,255,255,.24); background: rgba(255,255,255,.12); }
+    .dashboard[data-header-align="center"] .hero-copy { align-items: center; text-align: center; }
+    .brand:not([hidden]) ~ .hero-title { margin-top: 18px; }
+    .dashboard[data-subtitle="above"] .hero-kicker { display: block; }
+    .dashboard[data-subtitle="above"] .brand:not([hidden]) ~ .hero-kicker { margin-top: 16px; }
+    .dashboard[data-subtitle="above"] .hero-title { margin-top: 6px; }
+    .dashboard[data-subtitle="below"] .hero-title { order: 1; }
+    .dashboard[data-subtitle="below"] .hero-kicker { display: block; order: 2; margin-top: 6px; }
+    .dashboard[data-language="en"] .hero-title { max-width: 760px; font-size: calc(30px * var(--font-scale)); }
+    .dashboard[data-section-copy="bilingual"] { --section-kicker-display: inline; }
+    .dashboard[data-section-leading="marker"] { --section-marker-display: block; }
+    .dashboard[data-section-leading="accent"] { --section-leading-pad: 10px; --section-border-left: 3px solid var(--accent-structure); }
+    .dashboard[data-section-leading="number"] { --section-number-display: inline-block; }
+    .dashboard[data-section-divider="trailing"] { --section-rule-display: block; }
+    .dashboard[data-section-divider="bottom"] { --section-bottom-pad: 10px; --section-border-bottom: 1px solid var(--line); }
+    .dashboard[data-section-surface="tint"] { --section-pad-x: 10px; --section-pad-y: 8px; --section-label-bg: var(--accent-soft); }
+    .dashboard[data-frame="wireframe"] .surface { border: var(--frame-width) solid var(--line); }
+    .dashboard[data-page-type="dashboard"] {
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .dashboard[data-page-type="report"] {
+      width: min(100%, var(--report-shell-max));
+      margin-right: auto;
+      margin-left: auto;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--report-shell-radius);
+      box-shadow: var(--report-shell-shadow);
+    }
+
+    .dashboard[data-page-type="report"][data-mode="dark"] {
+      --report-shell-shadow: 0 4px 18px rgba(0, 0, 0, .22);
+    }
+
+    .dashboard[data-page-type="dashboard"][data-content-width="readable"] .hero-copy,
+    .dashboard[data-page-type="dashboard"][data-content-width="readable"] .report-body { width: min(100%, var(--readable-content-max)); margin-right: auto; margin-left: auto; }
+    .dashboard[data-page-type="report"] .hero-copy,
+    .dashboard[data-page-type="report"] .report-body { width: 100%; }
+    .dashboard[data-content-width="fluid"] .hero-copy,
+    .dashboard[data-content-width="fluid"] .report-body { width: 100%; }
+    .dashboard[data-page-type="report"] .report-body { gap: calc(var(--space) * 1.8); }
+    .dashboard[data-page-type="report"] .metric-grid[data-layout="responsive"] { gap: var(--card-gap); overflow: visible; border-radius: 0; background: transparent; box-shadow: none; }
+    .dashboard[data-page-type="report"] .metric-grid[data-layout="responsive"] .metric { border: 0; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .dashboard[data-page-type="report"] .content-grid[data-layout="responsive"] { grid-template-columns: 1fr; }
+
+    .layout-group[data-layout="custom"] { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+    .layout-group[data-layout="custom"] > .layout-item { grid-column: span var(--item-span, 12); }
+    .layout-group[data-layout="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .layout-group[data-layout="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .layout-group[data-layout="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .layout-group[data-layout="stack"] { grid-template-columns: minmax(0, 1fr); }
+    .layout-group[data-layout]:not([data-layout="responsive"]):not([data-layout="custom"]) > .layout-item { grid-column: auto; }
+    .dashboard[data-page-type="report"] .metric-grid:not([data-layout="responsive"]) { overflow: visible; gap: var(--card-gap); border-radius: 0; background: transparent; box-shadow: none; }
+    .dashboard[data-page-type="report"] .metric-grid:not([data-layout="responsive"]) .metric { border: 0; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .dashboard[data-surface-boundary="fallback"] .surface { border: 1px solid var(--line); }
+
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+    .layout-section-tools,
+    .layout-section-handle,
+    .layout-resize-handle { display: none; }
+    body[data-design-mode="true"] .layout-section-tools { display: flex; align-items: center; gap: 4px; }
+    .layout-section-tools { margin-left: auto; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"][data-section-visibility="hidden"] .section { position: relative; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"][data-section-visibility="hidden"] .section:hover > .layout-section-handle,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"][data-section-visibility="hidden"] .section:focus-within > .layout-section-handle,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"][data-section-visibility="hidden"] .section.layout-dragging > .layout-section-handle { display: inline-flex; }
+    body[data-design-mode="true"] .section.layout-group-active { outline: 2px solid rgba(24, 24, 27, .58); outline-offset: 7px; border-radius: calc(var(--radius) + 3px); }
+    body[data-design-mode="true"] .section.layout-group-active [data-item-id][data-selected="true"] { outline-color: transparent; }
+    .layout-section-handle {
+      position: absolute;
+      z-index: 18;
+      top: var(--group-handle-top, -10px);
+      left: var(--group-handle-left, -10px);
+      width: max-content;
+      min-width: 108px;
+      height: 28px;
+      padding: 0 12px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid #d4d4d8;
+      border-radius: 5px;
+      background: #ffffff;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, .12);
+      color: #52525b;
+      cursor: grab;
+    }
+    .layout-section-handle:active { cursor: grabbing; }
+    .layout-section-handle:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(24, 24, 27, .12), 0 3px 10px rgba(15, 23, 42, .12); }
+    .layout-section-handle svg { width: 15px; height: 15px; fill: currentColor; }
+    .layout-section-handle span { font-size: 11px; font-weight: 650; line-height: 1; letter-spacing: 0; white-space: nowrap; }
+    body[data-design-mode="true"] .layout-item { position: relative; cursor: grab; }
+    body[data-design-mode="true"] .surface[data-item-id] { position: relative; }
+    body[data-design-mode="true"] .surface[data-item-id]:not(.layout-item) { cursor: pointer; }
+    body[data-design-mode="true"] .surface[data-item-id]:not(.layout-item):hover { outline: 2px solid rgba(24, 24, 27, .32); outline-offset: 2px; }
+    body[data-design-mode="true"] .layout-item:active { cursor: grabbing; }
+    body[data-design-mode="true"] .layout-item:hover,
+    body[data-design-mode="true"] .layout-item:focus-within { outline: 2px solid rgba(24, 24, 27, .48); outline-offset: 2px; }
+    body[data-design-mode="true"] [data-item-id][data-selected="true"] { outline: 2px solid var(--tool-text); outline-offset: 3px; }
+    body[data-design-mode="true"] .layout-item:hover .layout-resize-handle,
+    body[data-design-mode="true"] .layout-item:focus-within .layout-resize-handle,
+    body[data-design-mode="true"] .layout-item[data-resizing="true"] .layout-resize-handle {
+      display: grid;
+    }
+    .layout-item-drag-label { display: none; }
+    body[data-design-mode="true"] .layout-item:hover > .layout-item-drag-label,
+    body[data-design-mode="true"] .layout-item:focus-within > .layout-item-drag-label,
+    body[data-design-mode="true"] .layout-item.layout-dragging > .layout-item-drag-label {
+      display: inline-flex;
+    }
+    .layout-item-drag-label {
+      position: absolute;
+      z-index: 16;
+      top: -10px;
+      left: 124px;
+      width: max-content;
+      min-width: 108px;
+      height: 28px;
+      padding: 0 12px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid #d4d4d8;
+      border-radius: 5px;
+      background: #ffffff;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, .12);
+      color: #52525b;
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1;
+      letter-spacing: 0;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .layout-item-drag-label svg { width: 15px; height: 15px; fill: currentColor; }
+    .layout-resize-handle {
+      position: absolute;
+      z-index: 14;
+      top: 50%;
+      width: 14px;
+      height: 38px;
+      padding: 0;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--tool-text) 42%, white);
+      border-radius: 5px;
+      background: var(--surface);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, .12);
+      color: var(--tool-text);
+      cursor: ew-resize;
+      transform: translateY(-50%);
+      touch-action: none;
+    }
+    .layout-resize-handle--left { left: -7px; }
+    .layout-resize-handle--right { right: -7px; }
+    .layout-resize-handle::before { width: 2px; height: 18px; border-radius: 999px; background: currentColor; box-shadow: 4px 0 currentColor; content: ""; opacity: .65; transform: translateX(-2px); }
+    .layout-resize-handle:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(24, 24, 27, .12), 0 3px 10px rgba(24, 24, 27, .12); }
+    .layout-edit-button { display: inline-grid; width: 25px; height: 25px; padding: 0; place-items: center; border: 0; border-radius: 4px; background: transparent; color: var(--tool-muted); }
+    .layout-edit-button:hover { background: #f4f4f5; color: var(--tool-text); }
+    .layout-edit-button:focus-visible { outline: 0; box-shadow: 0 0 0 2px rgba(24, 24, 27, .14); }
+    .layout-edit-button:disabled { cursor: not-allowed; opacity: .28; }
+    .layout-edit-button[draggable="true"] { cursor: grab; }
+    .layout-edit-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; }
+    .layout-section-tools .custom-select { width: 92px; min-width: 92px; }
+    .layout-section-tools .custom-select-trigger { height: 25px; min-height: 25px; padding-left: 7px; font-size: 10px; }
+    .layout-section-tools .control-select { height: 25px; min-width: 78px; font-size: 10px; }
+    .layout-dragging { opacity: .46; }
+    .layout-drop-target { outline: 2px solid rgba(24, 24, 27, .58) !important; outline-offset: 4px; }
+
+    @media (min-width: 1480px) {
+      body[data-design-mode="true"] .workspace { padding-right: 444px; }
+    }
+
+    @media (max-width: 760px) {
+      .token-toolbar { grid-template-columns: minmax(0, 1fr); }
+      .toolbar-band--full { grid-column: auto; }
+      .report-hero { grid-template-columns: minmax(0, 1fr); }
+      .summary { grid-template-columns: 1fr; }
+      .summary-score { padding: 12px 0; border-top: 1px solid var(--accent-line); border-left: 0; }
+      .content-grid { grid-template-columns: 1fr; }
+      .health-grid { grid-template-columns: 1fr; }
+      .health-row { grid-template-columns: minmax(120px, 1fr) 80px 64px; }
+      .health-row > :nth-child(2) { display: none; }
+    }
+
+    @media (max-width: 620px) {
+      .workspace { padding: 18px 12px 40px; }
+      .design-drawer { width: min(420px, calc(100vw - 8px)); padding: 0 10px; }
+      .design-drawer-header { min-height: 43px; }
+      .design-save-status { display: none; }
+      .token-toolbar { padding: 4px 0 10px; }
+      .toolbar-band { grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 9px; }
+      .toolbar-band--full .toolbar-band-title { padding-bottom: 6px; border-bottom: 1px solid #eeeeef; }
+      .toolbar-band-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 8px; }
+      .toolbar-band-controls .control-group,
+      .toolbar-band-controls .mini-control { width: 100%; min-width: 0; }
+      .toolbar-band-controls .control-select { width: 100%; min-width: 0; }
+      .toolbar-band--full .toolbar-band-controls { display: grid; grid-template-columns: minmax(0, 1fr); }
+      .segmented { overflow-x: auto; }
+      .preset-tabs { max-width: 100%; flex-wrap: nowrap; }
+      .hero-copy { padding: 22px 18px; }
+      .dashboard[data-header="minimal"] .hero-copy { padding: 18px 14px 16px; }
+      .hero-title { font-size: calc(27px * var(--font-scale)); }
+      .brand:not([hidden]) ~ .hero-title { margin-top: 16px; }
+      .dashboard[data-subtitle="above"] .brand:not([hidden]) ~ .hero-kicker { margin-top: 14px; }
+      .dashboard[data-subtitle="above"] .hero-title { margin-top: 5px; }
+      .dashboard[data-language="en"] .hero-title { font-size: calc(25px * var(--font-scale)); }
+      .hero-attribution { align-items: flex-start; gap: 7px 9px; margin-top: 14px; }
+      .attribution-separator { align-self: center; }
+      .report-body { padding: 24px 14px 28px; }
+      .section-heading { flex-wrap: wrap; }
+      .section-heading small { flex-basis: 100%; padding-left: 35px; }
+      .metric-grid { grid-template-columns: 1fr; }
+      .layout-group[data-layout] { grid-template-columns: minmax(0, 1fr); }
+      .layout-group[data-layout] > .layout-item { grid-column: 1; }
+      .layout-section-tools .custom-select { width: 84px; min-width: 84px; }
+      .layout-resize-handle { display: none !important; }
+      .metric strong { font-size: calc(25px * var(--font-scale)); }
+      .summary { padding: 18px 13px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="workspace">
+    <aside class="design-drawer" id="designDrawer" data-settings-tab="global" aria-label="Dashboard 设计工具" aria-hidden="true">
+      <header class="design-drawer-header">
+        <div class="workspace-intro">
+          <h1>视觉设置</h1>
+        </div>
+        <div class="design-drawer-actions">
+          <span class="design-save-status visually-hidden" id="designSaveStatus" role="status">配置已保存</span>
+          <button class="design-action-button" id="designSaveControl" type="button" aria-label="保存配置" title="保存配置" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>
+          </button>
+          <button class="design-action-button" id="designUndoControl" type="button" aria-label="撤销上一次设置" title="撤销上一次设置" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+          </button>
+          <button class="design-action-button" id="designDownloadControl" type="button" aria-label="下载成品 HTML" title="下载成品 HTML">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+          </button>
+          <button class="design-drawer-close" id="designDrawerClose" type="button" aria-label="关闭设计工具" title="关闭设计工具">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <nav class="settings-tabs" id="settingsTabControls" aria-label="设置范围">
+        <button type="button" data-value="global" aria-pressed="true">全局</button>
+        <button type="button" data-value="local" aria-pressed="false">局部</button>
+      </nav>
+
+      <section class="token-toolbar" aria-label="Dashboard 视觉参数">
+      <div class="toolbar-band toolbar-band--full">
+        <div class="toolbar-band-title">页面配置</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>页面类型</span><span class="segmented" id="pageTypeControls"><button type="button" data-value="dashboard" aria-pressed="true">Dashboard</button><button type="button" data-value="report" aria-pressed="false">Report</button></span></label>
+          <label class="control-group"><span>视觉预设</span><span class="segmented preset-tabs" id="presetControls">
+              <button type="button" data-preset="fx-orange" aria-pressed="true">默认后台</button>
+              <button type="button" data-preset="enterprise-blue" aria-pressed="false">企业分析</button>
+              <button type="button" data-preset="report-light" aria-pressed="false">阅读简洁</button>
+              <button type="button" data-preset="operations-dark" aria-pressed="false">运营深色</button>
+              <button type="button" data-preset="diagnostic-report" aria-pressed="false">诊断风格</button>
+          </span></label>
+        </div>
+      </div>
+
+      <div class="toolbar-band">
+        <div class="toolbar-band-title">基础主题</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>语言</span><span class="segmented" id="languageControls"><button type="button" data-value="zh" aria-pressed="true">中文</button><button type="button" data-value="en" aria-pressed="false">English</button></span></label>
+          <label class="control-group"><span>明暗</span><span class="segmented" id="modeControls"><button type="button" data-value="light" aria-pressed="true">浅色</button><button type="button" data-value="dark" aria-pressed="false">深色</button></span></label>
+          <label class="control-group"><span>主题色</span><span class="color-control"><input id="accentControl" type="color" value="#ff7a2f" aria-label="主题色"><output id="accentValue" class="color-value">#ff7a2f</output></span></label>
+          <div class="control-group"><span>页面底色</span><div class="page-background-control"><select class="control-select" id="pageBackgroundControl" aria-label="页面底色"><option value="auto">跟随主题</option><option value="neutral">中性底色</option><option value="accent-soft">主题浅色</option><option value="custom">自定义</option></select><span class="page-background-custom" id="customPageBackgroundField" hidden><input id="pageBackgroundColorControl" type="color" value="#f5f7fa" aria-label="自定义页面底色" disabled></span></div></div>
+          <label class="control-group"><span>页面纹理</span><select class="control-select" id="pageTextureControl"><option value="none">无</option><option value="dots">点阵</option><option value="grid">细网格</option><option value="lines">横线</option></select></label>
+          <label class="control-group"><span>基础字号</span><span class="range-control"><input id="fontControl" type="range" min="12" max="18" step="1" value="14"><output id="fontValue" class="range-value">14px</output></span></label>
+        </div>
+      </div>
+
+      <div class="toolbar-band">
+        <div class="toolbar-band-title">头部区域</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>样式</span><select class="control-select" id="headerControl"><option value="auto">跟随类型</option><option value="minimal">极简透明</option><option value="surface">卡片底承载</option><option value="brand">品牌浅色</option><option value="band">主题色块</option><option value="hidden">隐藏</option></select></label>
+          <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>对齐</span><select class="control-select" id="headerAlignControl"><option value="auto">跟随类型</option><option value="left">居左</option><option value="center">居中</option></select></label></div>
+          <div class="conditional-field" id="subtitleField"><label class="control-group"><span>副标题</span><select class="control-select" id="subtitleControl"><option value="none">无</option><option value="above">标题上方</option><option value="below">标题下方</option></select></label></div>
+          <div class="control-group" id="logoField"><span>Logo</span><div class="logo-control"><input class="logo-input" id="logoControl" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"><label class="logo-action" for="logoControl">上传</label><button class="logo-action" id="logoClearControl" type="button" hidden>移除</button><output class="logo-status" id="logoStatus">无</output></div></div>
+        </div>
+      </div>
+
+      <div class="toolbar-band" id="sectionTitleBand" data-enabled="false">
+        <div class="toolbar-band-title">分组标题<label class="toggle"><input id="sectionVisibilityToggle" type="checkbox"><span>显示</span></label></div>
+        <div class="toolbar-band-controls section-composer-controls">
+          <label class="mini-control"><span>装饰</span><select class="control-select" id="sectionLeadingControl"><option value="none">无</option><option value="marker">短竖线</option><option value="accent">整高色条</option><option value="number">编号</option></select></label>
+          <label class="mini-control"><span>标题</span><select class="control-select" id="sectionCopyControl"><option value="title">仅标题</option><option value="bilingual">双语标题</option></select></label>
+          <label class="mini-control"><span>线</span><select class="control-select" id="sectionDividerControl"><option value="none">无</option><option value="trailing">右侧横线</option><option value="bottom">底部横线</option></select></label>
+          <label class="mini-control"><span>底色</span><select class="control-select" id="sectionSurfaceControl"><option value="none">无</option><option value="tint">主题浅色</option></select></label>
+          <label class="mini-control"><span>字号</span><span class="range-control"><input id="sectionFontControl" type="range" min="12" max="24" step="1" value="15" aria-label="分组标题字号"><output id="sectionFontValue" class="range-value">15px</output></span></label>
+        </div>
+      </div>
+
+      <div class="toolbar-band">
+        <div class="toolbar-band-title">卡片</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>圆角</span><span class="range-control"><input id="radiusControl" type="range" min="0" max="16" step="1" value="12"><output id="radiusValue" class="range-value">12px</output></span></label>
+          <label class="control-group"><span>卡片间距</span><select class="control-select" id="cardGapControl"><option value="4">4px</option><option value="8">8px</option><option value="12" selected>12px</option><option value="16">16px</option><option value="20">20px</option><option value="24">24px</option><option value="28">28px</option><option value="32">32px</option><option value="36">36px</option><option value="40">40px</option></select></label>
+          <label class="control-group"><span>标题字号</span><select class="control-select" id="cardTitleFontControl"><option value="12">12px</option><option value="14" selected>14px</option><option value="16">16px</option><option value="18">18px</option><option value="20">20px</option></select></label>
+          <label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleIconControl"><option value="none" selected>无</option><option value="line">线型</option><option value="soft">浅色底</option><option value="solid">实色底</option></select></label>
+          <div class="conditional-field" id="cardTitleIconColorGlobalField" hidden><label class="control-group"><span>标题图标配色</span><select class="control-select" id="cardTitleIconColorControl"><option value="neutral" selected>中性色</option><option value="accent">主题色</option></select></label></div>
+          <label class="control-group"><span>线框</span><select class="control-select" id="frameControl"><option value="none" selected>无</option><option value="hairline">极弱</option><option value="soft">柔和</option><option value="standard">标准</option><option value="strong">强调</option></select></label>
+          <label class="control-group"><span>阴影</span><select class="control-select" id="shadowControl"><option value="none">无</option><option value="weak" selected>轻</option><option value="medium">中</option><option value="strong">重</option></select></label>
+        </div>
+      </div>
+
+      <div class="toolbar-band">
+        <div class="toolbar-band-title">图表</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>配色</span><select class="control-select" id="chartPaletteControl"><option value="monochrome" selected>单色</option><option value="bichrome">双色</option><option value="categorical">彩色</option></select></label>
+        </div>
+      </div>
+
+      <div class="toolbar-band" id="cardContextBand" data-empty="true">
+        <div class="toolbar-band-title">当前卡片<button class="context-reset" id="cardOverrideReset" type="button" hidden>恢复全局</button></div>
+        <div class="context-card-name" id="cardContextName">请先选择一张卡片</div>
+        <div class="context-card-hint" id="cardContextHint" hidden>此卡片暂无可单独设置的项目</div>
+        <div class="toolbar-band-controls" id="cardContextControls" hidden>
+          <div class="conditional-field" id="cardChartPaletteField" hidden><label class="control-group"><span>图表配色</span><select class="control-select" id="cardChartPaletteControl"><option value="inherit">跟随全局</option><option value="monochrome">单色</option><option value="bichrome">双色</option><option value="categorical">彩色</option></select></label></div>
+          <div class="conditional-field" id="cardTitleIconField" hidden><label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleIconOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="line">线型</option><option value="soft">浅色底</option><option value="solid">实色底</option></select></label></div>
+          <div class="conditional-field" id="cardTitleIconColorField" hidden><label class="control-group"><span>标题图标配色</span><select class="control-select" id="cardTitleIconColorOverrideControl"><option value="inherit">跟随全局</option><option value="neutral">中性色</option><option value="accent">主题色</option></select></label></div>
+          <div class="conditional-field" id="cardKpiIconField" hidden><label class="control-group"><span>KPI 图标</span><select class="control-select" id="cardKpiIconOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线型</option><option value="filled">面型</option><option value="gradient">渐变</option><option value="glass">玻璃</option></select></label></div>
+          <div class="conditional-field" id="cardKpiLayoutField" hidden><label class="control-group"><span>指标排列</span><select class="control-select" id="cardKpiLayoutControl"><option value="inherit">跟随全局</option><option value="stacked">上下排列</option><option value="horizontal">左右排列</option></select></label></div>
+          <div class="conditional-field" id="cardIconColorField" hidden><label class="control-group"><span>图标配色</span><select class="control-select" id="cardIconColorControl"><option value="inherit">跟随全局</option><option value="neutral">中性色</option><option value="accent">主题色</option></select></label></div>
+        </div>
+      </div>
+
+      <div class="toolbar-band">
+        <div class="toolbar-band-title">布局</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>页面宽度</span><select class="control-select" id="contentWidthControl"><option value="auto">跟随类型</option><option value="fluid">全宽</option><option value="readable">阅读宽度</option></select></label>
+          <label class="control-group"><span>内容间距</span><span class="segmented" id="spacingControls"><button type="button" data-value="compact" aria-pressed="false">紧凑</button><button type="button" data-value="standard" aria-pressed="true">标准</button><button type="button" data-value="relaxed" aria-pressed="false">宽松</button></span></label>
+        </div>
+      </div>
+
+      <div class="toolbar-band">
+        <div class="toolbar-band-title">指标卡</div>
+        <div class="toolbar-band-controls">
+          <label class="control-group"><span>KPI 图标</span><select class="control-select" id="kpiIconControl"><option value="none" selected>无</option><option value="outline">线型</option><option value="filled">面型</option><option value="gradient">渐变</option><option value="glass">玻璃</option></select></label>
+          <label class="control-group"><span>指标排列</span><select class="control-select" id="kpiLayoutControl"><option value="stacked" selected>上下排列</option><option value="horizontal">左右排列</option></select></label>
+        </div>
+      </div>
+      </section>
+    </aside>
+
+    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-layout="stacked" data-chart-palette="monochrome" data-page-texture="none" data-surface-boundary="normal">
+      <header class="report-hero">
+        <div class="hero-copy">
+          <div class="brand" id="brandSlot" hidden><img id="brandLogo" alt="品牌 Logo"></div>
+          <p class="hero-kicker" data-i18n="subtitle">CUSTOMER ANALYTICS · PERIODIC REPORT</p>
+          <h2 class="hero-title" data-i18n="title">客户经营分析报告</h2>
+          <div class="hero-attribution"><span class="attribution-item"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg><span data-i18n="dataThrough">数据截止 2026-07-30 18:00</span></span><span class="attribution-separator" aria-hidden="true"></span><span class="attribution-item"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg><span data-i18n="createdBy">创建人：赵丹 Mandy</span></span></div>
+        </div>
+      </header>
+
+      <div class="report-body">
+        <section class="section" data-section-id="summary">
+          <header class="section-heading"><span class="section-number">01</span><h2 data-i18n="sectionSummary">经营摘要</h2><small data-i18n="sectionSummaryKicker">EXECUTIVE SUMMARY</small><span class="section-rule"></span></header>
+          <div class="surface summary"><h3 class="summary-card-title card-title"><span class="card-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5h6M9 9h6M9 13h4"></path><rect x="5" y="3" width="14" height="18" rx="2"></rect></svg></span><span data-i18n="sectionSummary">经营摘要</span></h3><div class="summary-copy"><p id="summaryText">本周期客户经营表现整体稳健，重点客户覆盖与机会转化均有提升。目标完成率达到 <strong>91.30%</strong>，核心业务转化率为 <strong>32.8%</strong>，仍需关注少数风险事项。</p></div><div class="summary-score"><strong>91.30%</strong><span data-i18n="completionLabel">综合目标完成率</span></div></div>
+        </section>
+
+        <section class="section" data-section-id="metrics">
+          <header class="section-heading"><span class="section-number">02</span><h2 data-i18n="sectionMetrics">核心经营指标</h2><small data-i18n="sectionMetricsKicker">KEY METRICS</small><span class="section-rule"></span></header>
+          <div class="metric-grid"><article class="surface metric"><div class="metric-head"><span class="metric-label" data-i18n="customerLabel">重点客户</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span></div><strong data-i18n="customerValue">128 家</strong><em data-i18n="customerTrend">较上期 +12.4%</em></article><article class="surface metric"><div class="metric-head"><span class="metric-label" data-i18n="opportunityLabel">机会金额</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="m7 16 4-5 3 3 5-7"></path><path d="M19 7h-4v4"></path></svg></span></div><strong data-i18n="opportunityValue">2,460 万</strong><em data-i18n="opportunityTrend">较上期 +8.2%</em></article><article class="surface metric"><div class="metric-head"><span class="metric-label" data-i18n="conversionLabel">转化率</span><span class="metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"></path></svg></span></div><strong>32.8%</strong><em data-i18n="conversionTrend">较上期 +3.6%</em></article></div>
+        </section>
+
+        <section class="section" data-section-id="trends">
+          <header class="section-heading"><span class="section-number">03</span><h2 data-i18n="sectionTrends">趋势与来源表现</h2><small data-i18n="sectionTrendsKicker">TREND &amp; SOURCE PERFORMANCE</small><span class="section-rule"></span></header>
+          <div class="content-grid">
+            <article class="surface panel"><h3 class="card-title"><span class="card-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="m7 16 4-5 3 3 5-7"></path></svg></span><span data-i18n="trendPanelTitle">机会金额趋势</span></h3><p class="panel-note" data-i18n="weekly">按周统计</p><div class="bar-chart"><span class="bar" style="--height:36%"></span><span class="bar" style="--height:46%"></span><span class="bar" style="--height:42%"></span><span class="bar" style="--height:62%"></span><span class="bar" style="--height:74%"></span><span class="bar" style="--height:68%"></span><span class="bar" style="--height:91%"></span></div><div class="chart-axis"><span data-i18n="weekOne">第 1 周</span><span data-i18n="weekSeven">第 7 周</span></div></article>
+            <article class="surface panel"><h3 class="card-title"><span class="card-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"></path><path d="M3 6h.01M3 12h.01M3 18h.01"></path></svg></span><span data-i18n="sourcePanelTitle">来源表现 Top 5</span></h3><p class="panel-note" data-i18n="contribution">本周期贡献占比</p><div class="ranking"><div class="ranking-row"><span>01</span><b data-i18n="sourceCore">核心渠道</b><span class="rank-bar" style="--width:92%"></span></div><div class="ranking-row"><span>02</span><b data-i18n="sourceOrganic">自然流量</b><span class="rank-bar" style="--width:78%"></span></div><div class="ranking-row"><span>03</span><b data-i18n="sourcePartner">合作伙伴</b><span class="rank-bar" style="--width:66%"></span></div><div class="ranking-row"><span>04</span><b data-i18n="sourceContent">内容触达</b><span class="rank-bar" style="--width:57%"></span></div><div class="ranking-row"><span>05</span><b data-i18n="sourceReferral">客户推荐</b><span class="rank-bar" style="--width:44%"></span></div></div></article>
+          </div>
+        </section>
+
+        <section class="section" data-section-id="health">
+          <header class="section-heading"><span class="section-number">04</span><h2 data-i18n="sectionHealth">客户健康与风险</h2><small data-i18n="sectionHealthKicker">CUSTOMER HEALTH &amp; RISK</small><span class="section-rule"></span></header>
+          <div class="health-grid">
+            <article class="surface panel"><h3 class="card-title"><span class="card-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"></path></svg></span><span data-i18n="healthPanelTitle">重点客户健康度</span></h3><p class="panel-note" data-i18n="healthPanelNote">最近 30 天综合表现</p><div class="health-table"><div class="health-row health-row--head"><span data-i18n="healthCustomer">客户</span><span data-i18n="healthOwner">负责人</span><span data-i18n="healthScore">健康分</span><span data-i18n="healthStatus">状态</span></div><div class="health-row"><strong data-i18n="healthCustomerEast">华东智造集团</strong><span data-i18n="healthOwnerWang">王琳</span><span class="health-score">92</span><span class="health-state" data-i18n="healthStable">稳健</span></div><div class="health-row"><strong data-i18n="healthCustomerVoyage">远航零售</strong><span data-i18n="healthOwnerChen">陈昊</span><span class="health-score">84</span><span class="health-state" data-tone="warning" data-i18n="healthWatch">关注</span></div><div class="health-row"><strong data-i18n="healthCustomerNewPath">新程科技</strong><span data-i18n="healthOwnerZhao">赵丹</span><span class="health-score">78</span><span class="health-state" data-tone="warning" data-i18n="healthWatch">关注</span></div><div class="health-row"><strong data-i18n="healthCustomerUnited">联合服务</strong><span data-i18n="healthOwnerLi">李敏</span><span class="health-score">63</span><span class="health-state" data-tone="danger" data-i18n="healthRisk">风险</span></div></div></article>
+            <article class="surface panel"><h3 class="card-title"><span class="card-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 3.6 2.4 18a2 2 0 0 0 1.8 3h15.6a2 2 0 0 0 1.8-3L13.7 3.6a2 2 0 0 0-3.4 0Z"></path></svg></span><span data-i18n="riskPanelTitle">风险事项</span></h3><p class="panel-note" data-i18n="riskPanelNote">当前待处理事项</p><div class="risk-list"><div class="risk-item"><span data-i18n="riskRenewal">续约风险</span><strong>6</strong></div><div class="risk-item"><span data-i18n="riskFollowup">跟进停滞</span><strong>4</strong></div><div class="risk-item"><span data-i18n="riskPayment">回款延期</span><strong>3</strong></div></div></article>
+          </div>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <script>
+    const presets = {
+      "fx-orange": { label: "默认后台", accent: "#ff7a2f", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "title", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, radius: 12, cardGap: 12, font: 14, shadow: "weak", spacing: "standard", light: { page: "#f5f7fa", surface: "#ffffff", mutedSurface: "#f8fafc", text: "#172033", secondary: "#667085", muted: "#98a2b3", line: "rgba(15, 23, 42, .08)" } },
+      "enterprise-blue": { label: "企业分析", accent: "#2563eb", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 8, cardGap: 12, font: 14, shadow: "none", spacing: "standard", light: { page: "#f4f7fb", surface: "#ffffff", mutedSurface: "#f7faff", text: "#172033", secondary: "#60708a", muted: "#91a0b5", line: "rgba(37, 99, 235, .14)" } },
+      "report-light": { label: "阅读简洁", accent: "#147d72", mode: "light", header: "plain", headerAlign: "center", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "none", sectionSurface: "tint", sectionFont: 16, radius: 6, cardGap: 16, font: 15, shadow: "none", spacing: "relaxed", light: { page: "#f7f5ef", surface: "#fffefa", mutedSurface: "#f1eee6", text: "#20251f", secondary: "#6d746b", muted: "#92998d", line: "rgba(32, 37, 31, .10)" } },
+      "operations-dark": { label: "运营深色", accent: "#ff9b54", mode: "dark", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 6, cardGap: 8, font: 13, shadow: "medium", spacing: "compact", light: { page: "#f4f6f8", surface: "#ffffff", mutedSurface: "#f7f8fa", text: "#172033", secondary: "#64748b", muted: "#94a3b8", line: "rgba(15, 23, 42, .09)" } },
+      "diagnostic-report": { label: "诊断风格", accent: "#4f8fe8", mode: "light", header: "brand", headerAlign: "center", sectionLeading: "number", sectionCopy: "bilingual", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, frame: "none", radius: 8, cardGap: 12, font: 14, shadow: "weak", spacing: "standard", light: { page: "#fbfdff", surface: "#ffffff", mutedSurface: "#edf4ff", text: "#102754", secondary: "#64748b", muted: "#8da0bc", line: "#e6edf7" } }
+    };
+
+    const presetViews = {
+      dashboard: {
+        allowed: ["fx-orange", "enterprise-blue", "report-light", "operations-dark"],
+        labels: { "fx-orange": "标准看板", "enterprise-blue": "企业分析", "report-light": "极简看板", "operations-dark": "运营深色", "diagnostic-report": "诊断看板" }
+      },
+      report: {
+        allowed: ["fx-orange", "enterprise-blue", "report-light", "diagnostic-report"],
+        labels: { "fx-orange": "品牌报告", "enterprise-blue": "企业报告", "report-light": "简洁报告", "operations-dark": "深色报告", "diagnostic-report": "诊断报告" }
+      }
+    };
+
+    const translations = {
+      zh: {
+        title: "客户经营分析报告", subtitle: "CUSTOMER ANALYTICS · PERIODIC REPORT", dataThrough: "数据截止 2026-07-30 18:00", createdBy: "创建人：赵丹 Mandy",
+        sectionSummary: "经营摘要", sectionSummaryKicker: "EXECUTIVE SUMMARY", completionLabel: "综合目标完成率",
+        sectionMetrics: "核心经营指标", sectionMetricsKicker: "KEY METRICS", customerLabel: "重点客户", customerValue: "128 家", customerTrend: "较上期 +12.4%",
+        opportunityLabel: "机会金额", opportunityValue: "2,460 万", opportunityTrend: "较上期 +8.2%", conversionLabel: "转化率", conversionTrend: "较上期 +3.6%",
+        sectionTrends: "趋势与来源表现", sectionTrendsKicker: "TREND & SOURCE PERFORMANCE", trendPanelTitle: "机会金额趋势", weekly: "按周统计", weekOne: "第 1 周", weekSeven: "第 7 周",
+        sourcePanelTitle: "来源表现 Top 5", contribution: "本周期贡献占比", sourceCore: "核心渠道", sourceOrganic: "自然流量", sourcePartner: "合作伙伴", sourceContent: "内容触达", sourceReferral: "客户推荐",
+        sectionHealth: "客户健康与风险", sectionHealthKicker: "CUSTOMER HEALTH & RISK", healthPanelTitle: "重点客户健康度", healthPanelNote: "最近 30 天综合表现", healthCustomer: "客户", healthOwner: "负责人", healthScore: "健康分", healthStatus: "状态", healthStable: "稳健", healthWatch: "关注", healthRisk: "风险", healthCustomerEast: "华东智造集团", healthCustomerVoyage: "远航零售", healthCustomerNewPath: "新程科技", healthCustomerUnited: "联合服务", healthOwnerWang: "王琳", healthOwnerChen: "陈昊", healthOwnerZhao: "赵丹", healthOwnerLi: "李敏", riskPanelTitle: "风险事项", riskPanelNote: "当前待处理事项", riskRenewal: "续约风险", riskFollowup: "跟进停滞", riskPayment: "回款延期",
+        summaryHtml: "本周期客户经营表现整体稳健，重点客户覆盖与机会转化均有提升。目标完成率达到 <strong>91.30%</strong>，核心业务转化率为 <strong>32.8%</strong>，仍需关注少数风险事项。",
+        logoAlt: "品牌 Logo"
+      },
+      en: {
+        title: "Customer Business Performance Report", subtitle: "CUSTOMER ANALYTICS · PERIODIC REPORT", dataThrough: "Data through Jul 30, 2026, 18:00", createdBy: "Created by Zhao Dan (Mandy)",
+        sectionSummary: "Executive Summary", sectionSummaryKicker: "", completionLabel: "Overall target completion",
+        sectionMetrics: "Key Business Metrics", sectionMetricsKicker: "", customerLabel: "Priority customers", customerValue: "128", customerTrend: "vs. prior period +12.4%",
+        opportunityLabel: "Opportunity value", opportunityValue: "CNY 24.6M", opportunityTrend: "vs. prior period +8.2%", conversionLabel: "Conversion rate", conversionTrend: "vs. prior period +3.6%",
+        sectionTrends: "Trend and Source Performance", sectionTrendsKicker: "", trendPanelTitle: "Opportunity Value Trend", weekly: "Weekly view", weekOne: "Week 1", weekSeven: "Week 7",
+        sourcePanelTitle: "Top 5 Sources", contribution: "Share of period contribution", sourceCore: "Core channels", sourceOrganic: "Organic traffic", sourcePartner: "Partners", sourceContent: "Content outreach", sourceReferral: "Customer referrals",
+        sectionHealth: "Customer Health and Risk", sectionHealthKicker: "", healthPanelTitle: "Priority Customer Health", healthPanelNote: "Composite performance over the last 30 days", healthCustomer: "Customer", healthOwner: "Owner", healthScore: "Score", healthStatus: "Status", healthStable: "Stable", healthWatch: "Watch", healthRisk: "At risk", healthCustomerEast: "East China Manufacturing", healthCustomerVoyage: "Voyage Retail", healthCustomerNewPath: "NewPath Technology", healthCustomerUnited: "United Services", healthOwnerWang: "Wang Lin", healthOwnerChen: "Chen Hao", healthOwnerZhao: "Zhao Dan", healthOwnerLi: "Li Min", riskPanelTitle: "Risk Items", riskPanelNote: "Open items requiring attention", riskRenewal: "Renewal risk", riskFollowup: "Stalled follow-up", riskPayment: "Delayed payment",
+        summaryHtml: "Customer performance remained stable during the period, with stronger priority-account coverage and opportunity conversion. Overall target completion reached <strong>91.30%</strong>, while the core business conversion rate was <strong>32.8%</strong>. A small number of risk items still require attention.",
+        logoAlt: "Brand logo"
+      }
+    };
+
+    const darkTokens = { page: "#10151f", surface: "#1b2430", mutedSurface: "#222d3b", text: "#f4f7fb", secondary: "#b9c4d2", muted: "#8492a4", line: "rgba(226, 232, 240, .12)" };
+    const shadows = { none: "none", weak: "0 2px 8px rgba(15, 23, 42, .06)", medium: "0 6px 18px rgba(15, 23, 42, .10)", strong: "0 12px 28px rgba(15, 23, 42, .16)" };
+    const darkShadows = { none: "none", weak: "0 2px 8px rgba(0, 0, 0, .22)", medium: "0 8px 22px rgba(0, 0, 0, .30)", strong: "0 14px 32px rgba(0, 0, 0, .42)" };
+    const spaces = { compact: 14, standard: 18, relaxed: 22 };
+    const cardGapSteps = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
+    const frameTokens = {
+      none: { width: "0", contrast: "0%" },
+      hairline: { width: "1px", contrast: "12%" },
+      soft: { width: "1px", contrast: "20%" },
+      standard: { width: "1px", contrast: "32%" },
+      strong: { width: "1.5px", contrast: "46%" }
+    };
+
+    const dashboard = document.querySelector("#dashboardPreview");
+    const designDrawer = document.querySelector("#designDrawer");
+    const designDrawerClose = document.querySelector("#designDrawerClose");
+    const designSaveStatus = document.querySelector("#designSaveStatus");
+    const designSaveControl = document.querySelector("#designSaveControl");
+    const designUndoControl = document.querySelector("#designUndoControl");
+    const designDownloadControl = document.querySelector("#designDownloadControl");
+    const accentControl = document.querySelector("#accentControl");
+    const pageBackgroundControl = document.querySelector("#pageBackgroundControl");
+    const pageBackgroundColorControl = document.querySelector("#pageBackgroundColorControl");
+    const customPageBackgroundField = document.querySelector("#customPageBackgroundField");
+    const pageTextureControl = document.querySelector("#pageTextureControl");
+    const radiusControl = document.querySelector("#radiusControl");
+    const cardGapControl = document.querySelector("#cardGapControl");
+    const cardTitleFontControl = document.querySelector("#cardTitleFontControl");
+    const cardTitleIconControl = document.querySelector("#cardTitleIconControl");
+    const cardTitleIconColorGlobalField = document.querySelector("#cardTitleIconColorGlobalField");
+    const cardTitleIconColorControl = document.querySelector("#cardTitleIconColorControl");
+    const fontControl = document.querySelector("#fontControl");
+    const sectionFontControl = document.querySelector("#sectionFontControl");
+    const shadowControl = document.querySelector("#shadowControl");
+    const frameControl = document.querySelector("#frameControl");
+    const kpiIconControl = document.querySelector("#kpiIconControl");
+    const kpiLayoutControl = document.querySelector("#kpiLayoutControl");
+    const chartPaletteControl = document.querySelector("#chartPaletteControl");
+    const headerControl = document.querySelector("#headerControl");
+    const headerAlignControl = document.querySelector("#headerAlignControl");
+    const subtitleControl = document.querySelector("#subtitleControl");
+    const headerAlignField = document.querySelector("#headerAlignField");
+    const subtitleField = document.querySelector("#subtitleField");
+    const logoField = document.querySelector("#logoField");
+    const logoControl = document.querySelector("#logoControl");
+    const logoClearControl = document.querySelector("#logoClearControl");
+    const logoStatus = document.querySelector("#logoStatus");
+    const brandSlot = document.querySelector("#brandSlot");
+    const brandLogo = document.querySelector("#brandLogo");
+    const contentWidthControl = document.querySelector("#contentWidthControl");
+    const sectionTitleBand = document.querySelector("#sectionTitleBand");
+    const sectionVisibilityToggle = document.querySelector("#sectionVisibilityToggle");
+    const sectionLeadingControl = document.querySelector("#sectionLeadingControl");
+    const sectionCopyControl = document.querySelector("#sectionCopyControl");
+    const sectionDividerControl = document.querySelector("#sectionDividerControl");
+    const sectionSurfaceControl = document.querySelector("#sectionSurfaceControl");
+    const cardContextControls = document.querySelector("#cardContextControls");
+    const cardContextName = document.querySelector("#cardContextName");
+    const cardContextHint = document.querySelector("#cardContextHint");
+    const cardOverrideReset = document.querySelector("#cardOverrideReset");
+    const cardChartPaletteField = document.querySelector("#cardChartPaletteField");
+    const cardChartPaletteControl = document.querySelector("#cardChartPaletteControl");
+    const cardTitleIconField = document.querySelector("#cardTitleIconField");
+    const cardTitleIconOverrideControl = document.querySelector("#cardTitleIconOverrideControl");
+    const cardTitleIconColorField = document.querySelector("#cardTitleIconColorField");
+    const cardTitleIconColorOverrideControl = document.querySelector("#cardTitleIconColorOverrideControl");
+    const cardKpiIconField = document.querySelector("#cardKpiIconField");
+    const cardKpiIconOverrideControl = document.querySelector("#cardKpiIconOverrideControl");
+    const cardKpiLayoutField = document.querySelector("#cardKpiLayoutField");
+    const cardKpiLayoutControl = document.querySelector("#cardKpiLayoutControl");
+    const cardIconColorField = document.querySelector("#cardIconColorField");
+    const cardIconColorControl = document.querySelector("#cardIconColorControl");
+    const settingsTabControls = document.querySelector("#settingsTabControls");
+    let state = {};
+    let selectedCardId = null;
+    const customSelects = new Map();
+    const WORKSPACE_STORAGE_KEY = "dashboard-preset-preview:v1";
+    const WORKSPACE_PREVIOUS_KEY = "dashboard-preset-preview:previous:v1";
+    const PROJECT_STATE_SCRIPT_ID = "dashboard-project-state";
+    let workspaceIsRestoring = true;
+
+    function setSaveStatus(message) {
+      designSaveStatus.textContent = message;
+    }
+
+    function setWorkspaceDirty(dirty) {
+      designSaveControl.disabled = !dirty;
+      designSaveControl.classList.toggle("is-dirty", dirty);
+      designSaveControl.setAttribute("aria-label", dirty ? "保存配置，有未保存更改" : "保存配置");
+      designSaveControl.title = dirty ? "保存配置（有未保存更改）" : "保存配置";
+      setSaveStatus(dirty ? "有未保存更改" : "配置已保存");
+    }
+
+    function createWorkspaceState() {
+      return {
+        version: 2,
+        theme: state,
+        layout: window.DashboardLayoutEditor.getConfig(),
+        logo: brandSlot.hidden ? null : { src: brandLogo.src, alt: brandLogo.alt }
+      };
+    }
+
+    function updateUndoAvailability() {
+      designUndoControl.disabled = !localStorage.getItem(WORKSPACE_PREVIOUS_KEY);
+    }
+
+    function readWorkspaceState() {
+      try {
+        return JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || "null");
+      } catch (error) {
+        setSaveStatus("无法读取保存内容");
+        return null;
+      }
+    }
+
+    function readUrlWorkspaceState() {
+      try {
+        const encodedState = new URL(window.location.href).searchParams.get("state")
+          || new URLSearchParams(window.location.hash.slice(1)).get("config");
+        return encodedState ? JSON.parse(encodedState) : null;
+      } catch (error) {
+        setSaveStatus("地址中的配置无效");
+        return null;
+      }
+    }
+
+    function writeUrlWorkspaceState(workspaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("state", JSON.stringify({ ...workspaceState, logo: null }));
+      const hash = new URLSearchParams(url.hash.slice(1));
+      hash.delete("config");
+      url.hash = hash.toString();
+      window.location.replace(`${url.pathname}${url.search}${url.hash}`);
+    }
+
+    function readProjectState() {
+      const projectState = document.querySelector(`#${PROJECT_STATE_SCRIPT_ID}`);
+      if (!projectState) return null;
+      try {
+        return JSON.parse(projectState.textContent);
+      } catch (error) {
+        setSaveStatus("工程配置无效");
+        return null;
+      }
+    }
+
+    function writeWorkspaceState() {
+      if (workspaceIsRestoring || !state.preset || !window.DashboardLayoutEditor) return;
+      const workspaceState = createWorkspaceState();
+      try {
+        const nextState = JSON.stringify(workspaceState);
+        const currentState = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+        if (currentState && currentState !== nextState) localStorage.setItem(WORKSPACE_PREVIOUS_KEY, currentState);
+        localStorage.setItem(WORKSPACE_STORAGE_KEY, nextState);
+        updateUndoAvailability();
+        setWorkspaceDirty(false);
+      } catch (error) {
+        setSaveStatus("保存空间不足");
+      }
+      writeUrlWorkspaceState(workspaceState);
+    }
+
+    function scheduleWorkspaceSave() {
+      if (workspaceIsRestoring) return;
+      setWorkspaceDirty(true);
+    }
+
+    function restoreWorkspaceState(saved) {
+      if (!saved || ![1, 2].includes(saved.version) || !saved.theme || !presets[saved.theme.preset]) return false;
+      selectPreset(saved.theme.preset);
+      const restoredTheme = { ...saved.theme };
+      if (saved.version === 1) restoredTheme.headerAlign = "auto";
+      state = { ...state, ...restoredTheme, preset: saved.theme.preset };
+      applyState();
+      if (saved.layout) window.DashboardLayoutEditor.applyConfig(saved.layout);
+      if (saved.logo?.src) {
+        brandLogo.src = saved.logo.src;
+        brandLogo.alt = saved.logo.alt || translations[state.language].logoAlt;
+        brandSlot.hidden = false;
+        logoClearControl.hidden = false;
+        logoStatus.textContent = "已恢复";
+      } else {
+        brandLogo.removeAttribute("src");
+        brandSlot.hidden = true;
+        logoClearControl.hidden = true;
+        logoStatus.textContent = "无";
+      }
+      return true;
+    }
+
+    function undoWorkspaceState() {
+      const previousState = localStorage.getItem(WORKSPACE_PREVIOUS_KEY);
+      if (!previousState) return;
+      try {
+        const previous = JSON.parse(previousState);
+        workspaceIsRestoring = true;
+        const restored = restoreWorkspaceState(previous);
+        workspaceIsRestoring = false;
+        if (!restored) throw new Error("无法恢复上一版设置");
+        localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(createWorkspaceState()));
+        localStorage.removeItem(WORKSPACE_PREVIOUS_KEY);
+        updateUndoAvailability();
+        setWorkspaceDirty(false);
+        setSaveStatus("已撤销上一次设置");
+      } catch (error) {
+        workspaceIsRestoring = false;
+        localStorage.removeItem(WORKSPACE_PREVIOUS_KEY);
+        updateUndoAvailability();
+        setSaveStatus("上一版设置无法恢复");
+      }
+    }
+
+    function collectExportCss(rules) {
+      const editorSelectors = [
+        ".design-drawer", ".workspace-intro", ".token-toolbar", ".toolbar-band", ".control-group", ".section-composer-controls", ".mini-control",
+        ".segmented", ".preset-tabs", ".settings-tabs", ".control-select", ".custom-select", ".color-control", ".color-value", ".page-background-control", ".page-background-custom", ".range-control", ".range-value",
+        ".logo-control", ".logo-input", ".logo-action", ".logo-status", ".toggle", ".layout-section-tools", ".layout-section-handle", ".layout-item-drag-label", ".layout-resize-handle", ".layout-edit-button",
+        ".layout-dragging", ".layout-drop-target", ".layout-group-active", ".context-card-name", ".context-card-hint", ".context-reset", ".visually-hidden", "body[data-design-mode"
+      ];
+      return [...rules].map((rule) => {
+        if (rule.type === CSSRule.STYLE_RULE && editorSelectors.some((selector) => rule.selectorText.includes(selector))) return "";
+        if (rule.type === CSSRule.MEDIA_RULE) {
+          const content = collectExportCss(rule.cssRules);
+          return content.trim() ? `@media ${rule.conditionText} {\n${content}\n}` : "";
+        }
+        return rule.cssText;
+      }).filter(Boolean).join("\n");
+    }
+
+    function serializeCleanReport() {
+      const clone = document.documentElement.cloneNode(true);
+      const reportTitle = dashboard.querySelector(".hero-title").textContent.trim() || "Dashboard Report";
+      clone.querySelector("title").textContent = reportTitle;
+      clone.querySelector(".design-drawer")?.remove();
+      clone.querySelectorAll(".layout-section-tools, .layout-section-handle, .layout-item-drag-label, .layout-resize-handle, script").forEach((element) => element.remove());
+      clone.querySelectorAll("[draggable]").forEach((element) => element.removeAttribute("draggable"));
+      clone.querySelectorAll("[data-selected]").forEach((element) => element.removeAttribute("data-selected"));
+      clone.querySelectorAll(".layout-group-active").forEach((element) => element.classList.remove("layout-group-active"));
+      clone.querySelector("body").removeAttribute("data-design-mode");
+      clone.querySelector("body").style.background = getComputedStyle(dashboard).getPropertyValue("--outer-bg").trim();
+      const style = clone.querySelector("style");
+      style.textContent = collectExportCss(document.styleSheets[0].cssRules);
+      return `<!DOCTYPE html>\n${clone.outerHTML}`;
+    }
+
+    function downloadHtml(html, filename) {
+      const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function saveHtmlFile(html, filename) {
+      if (typeof window.showSaveFilePicker !== "function") {
+        downloadHtml(html, filename);
+        return "download";
+      }
+
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "HTML 文件", accept: { "text/html": [".html"] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([html], { type: "text/html;charset=utf-8" }));
+        await writable.close();
+        return "saved";
+      } catch (error) {
+        if (error.name === "AbortError") return "cancelled";
+        throw error;
+      }
+    }
+
+    function reportFilename(suffix) {
+      const title = dashboard.querySelector(".hero-title").textContent.trim() || "dashboard-report";
+      const safeTitle = title.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-");
+      return `${safeTitle}-${suffix}.html`;
+    }
+
+    async function downloadCleanReport() {
+      try {
+        const result = await saveHtmlFile(serializeCleanReport(), reportFilename("成品"));
+        setSaveStatus(result === "saved" ? "成品已保存" : result === "cancelled" ? "已取消保存" : "已触发成品下载");
+      } catch (error) {
+        console.error("保存成品失败", error);
+        setSaveStatus(`保存成品失败：${error.message}`);
+      }
+    }
+
+    window.DashboardFileExporter = Object.freeze({
+      getCleanHtml: serializeCleanReport,
+      saveClean: downloadCleanReport
+    });
+
+    function setDesignMode(open, updateUrl = true) {
+      document.body.dataset.designMode = String(open);
+      designDrawer.setAttribute("aria-hidden", String(!open));
+      designDrawer.inert = !open;
+      if (open) setSettingsTab("global");
+      if (!open) closeAllCustomSelects();
+      if (!open) selectCard(null);
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        if (open) url.searchParams.set("design", "1");
+        else url.searchParams.delete("design");
+        history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    }
+
+    window.DashboardThemeEditor = Object.freeze({
+      open: () => setDesignMode(true),
+      close: () => setDesignMode(false),
+      toggle: () => setDesignMode(document.body.dataset.designMode !== "true")
+    });
+
+    function cardLabel(card) {
+      return card.querySelector(".card-title, .metric-label, .summary-card-title")?.textContent.trim() || card.dataset.itemId;
+    }
+
+    function cardHasVisibleTitle(card) {
+      const title = card.querySelector(".card-title");
+      return Boolean(title && getComputedStyle(title).display !== "none" && title.getClientRects().length);
+    }
+
+    function setSettingsTab(tab) {
+      const nextTab = tab === "local" ? "local" : "global";
+      designDrawer.dataset.settingsTab = nextTab;
+      setPressed("settingsTabControls", nextTab);
+      closeAllCustomSelects();
+    }
+
+    function selectedCard() {
+      return selectedCardId ? dashboard.querySelector('[data-item-id="' + CSS.escape(selectedCardId) + '"]') : null;
+    }
+
+    function updateCardContext() {
+      const card = selectedCard();
+      dashboard.querySelectorAll("[data-item-id][data-selected]").forEach((item) => delete item.dataset.selected);
+      if (!card) {
+        selectedCardId = null;
+        document.querySelector("#cardContextBand").dataset.empty = "true";
+        cardContextName.textContent = "请先选择一张卡片";
+        cardContextHint.hidden = true;
+        cardContextControls.hidden = true;
+        cardOverrideReset.hidden = true;
+        return;
+      }
+      document.querySelector("#cardContextBand").dataset.empty = "false";
+      card.dataset.selected = "true";
+      const type = card.dataset.cardType || "generic";
+      const hasTitleIcon = type !== "kpi" && cardHasVisibleTitle(card);
+      const hasControls = type === "chart" || type === "kpi" || hasTitleIcon;
+      const override = state.cardOverrides?.[selectedCardId] || {};
+      const effectiveTitleIcon = override.cardTitleIcon || state.cardTitleIcon;
+      cardContextName.textContent = cardLabel(card);
+      cardContextControls.hidden = !hasControls;
+      cardContextHint.hidden = hasControls;
+      cardOverrideReset.hidden = !Object.keys(override).length;
+      cardChartPaletteField.hidden = type !== "chart";
+      cardTitleIconField.hidden = !hasTitleIcon;
+      cardTitleIconColorField.hidden = !hasTitleIcon || effectiveTitleIcon === "none";
+      cardKpiIconField.hidden = type !== "kpi";
+      cardKpiLayoutField.hidden = type !== "kpi";
+      cardIconColorField.hidden = type !== "kpi";
+      cardChartPaletteControl.value = override.chartPalette || "inherit";
+      cardTitleIconOverrideControl.value = override.cardTitleIcon || "inherit";
+      cardTitleIconColorOverrideControl.value = override.cardTitleIconColor || "inherit";
+      cardKpiIconOverrideControl.value = override.kpiIcon || "inherit";
+      cardKpiLayoutControl.value = override.kpiLayout || "inherit";
+      cardIconColorControl.value = override.iconColor || "inherit";
+      syncCustomSelects();
+    }
+
+    function selectCard(card) {
+      selectedCardId = card?.dataset.itemId || null;
+      if (card) setSettingsTab("local");
+      updateCardContext();
+    }
+
+    function setCardOverride(key, value) {
+      if (!selectedCardId) return;
+      state.cardOverrides ||= {};
+      const override = { ...(state.cardOverrides[selectedCardId] || {}) };
+      if (value === "inherit") delete override[key];
+      else override[key] = value;
+      if (Object.keys(override).length) state.cardOverrides[selectedCardId] = override;
+      else delete state.cardOverrides[selectedCardId];
+      applyCardOverrides();
+      updateCardContext();
+      scheduleWorkspaceSave();
+    }
+
+    function applyCardOverrides() {
+      state.cardOverrides ||= {};
+      dashboard.querySelectorAll("[data-item-id]").forEach((card) => {
+        delete card.dataset.chartPalette;
+        delete card.dataset.cardTitleIcon;
+        delete card.dataset.cardTitleIconColor;
+        delete card.dataset.kpiIcon;
+        delete card.dataset.kpiLayout;
+        delete card.dataset.iconColor;
+        const override = state.cardOverrides[card.dataset.itemId];
+        if (!override) return;
+        if (["monochrome", "bichrome", "categorical"].includes(override.chartPalette)) card.dataset.chartPalette = override.chartPalette;
+        if (["none", "line", "soft", "solid"].includes(override.cardTitleIcon)) card.dataset.cardTitleIcon = override.cardTitleIcon;
+        if (["neutral", "accent"].includes(override.cardTitleIconColor)) card.dataset.cardTitleIconColor = override.cardTitleIconColor;
+        if (["none", "outline", "filled", "gradient", "glass"].includes(override.kpiIcon)) card.dataset.kpiIcon = override.kpiIcon;
+        if (["stacked", "horizontal"].includes(override.kpiLayout)) card.dataset.kpiLayout = override.kpiLayout;
+        if (["neutral", "accent"].includes(override.iconColor)) card.dataset.iconColor = override.iconColor;
+      });
+    }
+
+    let layoutDragState = null;
+    const layoutSpanSteps = [3, 4, 6, 8, 9, 12];
+
+    function createLayoutButton(label, icon, draggable = false) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "layout-edit-button";
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      button.draggable = draggable;
+      button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`;
+      return button;
+    }
+
+    function createLayoutSelect(label, options, value) {
+      const field = document.createElement("label");
+      const fieldLabel = document.createElement("span");
+      const select = document.createElement("select");
+      field.className = "layout-select-field";
+      fieldLabel.className = "visually-hidden";
+      fieldLabel.textContent = label;
+      select.className = "control-select";
+      select.setAttribute("aria-label", label);
+      options.forEach(([optionValue, optionLabel]) => select.add(new Option(optionLabel, optionValue)));
+      select.value = value;
+      field.append(fieldLabel, select);
+      return { field, select };
+    }
+
+    function layoutSiblings(element, selector) {
+      return [...element.parentElement.children].filter((child) => child.matches(selector));
+    }
+
+    function moveLayoutElement(element, direction, selector) {
+      const siblings = layoutSiblings(element, selector);
+      const index = siblings.indexOf(element);
+      const target = siblings[index + direction];
+      if (!target) return;
+      if (direction < 0) target.before(element);
+      else target.after(element);
+      refreshLayoutButtons();
+      scheduleWorkspaceSave();
+    }
+
+    function refreshLayoutButtons() {
+      document.querySelectorAll(".section[data-section-id]").forEach((section) => {
+        const siblings = layoutSiblings(section, ".section[data-section-id]");
+        const index = siblings.indexOf(section);
+        section.querySelector('[data-layout-move="up"]').disabled = index === 0;
+        section.querySelector('[data-layout-move="down"]').disabled = index === siblings.length - 1;
+      });
+    }
+
+    function nearestLayoutSpan(value) {
+      return layoutSpanSteps.reduce((closest, step) => Math.abs(step - value) < Math.abs(closest - value) ? step : closest, 4);
+    }
+
+    function setLayoutItemSpan(item, group, groupLayoutSelect, span) {
+      const nextSpan = nearestLayoutSpan(Number(span));
+      item.dataset.span = String(nextSpan);
+      item.style.setProperty("--item-span", nextSpan);
+      group.dataset.layout = "custom";
+      groupLayoutSelect.value = "custom";
+      syncCustomSelect(groupLayoutSelect);
+      scheduleWorkspaceSave();
+    }
+
+    function createLayoutResizeHandle(item, group, groupLayoutSelect, side) {
+      const handle = document.createElement("button");
+      handle.type = "button";
+      handle.className = `layout-resize-handle layout-resize-handle--${side}`;
+      handle.setAttribute("aria-label", `${side === "left" ? "左侧" : "右侧"}调整卡片宽度`);
+      handle.title = `${side === "left" ? "左侧" : "右侧"}拖动调整卡片宽度`;
+
+      const updateFromPointer = (clientX) => {
+        const groupRect = group.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        const gap = Number.parseFloat(getComputedStyle(group).columnGap) || 0;
+        const columnWidth = Math.max(1, (groupRect.width - gap * 11) / 12);
+        const pointerWidth = side === "left" ? itemRect.right - clientX : clientX - itemRect.left;
+        const requestedWidth = Math.max(columnWidth, Math.min(groupRect.width, pointerWidth));
+        const rawSpan = (requestedWidth + gap) / (columnWidth + gap);
+        setLayoutItemSpan(item, group, groupLayoutSelect, rawSpan);
+      };
+
+      handle.addEventListener("pointerdown", (event) => {
+        if (document.body.dataset.designMode !== "true") return;
+        event.preventDefault();
+        event.stopPropagation();
+        item.dataset.resizing = "true";
+        setLayoutItemSpan(item, group, groupLayoutSelect, item.dataset.span);
+        handle.setPointerCapture(event.pointerId);
+      });
+      handle.addEventListener("pointermove", (event) => {
+        if (item.dataset.resizing !== "true" || !handle.hasPointerCapture(event.pointerId)) return;
+        event.preventDefault();
+        updateFromPointer(event.clientX);
+      });
+      const finishResize = (event) => {
+        if (item.dataset.resizing !== "true") return;
+        delete item.dataset.resizing;
+        if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+        scheduleWorkspaceSave();
+      };
+      handle.addEventListener("pointerup", finishResize);
+      handle.addEventListener("pointercancel", finishResize);
+      handle.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+        event.preventDefault();
+        const currentIndex = Math.max(0, layoutSpanSteps.indexOf(Number(item.dataset.span)));
+        const direction = event.key === "ArrowRight" ? 1 : -1;
+        const nextIndex = Math.max(0, Math.min(layoutSpanSteps.length - 1, currentIndex + direction));
+        setLayoutItemSpan(item, group, groupLayoutSelect, layoutSpanSteps[nextIndex]);
+      });
+      return handle;
+    }
+
+    function clearLayoutDragState() {
+      document.querySelectorAll(".layout-dragging, .layout-drop-target, .layout-group-active").forEach((element) => element.classList.remove("layout-dragging", "layout-drop-target", "layout-group-active"));
+      layoutDragState = null;
+    }
+
+    function placeDraggedElement(source, target, event, verticalOnly = false) {
+      const rect = target.getBoundingClientRect();
+      const sameRow = Math.abs(event.clientY - (rect.top + rect.height / 2)) < rect.height * .3;
+      const before = event.clientY < rect.top + rect.height / 2 || (!verticalOnly && sameRow && event.clientX < rect.left + rect.width / 2);
+      if (before) target.before(source);
+      else target.after(source);
+      refreshLayoutButtons();
+      scheduleWorkspaceSave();
+    }
+
+    function setupLayoutEditor() {
+      const reportBody = document.querySelector(".report-body");
+      const summaryCard = reportBody.querySelector(".summary");
+      summaryCard.dataset.itemId = "summary-card";
+      summaryCard.dataset.cardType = "generic";
+      const groupDefinitions = [
+        { sectionId: "metrics", selector: ".metric-grid", items: [["priority-customers", 4, "kpi"], ["opportunity-value", 4, "kpi"], ["conversion-rate", 4, "kpi"]] },
+        { sectionId: "trends", selector: ".content-grid", items: [["opportunity-trend", 8, "chart"], ["source-ranking", 4, "chart"]] },
+        { sectionId: "health", selector: ".health-grid", items: [["customer-health", 8, "generic"], ["risk-items", 4, "generic"]] }
+      ];
+      const groupMap = new Map();
+
+      groupDefinitions.forEach((definition) => {
+        const section = reportBody.querySelector(`[data-section-id="${definition.sectionId}"]`);
+        const group = section.querySelector(definition.selector);
+        group.classList.add("layout-group");
+        group.dataset.layout = "responsive";
+        const items = [...group.children].filter((child) => child.classList.contains("surface"));
+        definition.items.forEach(([id, span, type], index) => {
+          const item = items[index];
+          item.classList.add("layout-item");
+          item.dataset.itemId = id;
+          item.dataset.cardType = type;
+          item.dataset.span = String(span);
+          item.style.setProperty("--item-span", span);
+        });
+        groupMap.set(definition.sectionId, group);
+      });
+
+      reportBody.querySelectorAll(":scope > .section[data-section-id]").forEach((section) => {
+        const heading = section.querySelector(":scope > .section-heading");
+        const tools = document.createElement("div");
+        const sectionHandle = createLayoutButton("拖动整组", '<circle cx="8" cy="7" r="1.5"></circle><circle cx="16" cy="7" r="1.5"></circle><circle cx="8" cy="12" r="1.5"></circle><circle cx="16" cy="12" r="1.5"></circle><circle cx="8" cy="17" r="1.5"></circle><circle cx="16" cy="17" r="1.5"></circle>', true);
+        const dragButton = createLayoutButton("拖动分组", '<circle cx="9" cy="6" r="1"></circle><circle cx="15" cy="6" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="9" cy="18" r="1"></circle><circle cx="15" cy="18" r="1"></circle>', true);
+        const upButton = createLayoutButton("上移分组", '<path d="m6 15 6-6 6 6"></path>');
+        const downButton = createLayoutButton("下移分组", '<path d="m6 9 6 6 6-6"></path>');
+        tools.className = "layout-section-tools";
+        upButton.dataset.layoutMove = "up";
+        downButton.dataset.layoutMove = "down";
+        upButton.addEventListener("click", () => moveLayoutElement(section, -1, ".section[data-section-id]"));
+        downButton.addEventListener("click", () => moveLayoutElement(section, 1, ".section[data-section-id]"));
+        dragButton.addEventListener("dragstart", (event) => {
+          layoutDragState = { type: "section", element: section };
+          section.classList.add("layout-dragging");
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", section.dataset.sectionId);
+        });
+        dragButton.addEventListener("dragend", clearLayoutDragState);
+        sectionHandle.className = "layout-section-handle";
+        sectionHandle.insertAdjacentHTML("beforeend", "<span>拖动整组</span>");
+        sectionHandle.addEventListener("pointerenter", () => section.classList.add("layout-group-active"));
+        sectionHandle.addEventListener("pointerleave", () => {
+          if (!section.classList.contains("layout-dragging")) section.classList.remove("layout-group-active");
+        });
+        sectionHandle.addEventListener("dragstart", (event) => {
+          layoutDragState = { type: "section", element: section };
+          section.classList.add("layout-dragging", "layout-group-active");
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", section.dataset.sectionId);
+        });
+        sectionHandle.addEventListener("dragend", clearLayoutDragState);
+        section.appendChild(sectionHandle);
+        tools.append(dragButton, upButton, downButton);
+
+        const group = groupMap.get(section.dataset.sectionId);
+        if (group) {
+          const layoutSelect = createLayoutSelect("分组布局", [["responsive", "自适应"], ["custom", "自由尺寸"], ["2", "2 列"], ["3", "3 列"], ["4", "4 列"], ["stack", "1 列"]], group.dataset.layout);
+          layoutSelect.select.dataset.layoutGroup = section.dataset.sectionId;
+          layoutSelect.select.addEventListener("change", () => { group.dataset.layout = layoutSelect.select.value; scheduleWorkspaceSave(); });
+          tools.prepend(layoutSelect.field);
+        }
+        heading.appendChild(tools);
+
+        section.addEventListener("dragover", (event) => {
+          if (layoutDragState?.type !== "section" || layoutDragState.element === section) return;
+          event.preventDefault();
+          section.classList.add("layout-drop-target");
+        });
+        section.addEventListener("dragleave", (event) => {
+          if (!section.contains(event.relatedTarget)) section.classList.remove("layout-drop-target");
+        });
+        section.addEventListener("drop", (event) => {
+          if (layoutDragState?.type !== "section" || layoutDragState.element === section) return;
+          event.preventDefault();
+          placeDraggedElement(layoutDragState.element, section, event, true);
+          clearLayoutDragState();
+        });
+      });
+
+      groupMap.forEach((group, sectionId) => {
+        const groupLayoutSelect = document.querySelector(`[data-layout-group="${sectionId}"]`);
+        [...group.children].filter((child) => child.classList.contains("layout-item")).forEach((item) => {
+          const leftResizeHandle = createLayoutResizeHandle(item, group, groupLayoutSelect, "left");
+          const rightResizeHandle = createLayoutResizeHandle(item, group, groupLayoutSelect, "right");
+          const dragLabel = document.createElement("span");
+          dragLabel.className = "layout-item-drag-label";
+          dragLabel.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="7" r="1.5"></circle><circle cx="16" cy="7" r="1.5"></circle><circle cx="8" cy="12" r="1.5"></circle><circle cx="16" cy="12" r="1.5"></circle><circle cx="8" cy="17" r="1.5"></circle><circle cx="16" cy="17" r="1.5"></circle></svg><span>拖动卡片</span>';
+          item.draggable = true;
+          item.addEventListener("pointerenter", () => {
+            const section = item.closest(".section[data-section-id]");
+            if (!section) return;
+            const itemRect = item.getBoundingClientRect();
+            const sectionRect = section.getBoundingClientRect();
+            section.style.setProperty("--group-handle-left", `${Math.max(-10, itemRect.left - sectionRect.left + 10)}px`);
+            section.style.setProperty("--group-handle-top", `${itemRect.top - sectionRect.top - 10}px`);
+          });
+          item.addEventListener("dragstart", (event) => {
+            if (document.body.dataset.designMode !== "true" || item.dataset.resizing === "true") {
+              event.preventDefault();
+              return;
+            }
+            layoutDragState = { type: "item", element: item, group };
+            item.classList.add("layout-dragging");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", item.dataset.itemId);
+          });
+          item.addEventListener("dragend", clearLayoutDragState);
+          item.append(dragLabel, leftResizeHandle, rightResizeHandle);
+
+          item.addEventListener("dragover", (event) => {
+            if (layoutDragState?.type !== "item" || layoutDragState.group !== group || layoutDragState.element === item) return;
+            event.preventDefault();
+            event.stopPropagation();
+            item.classList.add("layout-drop-target");
+          });
+          item.addEventListener("dragleave", (event) => {
+            if (!item.contains(event.relatedTarget)) item.classList.remove("layout-drop-target");
+          });
+          item.addEventListener("drop", (event) => {
+            if (layoutDragState?.type !== "item" || layoutDragState.group !== group || layoutDragState.element === item) return;
+            event.preventDefault();
+            event.stopPropagation();
+            placeDraggedElement(layoutDragState.element, item, event);
+            clearLayoutDragState();
+          });
+        });
+      });
+
+      window.DashboardLayoutEditor = Object.freeze({
+        getConfig: () => ({
+          sections: [...reportBody.querySelectorAll(":scope > .section[data-section-id]")].map((section) => {
+            const group = section.querySelector(":scope > .layout-group");
+            return {
+              id: section.dataset.sectionId,
+              layout: group?.dataset.layout || null,
+              items: group ? [...group.children].filter((child) => child.classList.contains("layout-item")).map((item) => ({ id: item.dataset.itemId, span: Number(item.dataset.span) })) : []
+            };
+          })
+        }),
+        applyConfig: (config) => {
+          const configuredSectionIds = new Set(config.sections?.map((section) => section.id) || []);
+          config.sections?.forEach((sectionConfig) => {
+            const section = [...reportBody.children].find((child) => child.dataset.sectionId === sectionConfig.id);
+            if (!section) return;
+            reportBody.appendChild(section);
+            const group = section.querySelector(":scope > .layout-group");
+            if (!group) return;
+            if (sectionConfig.layout) group.dataset.layout = sectionConfig.layout;
+            sectionConfig.items?.forEach((itemConfig) => {
+              const item = [...group.children].find((child) => child.dataset.itemId === itemConfig.id);
+              if (!item) return;
+              item.dataset.span = String(itemConfig.span);
+              item.style.setProperty("--item-span", itemConfig.span);
+              group.appendChild(item);
+            });
+          });
+          [...reportBody.querySelectorAll(":scope > .section[data-section-id]")].forEach((section) => {
+            if (!configuredSectionIds.has(section.dataset.sectionId)) reportBody.appendChild(section);
+          });
+          document.querySelectorAll("[data-layout-group]").forEach((select) => { select.value = groupMap.get(select.dataset.layoutGroup).dataset.layout; syncCustomSelect(select); });
+          refreshLayoutButtons();
+          scheduleWorkspaceSave();
+        }
+      });
+      refreshLayoutButtons();
+      dashboard.querySelectorAll(".surface[data-item-id]").forEach((card) => {
+        card.addEventListener("click", (event) => {
+          if (document.body.dataset.designMode !== "true" || event.target.closest(".layout-resize-handle")) return;
+          event.stopPropagation();
+          selectCard(card);
+        });
+      });
+      dashboard.addEventListener("click", (event) => {
+        if (document.body.dataset.designMode === "true" && !event.target.closest(".surface[data-item-id]")) selectCard(null);
+      });
+    }
+
+    function closeCustomSelect(component, restoreFocus = false) {
+      component.listbox.hidden = true;
+      component.root.dataset.open = "false";
+      component.trigger.setAttribute("aria-expanded", "false");
+      component.options.forEach((option) => { option.dataset.active = "false"; });
+      if (restoreFocus) component.trigger.focus();
+    }
+
+    function closeAllCustomSelects(exceptRoot = null) {
+      customSelects.forEach((component) => {
+        if (component.root !== exceptRoot) closeCustomSelect(component);
+      });
+    }
+
+    function setActiveCustomOption(component, index) {
+      const nextIndex = Math.max(0, Math.min(index, component.options.length - 1));
+      component.activeIndex = nextIndex;
+      component.options.forEach((option, optionIndex) => { option.dataset.active = String(optionIndex === nextIndex); });
+      component.listbox.setAttribute("aria-activedescendant", component.options[nextIndex].id);
+      component.options[nextIndex].scrollIntoView({ block: "nearest" });
+    }
+
+    function syncCustomSelect(select) {
+      const component = customSelects.get(select);
+      if (!component) return;
+      component.value.textContent = select.selectedOptions[0]?.textContent || "";
+      component.trigger.disabled = select.disabled;
+      component.options.forEach((option, index) => option.setAttribute("aria-selected", String(index === select.selectedIndex)));
+    }
+
+    function syncCustomSelects() {
+      customSelects.forEach((component, select) => syncCustomSelect(select));
+    }
+
+    function selectCustomOption(component, index) {
+      component.select.selectedIndex = index;
+      component.select.dispatchEvent(new Event("change", { bubbles: true }));
+      syncCustomSelect(component.select);
+      closeCustomSelect(component, true);
+    }
+
+    function openCustomSelect(component, direction = 0) {
+      closeAllCustomSelects(component.root);
+      component.listbox.hidden = false;
+      component.root.dataset.open = "true";
+      component.trigger.setAttribute("aria-expanded", "true");
+      const selectedIndex = Math.max(0, component.select.selectedIndex);
+      setActiveCustomOption(component, direction < 0 ? component.options.length - 1 : selectedIndex);
+      component.listbox.focus();
+    }
+
+    function setupCustomSelects() {
+      document.querySelectorAll(".control-select").forEach((select, index) => {
+        let container = select.parentElement;
+        if (container.tagName === "LABEL") {
+          const replacement = document.createElement("div");
+          replacement.className = container.className;
+          while (container.firstChild) replacement.appendChild(container.firstChild);
+          container.replaceWith(replacement);
+          container = replacement;
+        }
+
+        const visibleLabel = [...container.children].find((child) => child.tagName === "SPAN")?.textContent || select.getAttribute("aria-label") || "选择";
+        const root = document.createElement("div");
+        const trigger = document.createElement("button");
+        const value = document.createElement("span");
+        const listbox = document.createElement("div");
+        const triggerId = `custom-select-trigger-${index}`;
+        const listboxId = `custom-select-listbox-${index}`;
+
+        root.className = "custom-select";
+        root.dataset.open = "false";
+        select.before(root);
+        root.appendChild(select);
+        select.hidden = true;
+
+        trigger.type = "button";
+        trigger.id = triggerId;
+        trigger.className = "custom-select-trigger";
+        trigger.setAttribute("role", "combobox");
+        trigger.setAttribute("aria-label", visibleLabel);
+        trigger.setAttribute("aria-haspopup", "listbox");
+        trigger.setAttribute("aria-expanded", "false");
+        trigger.setAttribute("aria-controls", listboxId);
+        trigger.appendChild(value);
+        trigger.insertAdjacentHTML("beforeend", '<svg class="custom-select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>');
+
+        listbox.id = listboxId;
+        listbox.className = "custom-select-listbox";
+        listbox.setAttribute("role", "listbox");
+        listbox.setAttribute("aria-labelledby", triggerId);
+        listbox.tabIndex = -1;
+        listbox.hidden = true;
+
+        const options = [...select.options].map((nativeOption, optionIndex) => {
+          const option = document.createElement("button");
+          const optionLabel = document.createElement("span");
+          option.type = "button";
+          option.id = `${listboxId}-option-${optionIndex}`;
+          option.className = "custom-select-option";
+          option.setAttribute("role", "option");
+          option.dataset.active = "false";
+          optionLabel.textContent = nativeOption.textContent;
+          option.appendChild(optionLabel);
+          option.insertAdjacentHTML("beforeend", '<svg class="custom-select-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>');
+          option.addEventListener("click", () => selectCustomOption(component, optionIndex));
+          option.addEventListener("mousemove", () => setActiveCustomOption(component, optionIndex));
+          listbox.appendChild(option);
+          return option;
+        });
+
+        root.append(trigger, listbox);
+        const component = { select, root, trigger, value, listbox, options, activeIndex: select.selectedIndex };
+        customSelects.set(select, component);
+
+        trigger.addEventListener("click", () => {
+          if (listbox.hidden) openCustomSelect(component);
+          else closeCustomSelect(component, true);
+        });
+        trigger.addEventListener("keydown", (event) => {
+          if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+            event.preventDefault();
+            if (listbox.hidden) openCustomSelect(component, event.key === "ArrowUp" ? -1 : 1);
+          }
+        });
+        listbox.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveCustomOption(component, component.activeIndex + (event.key === "ArrowDown" ? 1 : -1));
+          } else if (event.key === "Home" || event.key === "End") {
+            event.preventDefault();
+            setActiveCustomOption(component, event.key === "Home" ? 0 : component.options.length - 1);
+          } else if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectCustomOption(component, component.activeIndex);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            closeCustomSelect(component, true);
+          } else if (event.key === "Tab") {
+            closeCustomSelect(component);
+          }
+        });
+        select.addEventListener("change", () => syncCustomSelect(select));
+        syncCustomSelect(select);
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        customSelects.forEach((component) => {
+          if (!component.root.contains(event.target)) closeCustomSelect(component);
+        });
+      });
+      window.addEventListener("resize", () => closeAllCustomSelects());
+    }
+
+    function setPressed(group, value) {
+      document.querySelectorAll(`#${group} button`).forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.value === value || button.dataset.preset === value)));
+    }
+
+    function resolveCssColor(value) {
+      const probe = document.createElement("span");
+      probe.style.color = value;
+      probe.hidden = true;
+      dashboard.appendChild(probe);
+      const resolved = getComputedStyle(probe).color;
+      probe.remove();
+      return resolved;
+    }
+
+    function hexToRgb(hex) {
+      const value = hex.replace("#", "");
+      const normalized = value.length === 3 ? [...value].map((character) => character + character).join("") : value;
+      return [0, 2, 4].map((index) => Number.parseInt(normalized.slice(index, index + 2), 16));
+    }
+
+    function rgbToHex(rgb) {
+      return `#${rgb.map((value) => Math.round(value).toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    function hexToHsl(hex) {
+      const [red, green, blue] = hexToRgb(hex).map((value) => value / 255);
+      const max = Math.max(red, green, blue);
+      const min = Math.min(red, green, blue);
+      const lightness = (max + min) / 2;
+      if (max === min) return { h: 0, s: 0, l: lightness * 100 };
+      const delta = max - min;
+      const saturation = lightness > .5 ? delta / (2 - max - min) : delta / (max + min);
+      const hue = max === red
+        ? ((green - blue) / delta + (green < blue ? 6 : 0)) / 6
+        : max === green ? ((blue - red) / delta + 2) / 6 : ((red - green) / delta + 4) / 6;
+      return { h: hue * 360, s: saturation * 100, l: lightness * 100 };
+    }
+
+    function hslToHex(hue, saturation, lightness) {
+      const h = (((hue % 360) + 360) % 360) / 360;
+      const s = Math.max(0, Math.min(100, saturation)) / 100;
+      const l = Math.max(0, Math.min(100, lightness)) / 100;
+      if (s === 0) return rgbToHex([l * 255, l * 255, l * 255]);
+      const q = l < .5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      const channel = (offset) => {
+        let t = h + offset;
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      return rgbToHex([channel(1 / 3) * 255, channel(0) * 255, channel(-1 / 3) * 255]);
+    }
+
+    function relativeLuminance(hex) {
+      return hexToRgb(hex).map((value) => {
+        const channel = value / 255;
+        return channel <= .03928 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+      }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+    }
+
+    function contrastRatio(first, second) {
+      const values = [relativeLuminance(first), relativeLuminance(second)];
+      return (Math.max(...values) + .05) / (Math.min(...values) + .05);
+    }
+
+    function mixHex(foreground, background, amount) {
+      const fg = hexToRgb(foreground);
+      const bg = hexToRgb(background);
+      return rgbToHex(fg.map((value, index) => value * amount + bg[index] * (1 - amount)));
+    }
+
+    function deriveReadableText(background) {
+      const darkText = "#111827";
+      const lightText = "#f9fafb";
+      let main = contrastRatio(darkText, background) >= contrastRatio(lightText, background) ? darkText : lightText;
+      if (contrastRatio(main, background) < 4.5) {
+        main = contrastRatio("#000000", background) >= contrastRatio("#ffffff", background) ? "#000000" : "#ffffff";
+      }
+      let amount = .68;
+      let secondary = mixHex(main, background, amount);
+      while (contrastRatio(secondary, background) < 4.5 && amount < 1) {
+        amount = Math.min(1, amount + .04);
+        secondary = mixHex(main, background, amount);
+      }
+      return { main, secondary };
+    }
+
+    function deriveAccentTokens(seed, mode, surface, textMain) {
+      const source = hexToHsl(seed);
+      const dark = mode === "dark";
+      const neutral = source.s < 8;
+      let structure = neutral ? (dark ? "#a1a1aa" : "#52525b") : seed;
+      let structureTone = hexToHsl(structure);
+      while (contrastRatio(structure, surface) < 3 && (dark ? structureTone.l < 82 : structureTone.l > 18)) {
+        structureTone.l += dark ? 2 : -2;
+        structure = hslToHex(structureTone.h, structureTone.s, structureTone.l);
+      }
+      const soft = dark
+        ? mixHex(structure, surface, .18)
+        : hslToHex(source.h, neutral ? 8 : Math.max(source.s * .45, 16), 92);
+      let onSoft = neutral ? structure : seed;
+      let foregroundTone = hexToHsl(onSoft);
+      while (contrastRatio(onSoft, soft) < 4.5 && (dark ? foregroundTone.l < 92 : foregroundTone.l > 10)) {
+        foregroundTone.l += dark ? 2 : -2;
+        onSoft = hslToHex(foregroundTone.h, foregroundTone.s, foregroundTone.l);
+      }
+      if (contrastRatio(onSoft, soft) < 4.5) onSoft = textMain;
+      const darkText = "#18181b";
+      const lightText = "#ffffff";
+      const onSolid = contrastRatio(lightText, seed) >= contrastRatio(darkText, seed) ? lightText : darkText;
+      const chartLightness = dark ? 62 : (source.h >= 75 && source.h <= 165 ? 42 : 50);
+      const chart = neutral ? (dark ? "#a1a1aa" : "#52525b") : hslToHex(source.h, Math.min(Math.max(source.s, 58), 82), chartLightness);
+      return {
+        seed,
+        structure,
+        soft,
+        onSoft,
+        onSolid,
+        line: mixHex(structure, surface, dark ? .42 : .28),
+        chart
+      };
+    }
+
+    function deriveSurfaceTokens(seed, mode, colors) {
+      const dark = mode === "dark";
+      return {
+        outer: mixHex(seed, dark ? "#0b0f16" : "#f0f2f5", .02),
+        page: mixHex(seed, colors.page, dark ? .03 : .01),
+        surface: mixHex(seed, colors.surface, dark ? .04 : .005),
+        muted: mixHex(seed, colors.mutedSurface, dark ? .06 : .02)
+      };
+    }
+
+    function ensureGraphicContrast(color, surface, mode) {
+      let candidate = color;
+      const tone = hexToHsl(candidate);
+      while (contrastRatio(candidate, surface) < 3 && (mode === "dark" ? tone.l < 86 : tone.l > 16)) {
+        tone.l += mode === "dark" ? 2 : -2;
+        candidate = hslToHex(tone.h, tone.s, tone.l);
+      }
+      return candidate;
+    }
+
+    function deriveIconTokens(seed, mode, surface) {
+      const source = hexToHsl(seed);
+      const neutral = source.s < 8;
+      const accent = neutral
+        ? (mode === "dark" ? "#a1a1aa" : "#62626b")
+        : hslToHex(source.h, mode === "dark" ? 42 : 44, mode === "dark" ? 68 : 44);
+      const visibleAccent = ensureGraphicContrast(accent, surface, mode);
+      const soft = mixHex(visibleAccent, surface, mode === "dark" ? .16 : .10);
+      const onSolid = contrastRatio("#ffffff", visibleAccent) >= contrastRatio("#18181b", visibleAccent) ? "#ffffff" : "#18181b";
+      return { accent: visibleAccent, soft, onSolid };
+    }
+
+    function deriveChartPalette(seed) {
+      const source = hexToHsl(seed);
+      const categorical = ["#5b8ff9", "#5ad8a6", "#5d7092", "#f6bd16", "#e8684a", "#6dc8ec"];
+      const ranked = source.s < 8
+        ? categorical
+        : [...categorical].sort((first, second) => {
+            const hueDistance = (color) => {
+              const delta = Math.abs(hexToHsl(color).h - source.h);
+              return Math.min(delta, 360 - delta);
+            };
+            return hueDistance(first) - hueDistance(second);
+          });
+      return { monochrome: ranked[0], bichrome: ranked.slice(0, 2), categorical };
+    }
+
+    function applyLanguage() {
+      const copy = translations[state.language];
+      document.documentElement.lang = state.language === "en" ? "en" : "zh-CN";
+      dashboard.dataset.language = state.language;
+      document.querySelectorAll("[data-i18n]").forEach((element) => { element.textContent = copy[element.dataset.i18n]; });
+      document.querySelector("#summaryText").innerHTML = copy.summaryHtml;
+      brandLogo.alt = copy.logoAlt;
+    }
+
+    function updatePresetOptions() {
+      const view = presetViews[state.pageType] || presetViews.dashboard;
+      document.querySelectorAll("#presetControls [data-preset]").forEach((button) => {
+        const presetName = button.dataset.preset;
+        button.textContent = view.labels[presetName] || presets[presetName].label;
+        button.hidden = !view.allowed.includes(presetName) && presetName !== state.preset;
+      });
+    }
+
+    function applyState() {
+      const preset = presets[state.preset];
+      state.cardGap = cardGapSteps.reduce((closest, step) => Math.abs(step - state.cardGap) < Math.abs(closest - state.cardGap) ? step : closest, 12);
+      state.cardTitleFont = [12, 14, 16, 18, 20].includes(Number(state.cardTitleFont)) ? Number(state.cardTitleFont) : 14;
+      if (!["none", "line", "soft", "solid"].includes(state.cardTitleIcon)) state.cardTitleIcon = "none";
+      if (!["neutral", "accent"].includes(state.cardTitleIconColor)) state.cardTitleIconColor = "neutral";
+      if (!["monochrome", "bichrome", "categorical"].includes(state.chartPalette)) state.chartPalette = "monochrome";
+      if (!["stacked", "horizontal"].includes(state.kpiLayout)) state.kpiLayout = "stacked";
+      if (!["none", "weak", "medium", "strong"].includes(state.shadow)) state.shadow = "weak";
+      if (!["none", "dots", "grid", "lines"].includes(state.pageTexture)) state.pageTexture = "none";
+      if (state.header === "plain") state.header = "auto";
+      if (!["auto", "minimal", "surface", "brand", "band", "hidden"].includes(state.header)) state.header = "auto";
+      if (!["auto", "left", "center"].includes(state.headerAlign)) state.headerAlign = "auto";
+      const resolvedContentWidth = state.contentWidth === "auto" ? (state.pageType === "dashboard" ? "fluid" : "readable") : state.contentWidth;
+      const resolvedSectionVisibility = state.sectionVisibility === "auto" ? (state.pageType === "dashboard" ? "hidden" : "visible") : state.sectionVisibility;
+      const resolvedHeader = state.header === "auto" ? (state.pageType === "dashboard" ? "minimal" : "surface") : state.header;
+      const resolvedHeaderAlign = state.headerAlign === "auto" ? (state.pageType === "dashboard" ? "left" : "center") : state.headerAlign;
+      const colors = state.mode === "dark" ? darkTokens : preset.light;
+      const surfaceTokens = deriveSurfaceTokens(state.accent, state.mode, colors);
+      const neutralPage = state.mode === "dark" ? darkTokens.page : "#f5f7fa";
+      const pageBackgrounds = {
+        auto: surfaceTokens.page,
+        neutral: neutralPage,
+        "accent-soft": mixHex(state.accent, surfaceTokens.page, .08),
+        custom: state.customPageBackground || surfaceTokens.page
+      };
+      if (!pageBackgrounds[state.pageBackground]) state.pageBackground = "auto";
+      const resolvedPageBackground = pageBackgrounds[state.pageBackground];
+      const pageText = deriveReadableText(resolvedPageBackground);
+      const accentTokens = deriveAccentTokens(state.accent, state.mode, surfaceTokens.surface, colors.text);
+      const iconTokens = deriveIconTokens(state.accent, state.mode, surfaceTokens.surface);
+      const chartPalette = deriveChartPalette(state.accent);
+      const shadowMap = state.mode === "dark" ? darkShadows : shadows;
+      const frameToken = frameTokens[state.frame];
+      const frameWidth = frameToken.width;
+      const frameLine = state.frame === "none" ? colors.line : `color-mix(in srgb, var(--text-main) ${frameToken.contrast}, transparent)`;
+      const vars = {
+        "--outer-bg": state.pageType === "report" ? surfaceTokens.outer : resolvedPageBackground,
+        "--page-bg": resolvedPageBackground, "--surface": surfaceTokens.surface, "--surface-muted": surfaceTokens.muted,
+        "--text-main": colors.text, "--text-secondary": colors.secondary, "--text-muted": colors.muted,
+        "--page-text-main": pageText.main, "--page-text-secondary": pageText.secondary,
+        "--texture-color": `color-mix(in srgb, ${colors.text} 7%, transparent)`,
+        "--line": frameLine, "--frame-width": frameWidth,
+        "--accent-seed": accentTokens.seed, "--accent-structure": accentTokens.structure, "--accent-soft": accentTokens.soft,
+        "--accent-on-soft": accentTokens.onSoft, "--accent-on-solid": accentTokens.onSolid, "--accent-line": accentTokens.line,
+        "--icon-accent": iconTokens.accent, "--icon-soft": iconTokens.soft, "--icon-on-solid": iconTokens.onSolid,
+        "--icon-theme-accent": iconTokens.accent, "--icon-theme-soft": iconTokens.soft, "--icon-theme-on-solid": iconTokens.onSolid,
+        "--title-icon-accent": iconTokens.accent, "--title-icon-soft": iconTokens.soft, "--title-icon-on-solid": iconTokens.onSolid,
+        "--icon-neutral": state.mode === "dark" ? "#a1a1aa" : "#62626b",
+        "--icon-neutral-soft": state.mode === "dark" ? "#34343a" : "#f0f0f2",
+        "--icon-neutral-on-solid": state.mode === "dark" ? "#18181b" : "#ffffff",
+        "--chart-accent": chartPalette.monochrome,
+        "--chart-bi-1": chartPalette.bichrome[0], "--chart-bi-2": chartPalette.bichrome[1],
+        "--chart-1": chartPalette.categorical[0], "--chart-2": chartPalette.categorical[1], "--chart-3": chartPalette.categorical[2],
+        "--chart-4": chartPalette.categorical[3], "--chart-5": chartPalette.categorical[4], "--chart-6": chartPalette.categorical[5],
+        "--accent": accentTokens.structure,
+        "--radius": `${state.radius}px`, "--card-gap": `${state.cardGap}px`, "--card-title-size": `${state.cardTitleFont}px`,
+        "--font-scale": (state.font / 14).toFixed(3), "--section-title-size": `${state.sectionFont}px`, "--section-marker-height": `${(state.sectionFont * 1.05).toFixed(2)}px`,
+        "--section-kicker-size": `${Math.max(8, Math.round(state.sectionFont * .55))}px`, "--space": `${spaces[state.spacing]}px`, "--shadow": shadowMap[state.shadow]
+      };
+      Object.entries(vars).forEach(([name, value]) => dashboard.style.setProperty(name, value));
+      document.body.style.background = state.pageType === "report" ? surfaceTokens.outer : resolvedPageBackground;
+      document.body.style.setProperty("--texture-color", `color-mix(in srgb, ${colors.text} 7%, transparent)`);
+      document.body.dataset.pageTexture = state.pageTexture;
+      dashboard.dataset.header = resolvedHeader;
+      dashboard.dataset.pageType = state.pageType;
+      dashboard.dataset.contentWidth = resolvedContentWidth;
+      dashboard.dataset.headerAlign = resolvedHeaderAlign;
+      dashboard.dataset.subtitle = state.subtitle;
+      dashboard.dataset.sectionVisibility = resolvedSectionVisibility;
+      dashboard.dataset.sectionLeading = state.sectionLeading;
+      dashboard.dataset.sectionCopy = state.sectionCopy;
+      dashboard.dataset.sectionDivider = state.sectionDivider;
+      dashboard.dataset.sectionSurface = state.sectionSurface;
+      dashboard.dataset.mode = state.mode;
+      dashboard.dataset.frame = state.frame === "none" ? "none" : "wireframe";
+      const sameSurface = resolveCssColor(resolvedPageBackground) === resolveCssColor(surfaceTokens.surface);
+      dashboard.dataset.surfaceBoundary = sameSurface && state.frame === "none" && state.shadow === "none" ? "fallback" : "normal";
+      dashboard.dataset.kpiIcon = state.kpiIcon;
+      dashboard.dataset.kpiLayout = state.kpiLayout;
+      dashboard.dataset.cardTitleIcon = state.cardTitleIcon;
+      dashboard.dataset.cardTitleIconColor = state.cardTitleIconColor;
+      dashboard.dataset.chartPalette = state.chartPalette;
+      dashboard.dataset.pageTexture = state.pageTexture;
+      applyCardOverrides();
+      document.querySelector("#accentValue").textContent = state.accent;
+      document.querySelector("#radiusValue").textContent = `${state.radius}px`;
+      document.querySelector("#fontValue").textContent = `${state.font}px`;
+      document.querySelector("#sectionFontValue").textContent = `${state.sectionFont}px`;
+      accentControl.value = state.accent;
+      pageBackgroundControl.value = state.pageBackground;
+      pageBackgroundColorControl.value = state.customPageBackground;
+      pageBackgroundColorControl.disabled = state.pageBackground !== "custom";
+      customPageBackgroundField.hidden = state.pageBackground !== "custom";
+      pageTextureControl.value = state.pageTexture;
+      radiusControl.value = state.radius;
+      cardGapControl.value = state.cardGap;
+      cardTitleFontControl.value = state.cardTitleFont;
+      cardTitleIconControl.value = state.cardTitleIcon;
+      cardTitleIconColorControl.value = state.cardTitleIconColor;
+      cardTitleIconColorGlobalField.hidden = state.cardTitleIcon === "none";
+      fontControl.value = state.font;
+      sectionFontControl.value = state.sectionFont;
+      shadowControl.value = state.shadow;
+      frameControl.value = state.frame;
+      kpiIconControl.value = state.kpiIcon;
+      kpiLayoutControl.value = state.kpiLayout;
+      chartPaletteControl.value = state.chartPalette;
+      headerControl.value = state.header;
+      headerAlignControl.value = state.headerAlign;
+      subtitleControl.value = state.subtitle;
+      contentWidthControl.value = state.contentWidth;
+      const headerIsHidden = resolvedHeader === "hidden";
+      headerAlignField.hidden = headerIsHidden;
+      subtitleField.hidden = headerIsHidden;
+      logoField.hidden = headerIsHidden;
+      const sectionTitlesVisible = resolvedSectionVisibility === "visible";
+      sectionVisibilityToggle.checked = sectionTitlesVisible;
+      sectionTitleBand.dataset.enabled = String(sectionTitlesVisible);
+      sectionLeadingControl.value = state.sectionLeading;
+      sectionCopyControl.value = state.sectionCopy;
+      sectionDividerControl.value = state.sectionDivider;
+      sectionSurfaceControl.value = state.sectionSurface;
+      applyLanguage();
+      updatePresetOptions();
+      setPressed("presetControls", state.preset);
+      setPressed("pageTypeControls", state.pageType);
+      setPressed("languageControls", state.language);
+      setPressed("modeControls", state.mode);
+      setPressed("spacingControls", state.spacing);
+      syncCustomSelects();
+      if (selectedCardId) updateCardContext();
+      scheduleWorkspaceSave();
+    }
+
+    function selectPreset(name) {
+      const preset = presets[name];
+      const language = state.language || "zh";
+      const pageType = state.pageType || "dashboard";
+      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerAlign: "auto", subtitle: preset.subtitle || "none", pageBackground: "auto", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionCopy: preset.sectionCopy || "title", sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiLayout: "stacked", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleIcon: "none", cardTitleIconColor: "neutral", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      applyState();
+    }
+
+    document.querySelector("#presetControls").addEventListener("click", (event) => { const name = event.target.dataset.preset; if (name) selectPreset(name); });
+    document.querySelector("#pageTypeControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.pageType = event.target.dataset.value; applyState(); } });
+    document.querySelector("#languageControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.language = event.target.dataset.value; applyState(); } });
+    document.querySelector("#modeControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.mode = event.target.dataset.value; applyState(); } });
+    document.querySelector("#spacingControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.spacing = event.target.dataset.value; applyState(); } });
+    accentControl.addEventListener("input", () => { state.accent = accentControl.value; applyState(); });
+    pageBackgroundControl.addEventListener("change", () => { state.pageBackground = pageBackgroundControl.value; applyState(); });
+    pageBackgroundColorControl.addEventListener("input", () => { state.customPageBackground = pageBackgroundColorControl.value; applyState(); });
+    pageTextureControl.addEventListener("change", () => { state.pageTexture = pageTextureControl.value; applyState(); });
+    radiusControl.addEventListener("input", () => { state.radius = Number(radiusControl.value); applyState(); });
+    cardGapControl.addEventListener("change", () => { state.cardGap = Number(cardGapControl.value); applyState(); });
+    cardTitleFontControl.addEventListener("change", () => { state.cardTitleFont = Number(cardTitleFontControl.value); applyState(); });
+    cardTitleIconControl.addEventListener("change", () => { state.cardTitleIcon = cardTitleIconControl.value; applyState(); });
+    cardTitleIconColorControl.addEventListener("change", () => { state.cardTitleIconColor = cardTitleIconColorControl.value; applyState(); });
+    fontControl.addEventListener("input", () => { state.font = Number(fontControl.value); applyState(); });
+    sectionFontControl.addEventListener("input", () => { state.sectionFont = Number(sectionFontControl.value); applyState(); });
+    shadowControl.addEventListener("change", () => { state.shadow = shadowControl.value; applyState(); });
+    frameControl.addEventListener("change", () => { state.frame = frameControl.value; applyState(); });
+    kpiIconControl.addEventListener("change", () => { state.kpiIcon = kpiIconControl.value; applyState(); });
+    kpiLayoutControl.addEventListener("change", () => { state.kpiLayout = kpiLayoutControl.value; applyState(); });
+    chartPaletteControl.addEventListener("change", () => { state.chartPalette = chartPaletteControl.value; applyState(); });
+    settingsTabControls.addEventListener("click", (event) => {
+      if (event.target.dataset.value) setSettingsTab(event.target.dataset.value);
+    });
+    cardChartPaletteControl.addEventListener("change", () => setCardOverride("chartPalette", cardChartPaletteControl.value));
+    cardTitleIconOverrideControl.addEventListener("change", () => setCardOverride("cardTitleIcon", cardTitleIconOverrideControl.value));
+    cardTitleIconColorOverrideControl.addEventListener("change", () => setCardOverride("cardTitleIconColor", cardTitleIconColorOverrideControl.value));
+    cardKpiIconOverrideControl.addEventListener("change", () => setCardOverride("kpiIcon", cardKpiIconOverrideControl.value));
+    cardKpiLayoutControl.addEventListener("change", () => setCardOverride("kpiLayout", cardKpiLayoutControl.value));
+    cardIconColorControl.addEventListener("change", () => setCardOverride("iconColor", cardIconColorControl.value));
+    cardOverrideReset.addEventListener("click", () => {
+      if (!selectedCardId || !state.cardOverrides) return;
+      delete state.cardOverrides[selectedCardId];
+      applyCardOverrides();
+      updateCardContext();
+      scheduleWorkspaceSave();
+    });
+    headerControl.addEventListener("change", () => { state.header = headerControl.value; applyState(); });
+    headerAlignControl.addEventListener("change", () => { state.headerAlign = headerAlignControl.value; applyState(); });
+    subtitleControl.addEventListener("change", () => { state.subtitle = subtitleControl.value; applyState(); });
+    contentWidthControl.addEventListener("change", () => { state.contentWidth = contentWidthControl.value; applyState(); });
+    sectionVisibilityToggle.addEventListener("change", () => {
+      state.sectionVisibility = sectionVisibilityToggle.checked ? "visible" : "hidden";
+      applyState();
+    });
+    sectionLeadingControl.addEventListener("change", () => { state.sectionLeading = sectionLeadingControl.value; applyState(); });
+    sectionCopyControl.addEventListener("change", () => { state.sectionCopy = sectionCopyControl.value; applyState(); });
+    sectionDividerControl.addEventListener("change", () => { state.sectionDivider = sectionDividerControl.value; applyState(); });
+    sectionSurfaceControl.addEventListener("change", () => { state.sectionSurface = sectionSurfaceControl.value; applyState(); });
+    logoControl.addEventListener("change", () => {
+      const file = logoControl.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        logoControl.value = "";
+        logoStatus.textContent = "超过 2MB";
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        brandLogo.src = String(reader.result);
+        brandSlot.hidden = false;
+        logoClearControl.hidden = false;
+        logoStatus.textContent = file.name;
+        scheduleWorkspaceSave();
+      });
+      reader.addEventListener("error", () => { logoStatus.textContent = "读取失败"; });
+      reader.readAsDataURL(file);
+    });
+    logoClearControl.addEventListener("click", () => {
+      logoControl.value = "";
+      brandLogo.removeAttribute("src");
+      brandSlot.hidden = true;
+      logoClearControl.hidden = true;
+      logoStatus.textContent = "无";
+      scheduleWorkspaceSave();
+    });
+
+    designUndoControl.addEventListener("click", undoWorkspaceState);
+    designSaveControl.addEventListener("click", writeWorkspaceState);
+    designDownloadControl.addEventListener("click", downloadCleanReport);
+
+    designDrawerClose.addEventListener("click", () => setDesignMode(false));
+    document.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        window.DashboardThemeEditor.toggle();
+      } else if (event.key === "Escape" && document.body.dataset.designMode === "true") {
+        setDesignMode(false);
+      }
+    });
+
+    setupLayoutEditor();
+    setupCustomSelects();
+    const savedWorkspaceState = readUrlWorkspaceState() || readWorkspaceState() || readProjectState();
+    const workspaceRestored = restoreWorkspaceState(savedWorkspaceState);
+    if (!workspaceRestored) selectPreset("fx-orange");
+    workspaceIsRestoring = false;
+    updateUndoAvailability();
+    setWorkspaceDirty(false);
+    if (!workspaceRestored) setSaveStatus("尚未保存配置");
+    setDesignMode(new URLSearchParams(window.location.search).get("design") === "1", false);
+  </script>
+</body>
+</html>

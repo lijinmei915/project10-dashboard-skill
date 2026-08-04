@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>插画报告 3D 预览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #f5f7fa;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --text-main: #111827;
+      --text-secondary: #667085;
+      --text-muted: #98a2b3;
+      --line-soft: rgba(15, 23, 42, 0.07);
+      --accent: #ff7a2f;
+      --accent-strong: #e95f13;
+      --accent-soft: rgba(255, 122, 47, 0.12);
+      --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+      --radius-card: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page-bg);
+      color: var(--text-main);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+    }
+
+    .page {
+      width: min(100%, 1160px);
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .page-note {
+      margin: 8px 0 28px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .report-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+      min-height: 380px;
+      overflow: hidden;
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+    }
+
+    .report-copy {
+      display: grid;
+      align-content: center;
+      padding: 48px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      width: fit-content;
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 29px;
+      height: 29px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 26px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .hero-title {
+      margin: 15px 0 0;
+      font-size: 38px;
+      font-weight: 720;
+      line-height: 1.17;
+      letter-spacing: 0;
+    }
+
+    .hero-subtitle {
+      max-width: 420px;
+      margin: 13px 0 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 34px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 0 18px;
+      border-left: 1px solid var(--line-soft);
+    }
+
+    .metric:first-child { padding-left: 0; border-left: 0; }
+
+    .metric span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 3px;
+      color: var(--text-main);
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .scene-panel {
+      position: relative;
+      min-height: 380px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--accent) 8%, #f6f8fc);
+    }
+
+    .scene-panel::before,
+    .scene-panel::after {
+      position: absolute;
+      z-index: 0;
+      width: 46%;
+      aspect-ratio: 1;
+      content: "";
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .scene-panel::before { top: 10%; right: 8%; }
+    .scene-panel::after { bottom: -20%; left: -12%; }
+
+    #hero-scene {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 380px;
+    }
+
+    .scene-fallback {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    @media (max-width: 760px) {
+      .page { padding: 22px 16px 40px; }
+      .report-hero { grid-template-columns: 1fr; }
+      .report-copy { padding: 30px 24px 22px; }
+      .hero-title { font-size: 30px; }
+      .metrics { margin-top: 26px; }
+      .metric { padding-inline: 10px; }
+      .metric:first-child { padding-left: 0; }
+      .metric strong { font-size: 19px; }
+      .scene-panel,
+      #hero-scene { min-height: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1 class="page-title">插画报告头部 · Three.js 预览</h1>
+    <p class="page-note">本地运行时、无图片资源；场景主色读取页面 accent token。</p>
+
+    <section class="report-hero" aria-label="客户洞察报告头部示例">
+      <div class="report-copy">
+        <div class="brand"><span class="brand-mark">F</span><span>数据智能中心</span></div>
+        <span class="eyebrow">专项洞察</span>
+        <h2 class="hero-title">AI 客户洞察<br>表现诊断报告</h2>
+        <p class="hero-subtitle">识别重点客户、机会变化与经营风险，聚焦当下最值得推进的业务动作。</p>
+        <div class="metrics">
+          <div class="metric"><span>统计周期</span><strong>7 天</strong></div>
+          <div class="metric"><span>样本客户</span><strong>128 家</strong></div>
+          <div class="metric"><span>分析维度</span><strong>6 项</strong></div>
+        </div>
+      </div>
+      <div class="scene-panel">
+        <canvas id="hero-scene" aria-label="三维数据分析插画"></canvas>
+        <div class="scene-fallback">当前环境未启用 WebGL</div>
+      </div>
+    </section>
+  </main>
+
+  <script src=".preview-assets/three-r160.1.min.js"></script>
+  <script>
+    (() => {
+      const canvas = document.querySelector("#hero-scene");
+      const fallback = document.querySelector(".scene-fallback");
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#ff7a2f";
+
+      try {
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+        camera.position.set(5.1, 3.35, 6.8);
+        camera.lookAt(0, 0, 0);
+
+        const accentColor = new THREE.Color(accent);
+        const softColor = accentColor.clone().lerp(new THREE.Color("#ffffff"), 0.58);
+        const deepColor = accentColor.clone().lerp(new THREE.Color("#172033"), 0.36);
+        const paleColor = accentColor.clone().lerp(new THREE.Color("#ffffff"), 0.87);
+        const group = new THREE.Group();
+        group.rotation.set(-0.14, -0.44, 0.08);
+        scene.add(group);
+
+        scene.add(new THREE.HemisphereLight("#ffffff", paleColor, 2.3));
+        const keyLight = new THREE.DirectionalLight("#ffffff", 3.1);
+        keyLight.position.set(4, 6, 6);
+        scene.add(keyLight);
+        const rimLight = new THREE.PointLight(accentColor, 18, 13);
+        rimLight.position.set(-4, 3, 3);
+        scene.add(rimLight);
+
+        const material = (color, roughness = 0.35, metalness = 0.18) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.96, 0.25, 64), material(paleColor, 0.28, 0.25));
+        base.position.y = -1.46;
+        group.add(base);
+        const baseTop = new THREE.Mesh(new THREE.CylinderGeometry(1.48, 1.48, 0.11, 64), material(new THREE.Color("#ffffff"), 0.22, 0.18));
+        baseTop.position.y = -1.27;
+        group.add(baseTop);
+
+        const barGroup = new THREE.Group();
+        const heights = [0.7, 1.1, 1.55, 2.05];
+        heights.forEach((height, index) => {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.34, height, 0.34), material(index === 3 ? accentColor : softColor, 0.28, 0.22));
+          bar.position.set(0.42 + index * 0.42, -1.12 + height / 2, 0.04);
+          barGroup.add(bar);
+        });
+        group.add(barGroup);
+
+        const glass = new THREE.Group();
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.12, 18, 80), material(accentColor, 0.15, 0.36));
+        ring.rotation.set(0.1, 0, 0.12);
+        glass.add(ring);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.84, 64), new THREE.MeshPhysicalMaterial({ color: paleColor, transparent: true, opacity: 0.42, roughness: 0.08, metalness: 0.08, transmission: 0.12 }));
+        lens.position.z = -0.02;
+        glass.add(lens);
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 1.14, 32), material(deepColor, 0.2, 0.32));
+        handle.rotation.z = -0.78;
+        handle.position.set(1.0, -0.83, 0);
+        glass.add(handle);
+        glass.position.set(-0.62, 0.2, 0.3);
+        group.add(glass);
+
+        const cardMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color("#ffffff"), roughness: 0.2, metalness: 0.1 });
+        [-0.8, 0.05].forEach((x, index) => {
+          const card = new THREE.Mesh(new THREE.BoxGeometry(0.86, 1.25, 0.09), cardMaterial);
+          card.position.set(x, 0.78 + index * 0.14, -0.62 - index * 0.14);
+          card.rotation.z = index ? 0.14 : -0.08;
+          group.add(card);
+        });
+
+        const resize = () => {
+          const rect = canvas.getBoundingClientRect();
+          renderer.setSize(rect.width, rect.height, false);
+          camera.aspect = rect.width / rect.height;
+          camera.updateProjectionMatrix();
+        };
+        const resizeObserver = new ResizeObserver(resize);
+        resizeObserver.observe(canvas);
+        resize();
+
+        const clock = new THREE.Clock();
+        const render = () => {
+          const elapsed = clock.getElapsedTime();
+          group.rotation.y = -0.44 + Math.sin(elapsed * 0.45) * 0.08;
+          glass.rotation.z = Math.sin(elapsed * 0.6) * 0.025;
+          renderer.render(scene, camera);
+          requestAnimationFrame(render);
+        };
+        render();
+      } catch (error) {
+        canvas.style.display = "none";
+        fallback.style.display = "grid";
+      }
+    })();
+  </script>
+</body>
+</html>

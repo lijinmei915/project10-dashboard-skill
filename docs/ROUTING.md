@@ -1,7 +1,7 @@
 ---
 layer: governance
 type: spec
-last_verified: 2026-06-30
+last_verified: 2026-08-04
 depends_on: [AGENTS.md, .agents/skills/dashboard-html/SKILL.md]
 ---
 
@@ -19,6 +19,13 @@ depends_on: [AGENTS.md, .agents/skills/dashboard-html/SKILL.md]
 4. 如果用户说不要限制内容或后续自己替换，优先输出通用布局骨架和中性占位
 
 ## 布局路由
+
+- 看板、监控、状态、实时概览
+  使用 `pageType: dashboard`；默认全宽流式内容区、极简透明头部，卡片已有自身标题时省略分组标题
+- 报告、分析、复盘、周期总结
+  使用 `pageType: report`；默认阅读宽度、surface 头部并保留章节标题
+- 同时出现两类意图
+  持续扫描和发现异常选 `dashboard`；顺序阅读和理解结论选 `report`
 
 - 概览、summary、KPI
   使用 `grid` + `surface`

@@ -25,7 +25,7 @@
 - 默认浅色；深色使用 page `#111827`、surface `#1f2937`、muted surface `#172033`、主文字 `#f9fafb`、次文字 `#cbd5e1`。
 - 深色输出必须保留完整的 `html[data-theme="dark"]` token 覆盖和 `color-scheme: dark`；只改 `data-theme` 或 `:root` 无效。
 - 只切换主题时，只改颜色 token（必要时阴影 token）；不改字号、行高、间距、布局、尺寸、圆角或结构，也不自行做可读性优化。
-- 主题色可为任意明确 CSS 色值或中文/英文颜色名；只覆盖 `--accent`、`--accent-soft`，用于选中态和非语义强调，不替换成功、提醒、错误状态色。
+- 主题色可为任意明确 CSS 色值或中文/英文颜色名；先作为 `--accent-seed`，再按主题契约派生正文结构、浅底、对比前景、弱线和图表色，不替换成功、提醒、错误状态色。
 - 主题色覆盖放在 `:root` 与 `html[data-theme="dark"]` 之后，使用 `html[data-theme]`，确保两种模式均生效；不生成页面内主题切换控件。
 
 ## 卡片与内容
@@ -64,3 +64,24 @@
 - 桌面可使用 2-4 列 `grid` 或主辅 `split`；列宽由内容决定，不写死。
 - 窄屏下多列降为 2 列或 1 列，`split` 堆叠为单列；表格允许横向滚动，但关键内容不得挤压或溢出。
 - 不用重阴影、厚边框、复杂动画、玻璃拟态或超宽表格传达关键信息。
+
+## 布局编辑与固化
+
+需要让用户调整布局时，使用 CSS Grid 和 DOM 顺序，不使用绝对定位或任意像素缩放。
+
+```html
+<section data-section-id="metrics">
+  <div class="layout-group" data-layout="custom">
+    <article class="surface layout-item" data-item-id="revenue" data-span="6">...</article>
+  </div>
+</section>
+```
+
+- 分组位置由 section 的 DOM 顺序决定。
+- 同组卡片位置由 `.layout-item` 的 DOM 顺序决定；第一版不跨分组移动卡片。
+- 编辑模式下直接拖动卡片主体换位；卡片悬停或聚焦时只显示边缘尺寸把手，不显示遮挡内容的卡片浮动工具条。
+- `data-layout` 支持 `responsive`、`custom`、`2`、`3`、`4`、`stack`。
+- `custom` 使用 12 列栅格；`data-span` 只使用 `3 / 4 / 6 / 8 / 9 / 12`，对应 `1/4 / 1/3 / 1/2 / 2/3 / 3/4 / 整行`。
+- 尺寸把手只调整水平跨度并吸附到上述档位；手机单列时隐藏，不提供任意像素缩放。
+- 用户显式布局覆盖 `pageType` 的默认编排，但不改变视觉 token、数据或语义层级。
+- 平板可以降列；手机统一单列。任何配置都不能造成覆盖或页面横向溢出。

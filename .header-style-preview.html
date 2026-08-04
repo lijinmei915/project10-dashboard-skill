@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard 头部样式候选</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #f5f7fa;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --text-main: #111827;
+      --text-secondary: #667085;
+      --text-muted: #98a2b3;
+      --line-soft: rgba(15, 23, 42, 0.07);
+      --accent: #ff7a2f;
+      --accent-strong: #e95f13;
+      --accent-soft: rgba(255, 122, 47, 0.12);
+      --success: #16855b;
+      --success-soft: rgba(22, 133, 91, 0.11);
+      --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+      --radius-card: 14px;
+      --radius-block: 10px;
+      --radius-pill: 999px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page-bg);
+      color: var(--text-main);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+    }
+
+    .preview-page {
+      width: min(100%, 1240px);
+      margin: 0 auto;
+      padding: 30px 24px 64px;
+    }
+
+    .preview-intro {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .preview-intro h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .preview-intro p {
+      max-width: 650px;
+      margin: 8px 0 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+
+    .slot-tag,
+    .chip,
+    .status {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .slot-tag {
+      background: var(--surface);
+      color: var(--text-secondary);
+      box-shadow: inset 0 0 0 1px var(--line-soft);
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+    }
+
+    .candidate {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-width: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+    }
+
+    .candidate-meta {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      background: var(--surface-muted);
+      box-shadow: inset 0 -1px 0 var(--line-soft);
+    }
+
+    .candidate-index {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .candidate-name {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .candidate-name h2 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .candidate-name p {
+      margin: 3px 0 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .candidate-stage {
+      display: grid;
+      align-content: start;
+      min-height: 275px;
+      padding: 26px;
+      background: var(--surface);
+    }
+
+    .candidate-slots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 18px 15px;
+      color: var(--text-muted);
+      font-size: 11px;
+      box-shadow: inset 0 1px 0 var(--line-soft);
+    }
+
+    .candidate-slots strong {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .dashboard-header {
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .brand-icon {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .breadcrumb,
+    .eyebrow,
+    .meta-text {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-weight: 650;
+    }
+
+    .dashboard-title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 720;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .dashboard-subtitle {
+      margin: 8px 0 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .header-meta-list {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .status {
+      gap: 7px;
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .metric-inline {
+      min-width: 0;
+    }
+
+    .metric-inline span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .metric-inline strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .header-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0;
+      min-width: 260px;
+    }
+
+    .header-stat-grid .metric-inline {
+      padding: 0 16px;
+      border-left: 1px solid var(--line-soft);
+    }
+
+    .header-stat-grid .metric-inline:first-child { padding-left: 0; border-left: 0; }
+
+    /* A. 经典后台 */
+    .header-classic {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: end;
+    }
+
+    .header-classic .breadcrumb { margin-bottom: 14px; }
+    .header-classic .header-aside { display: grid; justify-items: end; gap: 12px; }
+
+    /* B. 品牌横幅 */
+    .header-brand-band {
+      overflow: hidden;
+      border-radius: 12px;
+      background: var(--surface-muted);
+      box-shadow: inset 4px 0 0 var(--accent);
+    }
+
+    .brand-band-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 15px 18px;
+      box-shadow: inset 0 -1px 0 var(--line-soft);
+    }
+
+    .brand-band-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 20px;
+      padding: 22px 22px 24px;
+    }
+
+    /* C. 报告封面 */
+    .header-report-cover {
+      display: grid;
+      justify-items: center;
+      text-align: center;
+      padding: 8px 18px;
+    }
+
+    .header-report-cover .brand-mark { margin-bottom: 20px; }
+    .header-report-cover .eyebrow { margin-bottom: 14px; }
+    .header-report-cover .dashboard-subtitle { max-width: 420px; }
+    .header-report-cover .header-meta-list { justify-content: center; margin-top: 18px; }
+    .header-report-cover .meta-text + .meta-text::before { content: "·"; margin-right: 8px; color: var(--text-muted); }
+
+    /* D. 插画报告 */
+    .header-visual-report {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(210px, .95fr);
+      min-height: 250px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #f3f7ff;
+    }
+
+    .visual-report-copy {
+      display: grid;
+      align-content: center;
+      padding: 26px 10px 26px 26px;
+      z-index: 1;
+    }
+
+    .visual-report-copy .brand-mark { margin-bottom: 20px; }
+    .visual-report-copy .dashboard-title { font-size: 26px; }
+
+    .visual-report-copy .header-stat-grid {
+      min-width: 0;
+      margin-top: 22px;
+    }
+
+    .visual-report-art {
+      min-width: 0;
+      min-height: 250px;
+      margin: 0;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--accent) 7%, #f5f8ff);
+    }
+
+    .code-illustration {
+      --art-light: color-mix(in srgb, var(--accent) 16%, #ffffff);
+      --art-mid: color-mix(in srgb, var(--accent) 62%, #ffffff);
+      --art-deep: color-mix(in srgb, var(--accent) 72%, #172033);
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: inherit;
+      overflow: hidden;
+    }
+
+    .art-scene {
+      position: absolute;
+      inset: 0;
+      display: none;
+    }
+
+    .code-illustration[data-illustration="analysis"] .art-analysis,
+    .code-illustration[data-illustration="growth"] .art-growth,
+    .code-illustration[data-illustration="operations"] .art-operations,
+    .code-illustration[data-illustration="insight"] .art-insight {
+      display: block;
+    }
+
+    .art-orbit {
+      position: absolute;
+      width: 90%;
+      height: 34%;
+      top: 29%;
+      left: 5%;
+      border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+      border-radius: 50%;
+      transform: rotate(-12deg);
+    }
+
+    .art-pedestal {
+      position: absolute;
+      bottom: 15%;
+      left: 35%;
+      width: 40%;
+      height: 13%;
+      border-radius: 50%;
+      background: var(--art-light);
+      box-shadow: inset 0 -8px 0 color-mix(in srgb, var(--accent) 16%, #fff), 0 10px 20px color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+
+    .art-pedestal::before,
+    .art-pedestal::after {
+      position: absolute;
+      content: "";
+      border-radius: 50%;
+    }
+
+    .art-pedestal::before {
+      inset: 20% 12%;
+      background: #fff;
+    }
+
+    .art-pedestal::after {
+      inset: 34% 24%;
+      background: var(--art-mid);
+      opacity: .48;
+    }
+
+    .analysis-bars {
+      position: absolute;
+      right: 12%;
+      bottom: 27%;
+      display: flex;
+      align-items: end;
+      gap: 7px;
+      height: 40%;
+    }
+
+    .analysis-bar {
+      position: relative;
+      width: 19px;
+      height: var(--bar-height);
+      border-radius: 4px 4px 1px 1px;
+      background: var(--art-mid);
+      box-shadow: 5px 4px 0 var(--art-deep);
+    }
+
+    .analysis-bar::before {
+      position: absolute;
+      top: -7px;
+      left: 3px;
+      width: calc(100% - 3px);
+      height: 8px;
+      content: "";
+      background: var(--art-light);
+      transform: skewX(-42deg);
+      transform-origin: bottom left;
+    }
+
+    .analysis-lens {
+      position: absolute;
+      top: 25%;
+      left: 22%;
+      width: 39%;
+      aspect-ratio: 1;
+      border: 12px solid var(--accent);
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--accent) 8%, #ffffff);
+      box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--accent) 15%, #fff), 7px 8px 0 color-mix(in srgb, var(--accent) 34%, transparent);
+      transform: rotate(-13deg);
+    }
+
+    .analysis-lens::after {
+      position: absolute;
+      right: -34%;
+      bottom: -26%;
+      width: 42%;
+      height: 15%;
+      content: "";
+      border-radius: 999px;
+      background: var(--art-deep);
+      box-shadow: inset 0 4px 0 var(--art-light);
+      transform: rotate(47deg);
+      transform-origin: left center;
+    }
+
+    .growth-blocks {
+      position: absolute;
+      right: 15%;
+      bottom: 20%;
+      display: flex;
+      align-items: end;
+      gap: 12px;
+      height: 55%;
+    }
+
+    .growth-block {
+      position: relative;
+      width: 30px;
+      height: var(--block-height);
+      background: var(--art-mid);
+      box-shadow: 8px 7px 0 var(--art-deep);
+    }
+
+    .growth-block::before {
+      position: absolute;
+      top: -9px;
+      left: 4px;
+      width: 100%;
+      height: 10px;
+      content: "";
+      background: var(--art-light);
+      transform: skewX(-35deg);
+      transform-origin: bottom left;
+    }
+
+    .growth-path {
+      position: absolute;
+      top: 24%;
+      left: 17%;
+      width: 62%;
+      height: 46%;
+      border-top: 4px solid var(--accent);
+      border-right: 4px solid var(--accent);
+      transform: skewY(-25deg) rotate(-7deg);
+    }
+
+    .growth-path::after {
+      position: absolute;
+      top: -9px;
+      right: -8px;
+      width: 16px;
+      height: 16px;
+      content: "";
+      border-top: 4px solid var(--accent);
+      border-right: 4px solid var(--accent);
+      transform: rotate(45deg);
+    }
+
+    .operations-core {
+      position: absolute;
+      top: 31%;
+      left: 33%;
+      width: 34%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--art-mid);
+      box-shadow: inset 0 -12px 0 var(--art-deep), 0 13px 22px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .operations-core::before,
+    .operations-core::after {
+      position: absolute;
+      content: "";
+      border: 1px solid color-mix(in srgb, var(--accent) 56%, transparent);
+      border-radius: 50%;
+    }
+
+    .operations-core::before { inset: -46% -46%; }
+    .operations-core::after { inset: -80% -20%; transform: rotate(66deg); }
+
+    .operations-node {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 3px 0 var(--art-deep);
+    }
+
+    .operations-node.one { top: 20%; left: 22%; }
+    .operations-node.two { top: 18%; right: 20%; }
+    .operations-node.three { bottom: 21%; left: 18%; }
+    .operations-node.four { right: 18%; bottom: 23%; }
+
+    .insight-card {
+      position: absolute;
+      width: 45%;
+      height: 37%;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 8px 8px 0 var(--art-deep), 0 12px 20px color-mix(in srgb, var(--accent) 13%, transparent);
+    }
+
+    .insight-card.back { top: 18%; right: 18%; transform: rotate(9deg); opacity: .68; }
+    .insight-card.front { top: 33%; left: 20%; transform: rotate(-7deg); }
+
+    .insight-card::before,
+    .insight-card::after {
+      position: absolute;
+      left: 14%;
+      content: "";
+      border-radius: 999px;
+    }
+
+    .insight-card::before {
+      top: 22%;
+      width: 50%;
+      height: 10px;
+      background: var(--art-mid);
+    }
+
+    .insight-card::after {
+      top: 47%;
+      width: 68%;
+      height: 7px;
+      background: color-mix(in srgb, var(--accent) 18%, #fff);
+      box-shadow: 0 18px 0 color-mix(in srgb, var(--accent) 18%, #fff);
+    }
+
+    .insight-orb {
+      position: absolute;
+      right: 17%;
+      bottom: 18%;
+      width: 23%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--art-mid);
+      box-shadow: inset -9px -10px 0 var(--art-deep), 0 12px 16px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    /* E. 状态头部 */
+    .header-status {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      align-items: start;
+      padding: 22px;
+      border-radius: 12px;
+      background: var(--surface-muted);
+    }
+
+    .status-title-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .header-status .header-meta-list {
+      margin-top: 22px;
+      gap: 24px;
+    }
+
+    /* F. 上下文双栏 */
+    .header-split-context {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(210px, .65fr);
+      gap: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      background: var(--surface-muted);
+    }
+
+    .split-primary,
+    .split-context {
+      padding: 24px;
+    }
+
+    .split-primary .eyebrow { margin-bottom: 16px; }
+
+    .split-context {
+      display: grid;
+      align-content: center;
+      gap: 14px;
+      background: var(--accent-soft);
+    }
+
+    .context-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .context-row strong { color: var(--text-main); font-weight: 650; text-align: right; }
+
+    @media (max-width: 900px) {
+      .preview-grid { grid-template-columns: 1fr; }
+      .candidate-stage { min-height: 240px; }
+    }
+
+    @media (max-width: 640px) {
+      .preview-page { padding: 20px 14px 40px; }
+      .preview-intro { align-items: flex-start; flex-direction: column; margin-bottom: 20px; }
+      .legend { justify-content: flex-start; }
+      .preview-grid { gap: 16px; }
+      .candidate-meta { padding: 14px; }
+      .candidate-stage { min-height: 0; padding: 20px 16px; }
+      .candidate-slots { padding: 12px 14px; }
+      .dashboard-title { font-size: 24px; }
+
+      .header-classic,
+      .brand-band-main,
+      .header-visual-report,
+      .header-status,
+      .header-split-context {
+        grid-template-columns: 1fr;
+      }
+
+      .header-classic .header-aside {
+        justify-items: start;
+      }
+
+      .header-classic .header-aside { margin-top: 4px; }
+      .brand-band-top { align-items: flex-start; flex-direction: column; }
+      .brand-band-main { align-items: start; }
+      .header-report-cover { justify-items: start; padding-inline: 0; text-align: left; }
+      .header-report-cover .header-meta-list { justify-content: flex-start; }
+      .visual-report-copy { padding: 22px 20px 12px; }
+      .visual-report-art { min-height: 190px; height: 190px; }
+      .header-status .header-meta-list { gap: 16px; }
+      .header-stat-grid { min-width: 0; width: 100%; }
+      .header-stat-grid .metric-inline { padding-inline: 10px; }
+      .header-stat-grid .metric-inline:first-child { padding-left: 0; }
+      .split-context { box-shadow: inset 0 1px 0 var(--line-soft); }
+      .split-primary,
+      .split-context { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="preview-page">
+    <div class="preview-intro">
+      <div>
+        <h1>Dashboard 头部样式候选</h1>
+        <p>六种结构共享同一套 token。只展示品牌、标题、说明、关键数据和视觉素材，不放按钮、筛选、刷新或其他操作。</p>
+      </div>
+      <div class="legend" aria-label="可插拔槽位示例">
+        <span class="slot-tag">品牌</span>
+        <span class="slot-tag">面包屑</span>
+        <span class="slot-tag">关键数据</span>
+        <span class="slot-tag">状态</span>
+        <span class="slot-tag">插画</span>
+      </div>
+    </div>
+
+    <div class="preview-grid">
+      <article class="candidate">
+        <div class="candidate-meta">
+          <span class="candidate-index">A</span>
+          <div class="candidate-name"><h2>经典后台</h2><p>标题层级清楚，右侧承载静态摘要</p></div>
+        </div>
+        <div class="candidate-stage">
+          <header class="dashboard-header header-classic">
+            <div>
+              <div class="breadcrumb">工作台 / 经营分析</div>
+              <h3 class="dashboard-title">客户经营总览</h3>
+              <p class="dashboard-subtitle">聚合关键经营指标与近期业务变化</p>
+            </div>
+            <div class="header-aside">
+              <span class="meta-text">统计周期 · 近 30 天</span>
+              <div class="header-meta-list">
+                <div class="metric-inline"><span>重点客户</span><strong>128 家</strong></div>
+                <div class="metric-inline"><span>机会金额</span><strong>2,460 万</strong></div>
+              </div>
+            </div>
+          </header>
+        </div>
+        <div class="candidate-slots"><strong>适合：</strong> 通用后台、管理看板　<strong>槽位：</strong> 面包屑 / 副标题 / 周期 / 关键数据</div>
+      </article>
+
+      <article class="candidate">
+        <div class="candidate-meta">
+          <span class="candidate-index">B</span>
+          <div class="candidate-name"><h2>品牌横幅</h2><p>品牌信息独立成行，业务标题保持通用</p></div>
+        </div>
+        <div class="candidate-stage">
+          <header class="dashboard-header header-brand-band">
+            <div class="brand-band-top">
+              <div class="brand-mark"><span class="brand-icon">F</span><span>纷享销客 · 数据洞察</span></div>
+              <span class="meta-text">2026 年 7 月</span>
+            </div>
+            <div class="brand-band-main">
+              <div>
+                <span class="eyebrow">月度经营报告</span>
+                <h3 class="dashboard-title" style="margin-top: 14px;">业务增长分析</h3>
+                <p class="dashboard-subtitle">从客户、机会与回款视角查看增长质量</p>
+              </div>
+              <div class="metric-inline"><span>综合增长率</span><strong style="color: var(--accent-strong); font-size: 22px;">+18.6%</strong></div>
+            </div>
+          </header>
+        </div>
+        <div class="candidate-slots"><strong>适合：</strong> 品牌报告、对外分享　<strong>槽位：</strong> 品牌 / 标签 / 周期 / 关键结论</div>
+      </article>
+
+      <article class="candidate">
+        <div class="candidate-meta">
+          <span class="candidate-index">C</span>
+          <div class="candidate-name"><h2>报告封面</h2><p>居中聚焦结论型标题，弱化后台工具感</p></div>
+        </div>
+        <div class="candidate-stage">
+          <header class="dashboard-header header-report-cover">
+            <div class="brand-mark"><span class="brand-icon">F</span><span>数据策略中心</span></div>
+            <span class="eyebrow">专项洞察</span>
+            <h3 class="dashboard-title">重点客户机会分析</h3>
+            <p class="dashboard-subtitle">识别高价值机会、阶段阻塞与本周应优先推进的客户</p>
+            <div class="header-meta-list"><span class="meta-text">2026 Q3</span><span class="meta-text">内部资料</span><span class="meta-text">样本 128 个</span></div>
+          </header>
+        </div>
+        <div class="candidate-slots"><strong>适合：</strong> 专题分析、复盘报告　<strong>槽位：</strong> 品牌 / 标签 / 副标题 / 元信息</div>
+      </article>
+
+      <article class="candidate">
+        <div class="candidate-meta">
+          <span class="candidate-index">D</span>
+          <div class="candidate-name"><h2>插画报告</h2><p>左侧标题和关键数据，右侧使用主题插画</p></div>
+        </div>
+        <div class="candidate-stage">
+          <header class="dashboard-header header-visual-report">
+            <div class="visual-report-copy">
+              <div class="brand-mark"><span class="brand-icon">F</span><span>数据智能中心</span></div>
+              <h3 class="dashboard-title">AI 客户洞察<br>表现诊断报告</h3>
+              <p class="dashboard-subtitle">识别重点客户、机会变化与经营风险</p>
+              <div class="header-stat-grid">
+                <div class="metric-inline"><span>统计周期</span><strong>7 天</strong></div>
+                <div class="metric-inline"><span>样本客户</span><strong>128 家</strong></div>
+                <div class="metric-inline"><span>分析维度</span><strong>6 项</strong></div>
+              </div>
+            </div>
+            <figure class="visual-report-art">
+              <div class="code-illustration" data-illustration="analysis" role="img" aria-label="数据分析三维插画">
+                <div class="art-scene art-analysis">
+                  <span class="art-orbit"></span><span class="art-pedestal"></span>
+                  <span class="analysis-bars"><span class="analysis-bar" style="--bar-height: 34%;"></span><span class="analysis-bar" style="--bar-height: 51%;"></span><span class="analysis-bar" style="--bar-height: 69%;"></span><span class="analysis-bar" style="--bar-height: 86%;"></span></span>
+                  <span class="analysis-lens"></span>
+                </div>
+                <div class="art-scene art-growth">
+                  <span class="art-orbit"></span><span class="art-pedestal"></span><span class="growth-path"></span>
+                  <span class="growth-blocks"><span class="growth-block" style="--block-height: 30%;"></span><span class="growth-block" style="--block-height: 53%;"></span><span class="growth-block" style="--block-height: 76%;"></span></span>
+                </div>
+                <div class="art-scene art-operations">
+                  <span class="art-pedestal"></span><span class="operations-core"></span><span class="operations-node one"></span><span class="operations-node two"></span><span class="operations-node three"></span><span class="operations-node four"></span>
+                </div>
+                <div class="art-scene art-insight">
+                  <span class="art-orbit"></span><span class="insight-card back"></span><span class="insight-card front"></span><span class="insight-orb"></span>
+                </div>
+              </div>
+            </figure>
+          </header>
+        </div>
+        <div class="candidate-slots"><strong>适合：</strong> 诊断报告、专题分析　<strong>槽位：</strong> 品牌 / 标题 / 说明 / 关键数据 / 代码插画（数据分析、增长趋势、运营监控、洞察报告）</div>
+      </article>
+
+      <article class="candidate">
+        <div class="candidate-meta">
+          <span class="candidate-index">E</span>
+          <div class="candidate-name"><h2>状态头部</h2><p>状态和关键摘要前置，适合监控场景</p></div>
+        </div>
+        <div class="candidate-stage">
+          <header class="dashboard-header header-status">
+            <div>
+              <div class="status-title-row"><h3 class="dashboard-title">服务运营监控</h3><span class="status"><span class="status-dot"></span>运行正常</span></div>
+              <p class="dashboard-subtitle">实时关注服务质量、积压任务与异常变化</p>
+              <div class="header-meta-list">
+                <div class="metric-inline"><span>在线服务</span><strong>18 项</strong></div>
+                <div class="metric-inline"><span>待处理</span><strong>7 项</strong></div>
+                <div class="metric-inline"><span>告警</span><strong>0 项</strong></div>
+              </div>
+            </div>
+          </header>
+        </div>
+        <div class="candidate-slots"><strong>适合：</strong> 状态页、监控 dashboard　<strong>槽位：</strong> 状态 / 副标题 / 关键摘要</div>
+      </article>
+
+      <article class="candidate">
+        <div class="candidate-meta">
+          <span class="candidate-index">F</span>
+          <div class="candidate-name"><h2>上下文双栏</h2><p>标题与当前筛选上下文清晰分区</p></div>
+        </div>
+        <div class="candidate-stage">
+          <header class="dashboard-header header-split-context">
+            <div class="split-primary">
+              <span class="eyebrow">客户分析</span>
+              <h3 class="dashboard-title">重点机会推进</h3>
+              <p class="dashboard-subtitle">聚焦本季度高价值客户与关键阶段转化</p>
+            </div>
+            <div class="split-context">
+              <div class="context-row"><span>范围</span><strong>华北区</strong></div>
+              <div class="context-row"><span>负责人</span><strong>全部销售</strong></div>
+              <div class="context-row"><span>周期</span><strong>本季度</strong></div>
+            </div>
+          </header>
+        </div>
+        <div class="candidate-slots"><strong>适合：</strong> 多条件分析、管理驾驶舱　<strong>槽位：</strong> 标签 / 副标题 / 条件摘要</div>
+      </article>
+    </div>
+  </main>
+</body>
+</html>
