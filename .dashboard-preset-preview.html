@@ -559,6 +559,12 @@
       position: relative;
       background: var(--hero-bg);
     }
+    .dashboard[data-header-background-type="none"] .report-hero { display: contents; }
+    .dashboard[data-header-background-type="none"] .hero-copy { padding: 0 calc(var(--space) * 2.2); }
+    .dashboard[data-header-background-type="none"] .hero-title,
+    .dashboard[data-header-background-type="none"] .hero-attribution { width: fit-content; align-self: flex-start; }
+    .dashboard[data-header-background-type="none"] .hero-fx-layer,
+    .dashboard[data-header-background-type="none"] .hero-decoration { display: none; }
     .dashboard[data-header-background-type="glass"] .report-hero {
       -webkit-backdrop-filter: blur(24px) saturate(155%);
       backdrop-filter: blur(24px) saturate(155%);
@@ -599,13 +605,15 @@
     .brand { display: flex; order: 0; align-items: center; max-width: min(220px, 100%); }
     .brand img { display: block; width: auto; max-width: 100%; height: auto; max-height: 28px; object-fit: contain; }
     .hero-title { order: 2; max-width: 580px; margin: 0; color: var(--hero-text-main); font-size: calc(32px * var(--font-scale)); font-weight: 760; line-height: 1.22; text-wrap: balance; overflow-wrap: anywhere; }
-    .hero-kicker { display: none; order: 1; max-width: 760px; margin: 0; color: var(--hero-text-secondary); font-size: calc(10px * var(--font-scale)); letter-spacing: .04em; text-wrap: balance; }
-    .hero-attribution { --attribution-text: var(--text-secondary); --attribution-icon: var(--text-muted); display: inline-flex; order: 3; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%; gap: 9px; margin-top: 16px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: var(--attribution-text); font-size: calc(10px * var(--font-scale)); }
+    .hero-kicker { display: none; order: 1; max-width: 760px; margin: 0; color: var(--hero-text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); letter-spacing: .04em; text-wrap: balance; }
+    .hero-attribution { --attribution-text: var(--text-secondary); --attribution-icon: var(--text-muted); display: inline-flex; order: 3; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%; gap: 9px; margin-top: 16px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: var(--attribution-text); font-size: max(12px, calc(10px * var(--font-scale))); line-height: 16px; }
     .dashboard[data-header-meta="plain"] .hero-attribution { --attribution-text: var(--hero-text-secondary); --attribution-icon: var(--hero-text-muted); padding: 0; border: 0; border-radius: 0; background: transparent; }
     .dashboard[data-header-meta="hidden"] .hero-attribution { display: none; }
-    .attribution-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .dashboard[data-page-type="dashboard"] .hero-attribution .attribution-separator,
+    .dashboard[data-page-type="dashboard"] .hero-attribution .attribution-item:last-child { display: none; }
+    .attribution-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; line-height: 16px; }
     .attribution-item > span { overflow-wrap: anywhere; }
-    .attribution-item svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--attribution-icon); fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .attribution-item svg { display: block; width: 16px; height: 16px; flex: 0 0 16px; align-self: center; color: var(--attribution-icon); fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
     .attribution-separator { width: 3px; height: 3px; flex: 0 0 3px; border-radius: 50%; background: var(--attribution-icon); opacity: .55; }
     .dashboard[data-header-meta-separator="line"] .attribution-separator { width: 1px; height: 14px; flex-basis: 1px; border-radius: 0; opacity: .38; }
 
@@ -657,16 +665,16 @@
     .dashboard[data-section-visibility="hidden"] .summary-card-title { display: flex; }
     .summary-copy { position: relative; padding: 3px 18px; }
     .summary-copy::before { position: absolute; top: -7px; left: -2px; color: var(--accent-structure); content: "“"; font-size: calc(28px * var(--font-scale)); font-weight: 750; }
-    .summary-copy p { margin: 0; color: var(--text-secondary); font-size: calc(12px * var(--font-scale)); line-height: 1.9; }
+    .summary-copy p { margin: 0; color: var(--text-secondary); font-size: max(12px, calc(12px * var(--font-scale))); line-height: 1.9; }
     .summary-copy strong { color: var(--accent-on-soft); font-size: calc(16px * var(--font-scale)); }
     .summary-score { border-left: 1px solid var(--accent-line); text-align: center; }
     .summary-score strong { display: block; color: var(--accent-structure); font-size: calc(34px * var(--font-scale)); line-height: 1; }
-    .summary-score span { display: block; margin-top: 8px; color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .summary-score span { display: block; margin-top: 8px; color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
 
     .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); }
     .metric { position: relative; --kpi-icon-box: 40px; --kpi-icon-glyph: 23px; --kpi-icon-offset: 50px; --kpi-icon-shift-y: -11px; padding: var(--space); }
     .metric-head { display: flex; align-items: flex-start; justify-content: space-between; min-height: 0; gap: 10px; padding-right: var(--kpi-icon-offset); }
-    .metric-label { color: var(--text-secondary); font-size: calc(var(--card-title-size) * .86); }
+    .metric-label { color: var(--text-secondary); font-size: max(12px, calc(var(--card-title-size) * .86)); }
     .metric-icon { position: absolute; top: calc(var(--space) + var(--kpi-icon-shift-y)); right: var(--space); display: grid; width: var(--kpi-icon-box); height: var(--kpi-icon-box); place-items: center; border: 0; border-radius: 0; background: transparent; color: var(--icon-accent); box-shadow: none; transform: scale(var(--kpi-icon-scale, 1)); }
     .metric-icon svg { width: var(--kpi-icon-glyph); height: var(--kpi-icon-glyph); fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
     .dashboard[data-kpi-card-background="white"] .metric:not([data-kpi-card-background]),
@@ -681,7 +689,7 @@
     .surface[data-kpi-icon="outline"] .metric-icon svg,
     .surface[data-kpi-icon="filled"] .metric-icon svg { fill: currentColor; stroke: none; }
     .metric strong { display: block; margin-top: 10px; font-size: calc(28px * var(--font-scale)); line-height: 1; }
-    .metric em { display: block; margin-top: 9px; color: var(--success); font-size: calc(10px * var(--font-scale)); font-style: normal; font-weight: 650; }
+    .metric em { display: block; margin-top: 9px; color: var(--success); font-size: max(12px, calc(10px * var(--font-scale))); font-style: normal; font-weight: 650; }
 
     .dashboard[data-kpi-icon="none"] .metric-icon { display: none; }
     .dashboard[data-kpi-icon-container="soft"] .metric-icon { border-radius: 50%; background: var(--icon-soft); color: var(--icon-accent); }
@@ -742,7 +750,7 @@
     .content-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); gap: var(--card-gap); }
     .panel { padding: var(--space); }
     .panel h3 { margin: 0; font-size: var(--card-title-size); }
-    .panel-note { margin: 4px 0 0; color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .panel-note { margin: 4px 0 0; color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
     .bar-chart { display: flex; align-items: end; gap: 9px; height: 150px; padding-top: 22px; }
     .bar { flex: 1; min-width: 8px; height: var(--height); border-radius: 4px 4px 0 0; background: var(--chart-accent); }
     .dashboard[data-chart-palette="bichrome"] .bar:nth-child(odd) { background: var(--chart-bi-1); }
@@ -753,9 +761,9 @@
     .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 4) { background: var(--chart-4); }
     .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 5) { background: var(--chart-5); }
     .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n) { background: var(--chart-6); }
-    .chart-axis { display: flex; justify-content: space-between; margin-top: 6px; color: var(--text-muted); font-size: calc(9px * var(--font-scale)); }
+    .chart-axis { display: flex; justify-content: space-between; margin-top: 6px; color: var(--text-muted); font-size: max(12px, calc(9px * var(--font-scale))); }
     .ranking { display: grid; margin-top: 13px; }
-    .ranking-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 60px; align-items: center; gap: 8px; min-height: 31px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .ranking-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 60px; align-items: center; gap: 8px; min-height: 31px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
     .ranking-row:last-child { border-bottom: 0; }
     .ranking-row b { overflow: hidden; color: var(--text-main); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
     .rank-bar { height: 5px; overflow: hidden; border-radius: 999px; background: var(--accent-soft); }
@@ -796,9 +804,9 @@
 
     .health-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, .55fr); gap: var(--card-gap); }
     .health-table { display: grid; margin-top: 13px; }
-    .health-row { display: grid; grid-template-columns: minmax(150px, 1.4fr) minmax(90px, .7fr) minmax(90px, .7fr) 72px; align-items: center; gap: 10px; min-height: 38px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .health-row { display: grid; grid-template-columns: minmax(150px, 1.4fr) minmax(90px, .7fr) minmax(90px, .7fr) 72px; align-items: center; gap: 10px; min-height: 38px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
     .health-row:last-child { border-bottom: 0; }
-    .health-row--head { min-height: 30px; color: var(--text-muted); font-size: calc(9px * var(--font-scale)); font-weight: 650; }
+    .health-row--head { min-height: 30px; color: var(--text-muted); font-size: max(12px, calc(9px * var(--font-scale))); font-weight: 650; }
     .health-row strong { overflow: hidden; color: var(--text-main); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
     .health-score { color: var(--text-main); font-weight: 700; }
     .health-state { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); font-weight: 650; }
@@ -807,7 +815,7 @@
     .health-state[data-tone="danger"]::before { background: var(--danger); }
     .risk-list { display: grid; gap: 9px; margin-top: 14px; }
     .risk-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 43px; padding: 0 12px; border: 1px solid var(--line); border-radius: calc(var(--radius) * .65); background: var(--surface-muted); }
-    .risk-item span { color: var(--text-secondary); font-size: calc(10px * var(--font-scale)); }
+    .risk-item span { color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
     .risk-item strong { color: var(--text-main); font-size: calc(16px * var(--font-scale)); }
 
     .dashboard[data-header="brand"] { --hero-bg: linear-gradient(110deg, var(--accent-soft) 0%, var(--surface) 62%); }
@@ -898,15 +906,21 @@
     .layout-section-tools { margin-left: auto; }
     body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"],
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section { position: relative; }
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]:hover > .layout-section-handle,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]:focus-within > .layout-section-handle,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"].layout-dragging > .layout-section-handle,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"] > .layout-section-handle { display: inline-flex; opacity: 0; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"] > .layout-section-handle:hover,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] > .layout-section-handle,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"].layout-dragging > .layout-section-handle { opacity: 1; }
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section:hover > .layout-section-handle,
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section:focus-within > .layout-section-handle,
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section.layout-dragging > .layout-section-handle { display: inline-flex; }
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .layout-section-inline-drag { display: none; }
     body[data-design-mode="true"] .section.layout-group-active { outline: 2px solid rgba(24, 24, 27, .58); outline-offset: 7px; border-radius: calc(var(--radius) + 3px); }
     body[data-design-mode="true"] .section.layout-group-active [data-item-id][data-selected="true"] { outline-color: transparent; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] .layout-item-drag-label,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] .layout-resize-handle,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]:has(> .layout-section-handle:hover) .layout-item-drag-label,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]:has(> .layout-section-handle:hover) .layout-resize-handle { display: none !important; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] .layout-item { cursor: default; }
     .layout-section-handle {
       position: absolute;
       z-index: 18;
@@ -1019,6 +1033,7 @@
       cursor: grabbing !important;
       will-change: transform;
     }
+    .layout-pointer-dragging.layout-drag-outside { opacity: .58 !important; filter: saturate(.35); }
     .layout-grid-placeholder {
       min-width: 0;
       border: 2px dashed color-mix(in srgb, var(--tool-text) 30%, transparent);
@@ -1068,6 +1083,7 @@
       .hero-attribution { align-items: flex-start; gap: 7px 9px; margin-top: 14px; }
       .attribution-separator { align-self: center; }
       .report-body { padding: 24px 14px 28px; }
+      .dashboard[data-header-background-type="none"] .hero-copy { padding-right: 14px; padding-left: 14px; }
       .section-heading { flex-wrap: wrap; }
       .section-heading small { flex-basis: 100%; padding-left: 35px; }
       .metric-grid { grid-template-columns: 1fr; }
@@ -1144,7 +1160,7 @@
         <div class="toolbar-band-controls">
           <div class="header-background-composer">
             <span class="header-background-label">头部底色</span>
-            <select class="control-select" id="headerControl" aria-label="头部底色"><option value="none">无底色</option><option value="solid" selected>单色</option><option value="gradient">渐变色</option><option value="glass">透明磨砂</option></select>
+            <select class="control-select" id="headerControl" aria-label="头部底色"><option value="none" selected>无</option><option value="solid">单色</option><option value="gradient">渐变色</option><option value="glass">透明磨砂</option></select>
             <label class="conditional-field header-color-only" id="headerSolidColorField"><input class="header-color-input" id="headerSolidColorControl" type="color" value="#ffffff" aria-label="自定义头部单色"></label>
             <button class="conditional-field header-gradient-trigger" id="headerGradientTrigger" type="button" aria-label="调整头部渐变色" aria-haspopup="dialog" aria-expanded="false" hidden></button>
             <div class="header-gradient-popover" id="headerGradientPopover" role="dialog" aria-label="头部渐变设置" hidden>
@@ -1167,7 +1183,7 @@
           <div class="conditional-field" id="subtitleField"><label class="control-group"><span>副标题</span><select class="control-select" id="subtitleControl"><option value="none">无</option><option value="above">标题上方</option><option value="below">标题下方</option></select></label></div>
           <div class="conditional-field header-meta-composer" id="headerMetaField">
             <span class="header-meta-label">信息条</span>
-            <select class="control-select" id="headerMetaControl" aria-label="信息条样式"><option value="plain">无底</option><option value="surface" selected>有底</option><option value="hidden">隐藏</option></select>
+            <select class="control-select" id="headerMetaControl" aria-label="信息条样式"><option value="plain" selected>无底</option><option value="surface">有底</option><option value="hidden">隐藏</option></select>
             <span class="header-meta-separator-field" id="headerMetaSeparatorField"><select class="control-select" id="headerMetaSeparatorControl" aria-label="信息条连接符"><option value="dot">圆点</option><option value="line">竖线</option></select></span>
           </div>
           <div class="conditional-field" id="headerDecorationField"><label class="control-group"><span>动态装饰</span><select class="control-select" id="headerDecorationControl"><option value="none">无</option><option value="particles">漂浮微粒</option><option value="aurora">极光漂移</option><option value="sheen">流光扫过</option></select></label></div>
@@ -1257,7 +1273,7 @@
       <div class="icon-picker-results" id="sectionIconPickerResults" role="listbox"></div>
     </div>
 
-    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-icon="none" data-kpi-icon-weight="regular" data-kpi-icon-color="neutral" data-kpi-icon-container="none" data-kpi-layout="right-top" data-chart-palette="monochrome" data-page-texture="none" data-surface-boundary="normal">
+    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-background-type="none" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-icon="none" data-kpi-icon-weight="regular" data-kpi-icon-color="neutral" data-kpi-icon-container="none" data-kpi-layout="right-top" data-chart-palette="monochrome" data-page-texture="none" data-surface-boundary="normal">
       <header class="report-hero">
         <div class="hero-fx-layer" aria-hidden="true">
           <span class="hero-aurora hero-aurora-1"></span>
@@ -1333,7 +1349,7 @@
 
     const translations = {
       zh: {
-        title: "客户经营分析报告", subtitle: "CUSTOMER ANALYTICS · PERIODIC REPORT", dataThrough: "数据截止 2026-07-30 18:00", createdBy: "创建人：赵丹 Mandy",
+        title: "客户经营分析报告", dashboardTitle: "客户经营分析", subtitle: "CUSTOMER ANALYTICS · PERIODIC REPORT", dataThrough: "数据截止 2026-07-30 18:00", createdBy: "创建人：赵丹 Mandy",
         sectionSummary: "经营摘要", sectionSummaryKicker: "Executive Summary", completionLabel: "综合目标完成率",
         sectionMetrics: "核心经营指标", sectionMetricsKicker: "Key Metrics", customerLabel: "重点客户", customerValue: "128 家", customerTrend: "较上期 +12.4%",
         opportunityLabel: "机会金额", opportunityValue: "2,460 万", opportunityTrend: "较上期 +8.2%", conversionLabel: "转化率", conversionTrend: "较上期 +3.6%",
@@ -1344,7 +1360,7 @@
         logoAlt: "品牌 Logo"
       },
       en: {
-        title: "Customer Business Performance Report", subtitle: "CUSTOMER ANALYTICS · PERIODIC REPORT", dataThrough: "Data through Jul 30, 2026, 18:00", createdBy: "Created by Zhao Dan (Mandy)",
+        title: "Customer Business Performance Report", dashboardTitle: "Customer Business Analytics", subtitle: "CUSTOMER ANALYTICS · PERIODIC REPORT", dataThrough: "Data through Jul 30, 2026, 18:00", createdBy: "Created by Zhao Dan (Mandy)",
         sectionSummary: "Executive Summary", sectionSummaryKicker: "", completionLabel: "Overall target completion",
         sectionMetrics: "Key Business Metrics", sectionMetricsKicker: "", customerLabel: "Priority customers", customerValue: "128", customerTrend: "vs. prior period +12.4%",
         opportunityLabel: "Opportunity value", opportunityValue: "CNY 24.6M", opportunityTrend: "vs. prior period +8.2%", conversionLabel: "Conversion rate", conversionTrend: "vs. prior period +3.6%",
@@ -1695,6 +1711,8 @@
       const restoredTheme = { ...saved.theme };
       if (saved.version === 1) restoredTheme.headerAlign = "auto";
       state = { ...state, ...restoredTheme, preset: saved.theme.preset };
+      if (!Object.prototype.hasOwnProperty.call(restoredTheme, "headerBackgroundDefaultVersion")) delete state.headerBackgroundDefaultVersion;
+      if (!Object.prototype.hasOwnProperty.call(restoredTheme, "headerMetaDefaultVersion")) delete state.headerMetaDefaultVersion;
       applyState();
       if (saved.layout) window.DashboardLayoutEditor.applyConfig(saved.layout);
       if (saved.logo?.src) {
@@ -2235,37 +2253,47 @@
       handle.title = `${side === "left" ? "左侧" : "右侧"}拖动调整卡片宽度`;
 
       const updateFromPointer = (clientX) => {
-        const groupRect = group.getBoundingClientRect();
+        const sizingGrid = isDashboardFreeCard(item) ? item.closest(".report-body") : group;
+        const groupRect = sizingGrid.getBoundingClientRect();
         const itemRect = item.getBoundingClientRect();
-        const gap = Number.parseFloat(getComputedStyle(group).columnGap) || 0;
-        const columnWidth = Math.max(1, (groupRect.width - gap * 11) / 12);
+        const gridStyle = getComputedStyle(sizingGrid);
+        const gap = Number.parseFloat(gridStyle.columnGap) || 0;
+        const gridWidth = groupRect.width - (Number.parseFloat(gridStyle.paddingLeft) || 0) - (Number.parseFloat(gridStyle.paddingRight) || 0);
+        const columnWidth = Math.max(1, (gridWidth - gap * 11) / 12);
         const pointerWidth = side === "left" ? itemRect.right - clientX : clientX - itemRect.left;
-        const requestedWidth = Math.max(columnWidth, Math.min(groupRect.width, pointerWidth));
+        const requestedWidth = Math.max(columnWidth, Math.min(gridWidth, pointerWidth));
         const rawSpan = (requestedWidth + gap) / (columnWidth + gap);
         setLayoutItemSpan(item, group, groupLayoutSelect, rawSpan);
       };
 
+      let resizePointerId = null;
+      const moveResize = (event) => {
+        if (item.dataset.resizing !== "true" || event.pointerId !== resizePointerId) return;
+        event.preventDefault();
+        updateFromPointer(event.clientX);
+      };
+      const finishResize = (event) => {
+        if (item.dataset.resizing !== "true" || event.pointerId !== resizePointerId) return;
+        delete item.dataset.resizing;
+        if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+        resizePointerId = null;
+        document.removeEventListener("pointermove", moveResize);
+        document.removeEventListener("pointerup", finishResize);
+        document.removeEventListener("pointercancel", finishResize);
+        scheduleWorkspaceSave();
+      };
       handle.addEventListener("pointerdown", (event) => {
         if (document.body.dataset.designMode !== "true") return;
         event.preventDefault();
         event.stopPropagation();
+        resizePointerId = event.pointerId;
         item.dataset.resizing = "true";
         setLayoutItemSpan(item, group, groupLayoutSelect, item.dataset.span);
         handle.setPointerCapture(event.pointerId);
+        document.addEventListener("pointermove", moveResize, { passive: false });
+        document.addEventListener("pointerup", finishResize);
+        document.addEventListener("pointercancel", finishResize);
       });
-      handle.addEventListener("pointermove", (event) => {
-        if (item.dataset.resizing !== "true" || !handle.hasPointerCapture(event.pointerId)) return;
-        event.preventDefault();
-        updateFromPointer(event.clientX);
-      });
-      const finishResize = (event) => {
-        if (item.dataset.resizing !== "true") return;
-        delete item.dataset.resizing;
-        if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
-        scheduleWorkspaceSave();
-      };
-      handle.addEventListener("pointerup", finishResize);
-      handle.addEventListener("pointercancel", finishResize);
       handle.addEventListener("keydown", (event) => {
         if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
         event.preventDefault();
@@ -2278,7 +2306,7 @@
     }
 
     function clearLayoutDragState() {
-      document.querySelectorAll(".layout-dragging, .layout-pointer-dragging, .layout-drop-target, .layout-group-active").forEach((element) => element.classList.remove("layout-dragging", "layout-pointer-dragging", "layout-drop-target", "layout-group-active"));
+      document.querySelectorAll(".layout-dragging, .layout-pointer-dragging, .layout-drag-outside, .layout-drop-target, .layout-group-active").forEach((element) => element.classList.remove("layout-dragging", "layout-pointer-dragging", "layout-drag-outside", "layout-drop-target", "layout-group-active"));
       document.querySelectorAll(".layout-grid-placeholder").forEach((element) => element.remove());
       layoutDragState = null;
     }
@@ -2385,9 +2413,35 @@
       return item && dashboardCanvasNodes(reportBody).includes(item) ? item : null;
     }
 
+    function reorderGroupedCardPlaceholder(group, source, placeholder, target, event) {
+      const siblings = [...group.children].filter((item) => item.classList.contains("layout-item") && item !== source);
+      const previousRects = new Map(siblings.map((item) => [item, item.getBoundingClientRect()]));
+      const targetRect = target.getBoundingClientRect();
+      const sameRow = Math.abs(event.clientY - (targetRect.top + targetRect.height / 2)) < targetRect.height * .35;
+      const before = sameRow ? event.clientX < targetRect.left + targetRect.width / 2 : event.clientY < targetRect.top + targetRect.height / 2;
+      if (before) target.before(placeholder);
+      else target.after(placeholder);
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      requestAnimationFrame(() => {
+        siblings.forEach((item) => {
+          const previous = previousRects.get(item);
+          const current = item.getBoundingClientRect();
+          const deltaX = previous.left - current.left;
+          const deltaY = previous.top - current.top;
+          if (!deltaX && !deltaY) return;
+          item.getAnimations().forEach((animation) => animation.cancel());
+          item.animate(
+            [{ transform: `translate(${deltaX}px, ${deltaY}px)` }, { transform: "translate(0, 0)" }],
+            { duration: 150, easing: "cubic-bezier(.2,.8,.2,1)" }
+          );
+        });
+      });
+    }
+
     function setupDashboardPointerDrag(handle, node, reportBody) {
       handle.addEventListener("pointerdown", (event) => {
         if (dashboard.dataset.pageType !== "dashboard" || document.body.dataset.designMode !== "true" || event.button !== 0) return;
+        if (node.matches("[data-item-id]") && node.closest(".section[data-selected='true']")) return;
         const interactiveTarget = event.target.closest(".layout-resize-handle, button, input, select, textarea, a, [contenteditable='true']");
         if (interactiveTarget && interactiveTarget !== handle) return;
         const handleWasDraggable = handle.draggable;
@@ -2398,23 +2452,32 @@
         const startX = event.clientX;
         const startY = event.clientY;
         const originRect = node.getBoundingClientRect();
+        const groupedCardGroup = node.matches(".layout-item[data-item-id]") && node.closest(".section[data-grouped='true']") ? node.parentElement : null;
         const pointerOffsetX = event.clientX - originRect.left;
         const pointerOffsetY = event.clientY - originRect.top;
+        const dragPointerId = event.pointerId;
         let active = false;
         handle.setPointerCapture(event.pointerId);
 
         const move = (moveEvent) => {
+          if (moveEvent.pointerId !== dragPointerId) return;
           if (!active && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 5) return;
           if (!active) {
             active = true;
             const placeholder = document.createElement("div");
             placeholder.className = "layout-grid-placeholder";
             placeholder.style.height = `${originRect.height}px`;
-            placeholder.style.gridColumn = `span ${node.matches(".section[data-section-id]") ? Number(node.dataset.span) || 12 : Number(node.dataset.span) || 12}`;
-            placeholder.style.order = node.style.order;
-            reportBody.appendChild(placeholder);
-            layoutDragState = { type: "canvas-item", element: node, placeholder, canvasOrder: applyDashboardCanvasOrder(reportBody) };
-            placeholder.style.order = node.style.order;
+            if (groupedCardGroup?.dataset.layout === "custom") placeholder.style.gridColumn = `span ${Number(node.dataset.span) || 4}`;
+            if (groupedCardGroup) {
+              node.after(placeholder);
+              layoutDragState = { type: "grouped-item", element: node, placeholder, group: groupedCardGroup };
+            } else {
+              placeholder.style.gridColumn = `span ${node.matches(".section[data-section-id]") ? Number(node.dataset.span) || 12 : Number(node.dataset.span) || 12}`;
+              placeholder.style.order = node.style.order;
+              reportBody.appendChild(placeholder);
+              layoutDragState = { type: "canvas-item", element: node, placeholder, canvasOrder: applyDashboardCanvasOrder(reportBody) };
+              placeholder.style.order = node.style.order;
+            }
             Object.assign(node.style, {
               position: "fixed",
               left: `${originRect.left}px`,
@@ -2426,6 +2489,20 @@
             document.body.style.userSelect = "none";
           }
           node.style.transform = `translate3d(${moveEvent.clientX - pointerOffsetX - originRect.left}px, ${moveEvent.clientY - pointerOffsetY - originRect.top}px, 0)`;
+          if (groupedCardGroup) {
+            const groupRect = groupedCardGroup.getBoundingClientRect();
+            const insideGroup = moveEvent.clientX >= groupRect.left && moveEvent.clientX <= groupRect.right && moveEvent.clientY >= groupRect.top && moveEvent.clientY <= groupRect.bottom;
+            node.classList.toggle("layout-drag-outside", !insideGroup);
+            document.body.style.cursor = insideGroup ? "" : "not-allowed";
+            const hit = insideGroup ? document.elementFromPoint(moveEvent.clientX, moveEvent.clientY) : null;
+            const target = hit?.closest(".layout-item[data-item-id]");
+            document.querySelectorAll(".layout-drop-target").forEach((element) => element.classList.remove("layout-drop-target"));
+            if (target && target !== node && target.parentElement === groupedCardGroup) {
+              target.classList.add("layout-drop-target");
+              reorderGroupedCardPlaceholder(groupedCardGroup, node, layoutDragState.placeholder, target, moveEvent);
+            }
+            return;
+          }
           const target = dashboardCanvasNodeAtPoint(reportBody, moveEvent.clientX, moveEvent.clientY);
           document.querySelectorAll(".layout-drop-target").forEach((element) => element.classList.remove("layout-drop-target"));
           if (!target || target === node) return;
@@ -2433,20 +2510,23 @@
           reorderDashboardCanvasCard(reportBody, node, target, moveEvent);
         };
 
-        const finish = () => {
-          handle.removeEventListener("pointermove", move);
-          handle.removeEventListener("pointerup", finish);
-          handle.removeEventListener("pointercancel", finish);
+        const finish = (finishEvent) => {
+          if (finishEvent.pointerId !== dragPointerId) return;
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", finish);
+          document.removeEventListener("pointercancel", finish);
           if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
           handle.draggable = handleWasDraggable;
           node.draggable = nodeWasDraggable;
           document.body.style.userSelect = "";
+          document.body.style.cursor = "";
           if (!active) {
             clearLayoutDragState();
             return;
           }
           const placeholderRect = layoutDragState.placeholder.getBoundingClientRect();
           const floatingRect = node.getBoundingClientRect();
+          if (groupedCardGroup) layoutDragState.placeholder.before(node);
           node.style.transition = "transform 160ms cubic-bezier(.2,.8,.2,1)";
           node.style.transform = `translate3d(${placeholderRect.left - floatingRect.left + parseFloat(new DOMMatrix(getComputedStyle(node).transform).m41 || 0)}px, ${placeholderRect.top - floatingRect.top + parseFloat(new DOMMatrix(getComputedStyle(node).transform).m42 || 0)}px, 0)`;
           window.setTimeout(() => {
@@ -2462,9 +2542,9 @@
           }, 165);
         };
 
-        handle.addEventListener("pointermove", move);
-        handle.addEventListener("pointerup", finish);
-        handle.addEventListener("pointercancel", finish);
+        document.addEventListener("pointermove", move, { passive: false });
+        document.addEventListener("pointerup", finish);
+        document.addEventListener("pointercancel", finish);
       });
     }
 
@@ -2536,6 +2616,12 @@
           event.dataTransfer.setData("text/plain", section.dataset.sectionId);
         });
         sectionHandle.addEventListener("dragend", clearLayoutDragState);
+        sectionHandle.addEventListener("pointerdown", () => {
+          if (dashboard.dataset.pageType !== "dashboard") return;
+          section.style.setProperty("--group-handle-left", "-10px");
+          section.style.setProperty("--group-handle-top", "-10px");
+          selectSection(section);
+        });
         setupDashboardPointerDrag(sectionHandle, section, reportBody);
         section.appendChild(sectionHandle);
         tools.append(dragButton, upButton, downButton);
@@ -2586,10 +2672,21 @@
           item.addEventListener("pointerenter", () => {
             const section = item.closest(".section[data-section-id]");
             if (!section) return;
+            if (dashboard.dataset.pageType === "dashboard" && section.dataset.grouped === "true") {
+              section.style.setProperty("--group-handle-left", "-10px");
+              section.style.setProperty("--group-handle-top", "-10px");
+              return;
+            }
             const itemRect = item.getBoundingClientRect();
             const sectionRect = section.getBoundingClientRect();
             section.style.setProperty("--group-handle-left", `${Math.max(-10, itemRect.left - sectionRect.left + 10)}px`);
             section.style.setProperty("--group-handle-top", `${itemRect.top - sectionRect.top - 10}px`);
+          });
+          item.addEventListener("pointerleave", () => {
+            const section = item.closest(".section[data-section-id]");
+            if (!section || section.dataset.grouped !== "true") return;
+            section.style.setProperty("--group-handle-left", "-10px");
+            section.style.setProperty("--group-handle-top", "-10px");
           });
           item.addEventListener("dragstart", (event) => {
             if (document.body.dataset.designMode !== "true" || item.dataset.resizing === "true") {
@@ -3152,6 +3249,7 @@
       document.documentElement.lang = state.language === "en" ? "en" : "zh-CN";
       dashboard.dataset.language = state.language;
       document.querySelectorAll("[data-i18n]").forEach((element) => { element.textContent = copy[element.dataset.i18n]; });
+      dashboard.querySelector(".hero-title").textContent = state.pageType === "dashboard" ? copy.dashboardTitle : copy.title;
       if (state.sectionCopy === "subtitle") {
         document.querySelectorAll(".section[data-section-id]").forEach((section) => {
           const subtitle = section.querySelector(".section-heading small");
@@ -3230,11 +3328,13 @@
       if (!["default", "white", "single", "multi"].includes(state.kpiCardBackground)) state.kpiCardBackground = "default";
       if (!["none", "weak", "medium", "strong"].includes(state.shadow)) state.shadow = "weak";
       if (!["none", "grid", "grain", "diagonal"].includes(state.pageTexture)) state.pageTexture = "none";
-      const legacyHeader = ["plain", "auto"].includes(state.header) ? "surface" : state.header;
+      const legacyHeader = ["plain", "auto"].includes(state.header) ? (state.pageType === "dashboard" ? "minimal" : "surface") : state.header;
       if (typeof state.headerVisible !== "boolean") state.headerVisible = legacyHeader !== "hidden";
       if (!["none", "solid", "gradient", "glass"].includes(state.headerBackgroundType)) {
         state.headerBackgroundType = legacyHeader === "minimal" ? "none" : legacyHeader === "brand" ? "gradient" : "solid";
       }
+      if (state.pageType === "dashboard" && state.headerBackgroundDefaultVersion !== 2) state.headerBackgroundType = "none";
+      state.headerBackgroundDefaultVersion = 2;
       if (!["neutral", "accent-soft", "accent-solid", "custom"].includes(state.headerSolidMode)) {
         state.headerSolidMode = legacyHeader === "band" ? "accent-solid" : "neutral";
       }
@@ -3255,6 +3355,8 @@
       state.headerSolidMode = "custom";
       state.headerGradientMode = "custom";
       if (!["plain", "surface", "hidden"].includes(state.headerMetaStyle)) state.headerMetaStyle = "surface";
+      if (state.pageType === "dashboard" && state.headerMetaDefaultVersion !== 2) state.headerMetaStyle = "plain";
+      state.headerMetaDefaultVersion = 2;
       if (!["dot", "line"].includes(state.headerMetaSeparator)) state.headerMetaSeparator = "dot";
       if (!["none", "particles", "aurora", "sheen"].includes(state.headerDecoration)) state.headerDecoration = "none";
       if (!["auto", "left", "center"].includes(state.headerAlign)) state.headerAlign = "auto";
@@ -3486,7 +3588,7 @@
       const preset = presets[name];
       const language = state.language || "zh";
       const pageType = state.pageType || "dashboard";
-      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerAlign: "auto", subtitle: preset.subtitle || "none", headerMetaStyle: "surface", headerMetaSeparator: "dot", headerDecoration: "none", headerSolidLinkedToMode: true, pageBackground: "neutral", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionIconStyle: "line-accent", sectionIcons: {}, sectionCopy: preset.sectionCopy || "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, sectionWeight: 700, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleIcon: "none", cardTitleIconColor: "neutral", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: pageType === "dashboard" && ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid", headerBackgroundDefaultVersion: 2, headerAlign: "auto", subtitle: preset.subtitle || "none", headerMetaStyle: pageType === "dashboard" ? "plain" : "surface", headerMetaDefaultVersion: 2, headerMetaSeparator: "dot", headerDecoration: "none", headerSolidLinkedToMode: true, pageBackground: "neutral", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionIconStyle: "line-accent", sectionIcons: {}, sectionCopy: preset.sectionCopy || "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, sectionWeight: 700, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleIcon: "none", cardTitleIconColor: "neutral", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
       applyState();
     }
 
