@@ -1,0 +1,13 @@
+{
+  "name": "dashboard-html-agent-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node .agents/skills/dashboard-html/scripts/preview-server.mjs",
+    "check": "node --check .agents/skills/dashboard-html/scripts/preview-server.mjs && node .agents/skills/dashboard-html/scripts/check-contract.mjs"
+  },
+  "dependencies": {
+    "@phosphor-icons/core": "2.1.1",
+    "echarts": "^6.1.0"
+  }
+}

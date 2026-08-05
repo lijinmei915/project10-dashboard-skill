@@ -26,6 +26,10 @@ This repository packages a small Codex skill focused on generating or refining d
   The local starter template for dashboard generation.
 - `/.agents/skills/dashboard-html/references/`
   Layout, output, testing, and prompt reference docs.
+- `/.agents/skills/dashboard-html/schemas/dashboard-workspace.schema.json`
+  Portable state contract shared by agents, Studio, and exporters.
+- `/.agents/skills/dashboard-html/scripts/`
+  Deterministic checks and the optional local Studio preview service.
 - `/docs/SKILL_ENGINEERING.md`
   Higher-level notes about how the skill is structured and maintained.
 
@@ -73,6 +77,16 @@ That folder already includes:
 - `agents/openai.yaml`
 - `assets/templates/starter.html`
 - `references/*.md`
+- `schemas/dashboard-workspace.schema.json`
+
+The skill works without the local Studio. Start the optional enhanced preview with:
+
+```bash
+npm install
+npm start
+```
+
+Studio provides full icon search and future chart resources. Exported HTML remains standalone and does not depend on the Studio service.
 
 ### Distribution
 
@@ -97,7 +111,7 @@ No `dist` directory is required.
 
 This skill is distributed as source files because:
 
-- there is no build step
+- the portable core has no build step
 - there is no compiled runtime artifact
 - the skill directory itself is the final usable form
 

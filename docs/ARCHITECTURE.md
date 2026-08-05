@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-06-30
+last_verified: 2026-08-05
 depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 ---
 
@@ -16,6 +16,7 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 - 根目录文档层：`README.md`、`AGENTS.md`、`PRODUCT.md`、`PROJECT.md`、`HANDOFF.md`
 - 治理文档层：`docs/`
 - Skill 执行层：`.agents/skills/dashboard-html/`
+- Agent 预览运行层：`package.json` 与 `.agents/skills/dashboard-html/scripts/preview-server.mjs`
 
 ## dashboard-html skill 结构
 
@@ -27,15 +28,29 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
   提供默认 dashboard HTML 起始骨架
 - `references/*.md`
   提供布局规则、输出约束、测试方式和测试样例
+- `data/icon-aliases.zh.json`
+  提供 Agent 侧的中文图标搜索别名
+- `scripts/preview-server.mjs`
+  托管探索预览，按需搜索与清洗 Phosphor SVG，并通过 ECharts SSR 渲染受控图表 SVG
+- `schemas/dashboard-workspace.schema.json`
+  定义 Skill、Studio 和导出器共享的版本化状态协议
+- `references/runtime.md`
+  定义纯 Skill 降级、Studio 增强和静态/交互导出边界
 
 ## 信息流
 
 1. 使用者触发 `dashboard-html`
 2. Skill 从 `starter.html` 出发组织输出
 3. 参考 `references/` 里的布局、输出和测试规则约束结果
-4. 最终交付 standalone HTML 页面
+4. 编辑分组标题图标时，预览页向本地 Agent API 查询 Phosphor 全量资源
+5. 页面状态只记录各分组最终选择的图标名，预览 DOM 按需注入对应 SVG
+6. 导出时移除设计器、搜索弹窗、脚本和 Agent API 依赖，只保留已选中的内联 SVG
+7. 最终交付可离线使用的 standalone HTML 页面
 
 ## 当前边界
 
-- 当前仓库以文档和 skill 资产为主
-- 暂无应用运行时、服务端模块或前端工程构建链
+- Node 运行时只服务于 Agent 的编辑和预览能力，不进入生成的 dashboard 成品
+- `@phosphor-icons/core` 是 Agent 侧资源依赖；成品不打包图标库，也不依赖网络或搜索 API
+- `echarts` 只在 Agent/Studio 服务端执行；默认成品固化 SVG，不加载 ECharts 运行时
+- 预览仍为单文件 HTML，没有前端构建步骤
+- 当前先保持单仓库开发；待协议稳定后再按 core、exporter、resources、studio 拆包

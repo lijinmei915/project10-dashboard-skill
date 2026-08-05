@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: log
-last_verified: 2026-08-04
+last_verified: 2026-08-05
 depends_on: [PROJECT.md, HANDOFF.md]
 ---
 
@@ -10,6 +10,19 @@ depends_on: [PROJECT.md, HANDOFF.md]
 > 用途：记录影响仓库结构、文档体系或 skill 资产组织方式的变更。
 > 什么时候更新：发生结构性调整时。
 > 不要写什么：纯文案小修、一次性讨论过程、未落地设想。
+
+## 2026-08-05
+
+- 新增 Node Agent 预览服务和 npm 启动入口，提供本地静态预览及 Phosphor 图标搜索/解析 API
+- 新增 Phosphor 依赖与中文图标别名数据；全量资源仅存在于 Agent 运行层
+- 分组标题支持按分组搜索和替换官方图标，并保留语义自动匹配与单组恢复
+- 成品导出继续移除设计器、搜索弹窗与全部脚本，只固化当前选中的内联 SVG
+- 新增 Dashboard workspace v2 JSON Schema，作为 Skill、Studio 与导出器的跨 Agent 状态协议
+- 新增 Skill/Studio 运行边界说明和协议确定性检查；纯 Skill 可独立降级运行，Studio 作为可选增强层
+- Agent 侧新增 ECharts 6.1 SSR 图表服务，支持中文目录搜索及折线、面积、柱状、环形图的受控 SVG 渲染
+- workspace schema 增加结构化图表资源定义；默认导出仍只固化 SVG，不携带图表库
+- Dashboard 布局模型拆分为自由卡片与显式卡片组：KPI 默认成组，其他内容卡直接进入统一 12 列画布；Report 继续保持语义章节
+- Dashboard 拖动改为画布级指针排序，自由卡片可跨原语义分组换位，KPI 组整体移动；拖动卡跟随指针，同 `span` 占位块按 12 列网格吸附，并持久化 `canvasOrder`
 
 ## 2026-08-04
 

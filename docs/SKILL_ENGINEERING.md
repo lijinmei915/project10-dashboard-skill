@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-06-13
+last_verified: 2026-08-05
 ---
 
 # Skill 工程规范
@@ -35,3 +35,11 @@ last_verified: 2026-06-13
 - 目标产物需要模板、报告、视觉或可复用资产：增加 `assets/` 和 `references/design.md`。
 - 验收需要校验、转换、打包或本地工具：增加 `scripts/`、`schemas/`、`fixtures/`、`tests/`。
 - 下一步动作需要发布、分享或安装包：增加 build-dist 和 manifest，并生成裁剪后的 `dist/`。
+
+## Skill 与应用分层
+
+- 可移植 Skill 包含规则、模板、版本化 schema 和确定性脚本，不依赖常驻服务。
+- 本地或远程 Studio 可以持有完整图标库、图表库、搜索索引和可视化编辑器，但属于可选增强层。
+- Skill、Studio 和导出器通过 schema 定义的 JSON 协议交换状态，不直接共享页面内部变量。
+- 默认成品只固化所选资源；完整依赖和搜索能力不得进入 standalone HTML。
+- 不同 Agent 平台只增加薄适配层，核心规则和协议不绑定平台工具名。

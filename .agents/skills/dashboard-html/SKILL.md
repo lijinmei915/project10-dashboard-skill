@@ -6,7 +6,7 @@ description: >
 
 # Dashboard Card Layout Skill
 
-> Package refreshed: 2026-07-21
+> Package refreshed: 2026-08-05
 
 ## What This Skill Preserves
 
@@ -51,13 +51,16 @@ This skill keeps dashboard output:
 - Do not introduce a large-scale token architecture, complex animation system, or unnecessary component taxonomy.
 - Keep `SKILL.md` light: prefer `references/` and `assets/templates/starter.html` for concrete rules.
 - Output must stay in standalone HTML and must remain usable on desktop and mobile.
+- Complete icon libraries, aliases, and search stay in the Agent runtime. Output only the selected sanitized inline SVGs; never add an icon-library or API dependency to the exported HTML.
+- Section title icons are selected per section. Do not force one user-selected icon across every section.
 
 ## Workflow
 
 1. Reuse `assets/templates/starter.html` for visual tokens, theme logic, and responsive foundations; do not inherit its fixed modules, section order, or placeholder content.
 2. Route Dashboard vs Report through `references/page-types.md`; route visual preset, mode, header style, section style, and accent through `references/themes.md`; route layout choices through `references/topic.md`.
-3. Route output guardrails such as HTML completeness, optional header slots, starter style preservation, and visual baseline through `references/output.md`.
-4. Validate the result with `references/testing.md`.
+3. When exchanging editable state with an Agent or Studio, follow `references/runtime.md` and `schemas/dashboard-workspace.schema.json`.
+4. Route output guardrails such as HTML completeness, optional header slots, starter style preservation, and visual baseline through `references/output.md`.
+5. Validate the result with `references/testing.md`.
 
 ## Verification
 

@@ -10,7 +10,7 @@
 ---
 layer: knowledge
 type: status
-last_verified: 2026-06-04
+last_verified: 2026-08-05
 depends_on: [AGENTS.md]
 ---
 
@@ -24,29 +24,41 @@ depends_on: [AGENTS.md]
 
 - 项目名：`项目10-dashboard skill`
 - 一句话定位：`用于整理 AI 工程文档模板，并提供一个 example skill 骨架作为后续扩展示例。`
-- 当前阶段：`原型`
+- 当前阶段：`可运行原型`
 
 ## 当前架构
 
 - 入口层：`README.md`、`AGENTS.md`、`PROJECT.md`、`HANDOFF.md` 提供项目入口、协作规则与状态说明。
 - 规则层：`docs/SKILL_ENGINEERING.md` 定义 Skill 工程边界；`.agents/skills/dashboard-html/SKILL.md` 定义单个 Skill 的触发与工作流骨架。
 - 执行层：`.agents/skills/dashboard-html/agents/openai.yaml`、`references/`、`assets/templates/` 提供 agent 配置、规则文档和输出模板。
+- Agent 运行层：本地 Node 服务提供探索预览及 Phosphor 全量图标搜索；导出层只输出选中的内联 SVG。
 
 ## 当前进度
 
-- 已完成：`已写入项目级文档骨架，以及 dashboard-html skill 的基础目录结构与模板文件。`
-- 正在做：`补全文档中的人工字段与交接信息。`
-- 尚未开始：`补充真实业务定位、运行方式、测试方式，以及 dashboard-html skill 的具体规则内容。`
+- 已完成：`dashboard-html 已具备页面类型、视觉与布局编辑、分组级图标搜索，以及轻量 standalone HTML 导出。`
+- 正在做：`通过真实 Agent 生成请求继续验证各主题、布局和局部配置组合。`
+- 尚未开始：`完整自动化浏览器回归和正式发布流程。`
 
 ## 已知问题
 
-- 仓库内暂无可验证的启动命令、测试命令和包管理配置。
+- 当前只有服务脚本语法检查，尚无完整自动化测试框架。
+- 文件保存 API 的真实落盘流程仍需在用户浏览器中人工确认。
 
 ## 下一步重点
 
-1. 明确项目的真实产品定位，补齐 `README.md` 与 `PRODUCT.md`。
-2. 为 `dashboard-html` skill 写清触发条件、边界、工作流和验收示例。
-3. 视项目目标补充运行方式与测试方式。
+1. 继续调试 Dashboard / Report 的视觉样式、局部配置和 Studio 交互。
+2. 执行深浅模式和视觉预设的交叉回归。
+3. 补充分组图标搜索、图表 SVG 及干净导出的自动化测试。
+4. 用户确认后再合并并发布 Skill 分发包。
+
+## 未来待办
+
+- 将 Studio 与企业真实对象数据连接，但保持数据协议与页面 workspace 协议分离。
+- 定义统一的对象、字段、指标和受控查询 DSL，避免 Dashboard 绑定企业原始字段。
+- 第一阶段优先支持 CSV / Excel 与 REST API，再评估 PostgreSQL、MySQL 和主流 SaaS 连接器。
+- 增加租户、对象、字段和行级权限；数据源凭证只保存在企业后端，不进入浏览器、成品 HTML 或模型上下文。
+- 让 Agent 读取对象目录和指标口径生成 Dashboard，不允许直接执行任意 SQL。
+- 企业交付形态预留 SaaS、私有化部署和嵌入式运行态三种模式。
 
 ## 相关文件
 
