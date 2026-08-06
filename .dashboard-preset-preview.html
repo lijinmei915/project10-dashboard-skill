@@ -166,6 +166,8 @@
     .context-reset:hover { color: var(--tool-text); }
     .context-scope { margin-left: auto; color: var(--tool-muted); font-size: 10px; font-weight: 600; }
     .section-icon-picker-field { grid-column: 1 / -1; }
+    #cardContextControls { align-items: start; }
+    #cardSubtitleField:not([hidden]) { display: grid; gap: 7px; }
     .section-icon-picker-button { display: flex; width: 100%; min-height: 34px; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; color: var(--tool-text); font: inherit; font-size: 11px; text-align: left; }
     .section-icon-picker-button:hover { border-color: #d4d4d8; background: #fafafa; }
     .section-icon-picker-button svg { width: 17px; height: 17px; flex: 0 0 17px; fill: currentColor; }
@@ -761,9 +763,9 @@
     .dashboard[data-kpi-card-background="white"] .metric:not([data-kpi-card-background]),
     .metric[data-kpi-card-background="white"] { background: var(--kpi-card-white) !important; }
     .dashboard[data-kpi-card-background="single"] .metric:not([data-kpi-card-background]),
-    .metric[data-kpi-card-background="single"] { background: color-mix(in srgb, var(--icon-theme-accent) var(--kpi-card-tint), var(--surface)) !important; }
+    .metric[data-kpi-card-background="single"] { background: color-mix(in srgb, var(--icon-theme-accent) var(--kpi-card-single-tint), var(--surface)) !important; }
     .dashboard[data-kpi-card-background="multi"] .metric:not([data-kpi-card-background]),
-    .metric[data-kpi-card-background="multi"] { background: color-mix(in srgb, var(--kpi-card-palette, var(--icon-accent)) var(--kpi-card-tint), var(--surface)) !important; }
+    .metric[data-kpi-card-background="multi"] { background: color-mix(in srgb, var(--kpi-card-palette, var(--icon-accent)) var(--kpi-card-multi-tint), var(--surface)) !important; }
     .metric[data-kpi-card-background="default"] { background: var(--surface) !important; }
     .dashboard[data-kpi-icon="outline"] .metric-icon svg,
     .dashboard[data-kpi-icon="filled"] .metric-icon svg,
@@ -2085,7 +2087,11 @@
     });
 
     function cardLabel(card) {
-      return card.querySelector(".card-title, .metric-label, .summary-card-title")?.textContent.trim() || card.dataset.itemId;
+      const label = card.querySelector(".card-title, .metric-label, .summary-card-title");
+      if (!label) return card.dataset.itemId;
+      const cleanLabel = label.cloneNode(true);
+      cleanLabel.querySelectorAll(".card-title-icon, .card-title-marker, .card-title-number").forEach((decoration) => decoration.remove());
+      return cleanLabel.textContent.trim() || card.dataset.itemId;
     }
 
     function cardHasVisibleTitle(card) {
@@ -4045,7 +4051,8 @@
         "--icon-neutral-solid-alt": "#3f3f46",
         "--icon-neutral-on-solid": "#ffffff",
         "--kpi-card-white": state.mode === "dark" ? resolvedSurface : "#ffffff",
-        "--kpi-card-tint": state.mode === "dark" ? "14%" : "8%",
+        "--kpi-card-single-tint": state.mode === "dark" ? "10%" : "4%",
+        "--kpi-card-multi-tint": state.mode === "dark" ? "12%" : "6%",
         "--chart-accent": chartPalette.monochrome,
         "--chart-bi-1": chartPalette.bichrome[0], "--chart-bi-2": chartPalette.bichrome[1],
         "--chart-1": chartPalette.categorical[0], "--chart-2": chartPalette.categorical[1], "--chart-3": chartPalette.categorical[2],
