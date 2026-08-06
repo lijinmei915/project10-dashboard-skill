@@ -152,8 +152,12 @@
     #cardContextBand[data-empty="true"] .context-card-name { color: var(--tool-muted); font-size: 11px; font-weight: 500; white-space: normal; }
 
     .toolbar-band { display: grid; align-content: start; align-self: start; min-width: 0; gap: 8px; padding: 10px; border: 1px solid var(--tool-line); border-radius: 6px; background: rgba(255, 255, 255, .82); }
+    .toolbar-band[data-collapsed="true"] { min-height: 0 !important; }
+    .toolbar-band[data-collapsed="true"] > :not(.toolbar-band-title) { display: none !important; }
+    .toolbar-band[data-collapsed="true"] > .toolbar-band-title { padding-bottom: 0; border-bottom-color: transparent; }
     .toolbar-band--full { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; }
-    .toolbar-band-title { display: flex; align-items: center; gap: 7px; min-height: 18px; padding-bottom: 6px; border-bottom: 1px solid #eeeeef; color: #27272a; font-size: 11px; font-weight: 700; }
+    .toolbar-band-title { display: flex; align-items: center; gap: 7px; min-height: 18px; padding-bottom: 6px; border-bottom: 1px solid #eeeeef; color: #27272a; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .toolbar-band-title:focus-visible { outline: 2px solid rgba(24, 24, 27, .22); outline-offset: 3px; border-radius: 3px; }
     .toolbar-band-title > svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: var(--tool-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.2; }
     .toolbar-band-title .toggle { height: 18px; margin-left: auto; gap: 6px; font-size: 10px; font-weight: 600; }
     .context-card-name { min-width: 0; overflow: hidden; color: var(--tool-muted); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -187,6 +191,10 @@
     .control-group { display: grid; min-width: 0; gap: 3px; }
     .conditional-field { min-width: 0; }
     .conditional-field > .control-group { width: 100%; }
+    .header-settings-group { display: contents; }
+    .header-settings-group-title { display: none; }
+    .header-settings-group--single > .conditional-field,
+    .header-settings-group--brand #logoField { grid-column: auto; }
     .toolbar-band:not(.toolbar-band--full) .control-group,
     .toolbar-band:not(.toolbar-band--full) .mini-control { width: 100%; }
     .control-group > span { color: var(--tool-muted); font-size: 10px; font-weight: 650; }
@@ -995,7 +1003,7 @@
     body[data-design-mode="true"] .layout-item:hover,
     body[data-design-mode="true"] .layout-item:focus-within { outline: 2px solid rgba(24, 24, 27, .48); outline-offset: 2px; }
     body[data-design-mode="true"] [data-item-id][data-selected="true"] { outline: 2px solid var(--tool-text); outline-offset: 3px; }
-    body[data-design-mode="true"] .section[data-selected="true"] { outline: 2px solid color-mix(in srgb, var(--tool-text) 72%, transparent); outline-offset: 6px; }
+    body[data-design-mode="true"] .section[data-selected="true"] { border-radius: calc(var(--radius) + 3px); outline: 2px solid color-mix(in srgb, var(--tool-text) 72%, transparent); outline-offset: 6px; }
     body[data-design-mode="true"] .layout-item:hover .layout-resize-handle,
     body[data-design-mode="true"] .layout-item:focus-within .layout-resize-handle,
     body[data-design-mode="true"] .layout-item[data-resizing="true"] .layout-resize-handle,
@@ -1210,37 +1218,49 @@
       <div class="toolbar-band" id="headerBand">
         <div class="toolbar-band-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>头部区域<label class="toggle"><input id="headerVisibilityToggle" type="checkbox" aria-label="显示头部区域"></label></div>
         <div class="toolbar-band-controls">
-          <div class="header-background-composer">
-            <span class="header-background-label">头部底色</span>
-            <select class="control-select" id="headerControl" aria-label="头部底色"><option value="none" selected>无</option><option value="solid">单色</option><option value="gradient">渐变色</option><option value="glass">透明磨砂</option></select>
-            <label class="conditional-field header-color-only" id="headerSolidColorField"><input class="header-color-input" id="headerSolidColorControl" type="color" value="#ffffff" aria-label="自定义头部单色"></label>
-            <button class="conditional-field header-gradient-trigger" id="headerGradientTrigger" type="button" aria-label="调整头部渐变色" aria-haspopup="dialog" aria-expanded="false" hidden></button>
-            <div class="header-gradient-popover" id="headerGradientPopover" role="dialog" aria-label="头部渐变设置" hidden>
-              <div class="header-gradient-preview" id="headerGradientPreview" role="group" aria-label="渐变色标，点击添加色标"></div>
-              <div class="header-gradient-editor">
-                <label class="gradient-editor-field gradient-editor-field-color"><span>颜色</span><input class="header-color-input" id="headerGradientStopColorControl" type="color" value="#ff8000" aria-label="当前色标颜色"></label>
-                <label class="gradient-editor-field"><span>位置</span><span class="gradient-position-input"><input id="headerGradientStopPositionControl" type="number" min="0" max="100" step="1" value="0" aria-label="当前色标位置"><span>%</span></span></label>
-                <label class="gradient-editor-field"><span>透明度</span><span class="gradient-opacity-control"><input id="headerGradientStopOpacityControl" type="range" min="0" max="100" step="1" value="100" aria-label="当前色标透明度"><output id="headerGradientStopOpacityValue">100%</output></span></label>
-                <label class="gradient-editor-field"><span>删除</span><button class="gradient-stop-remove" id="headerGradientStopRemove" type="button" title="删除当前色标" aria-label="删除当前色标">−</button></label>
-                <div class="header-gradient-direction-row">
-                  <div class="header-gradient-direction" id="headerGradientDirectionControl" aria-label="渐变方向">
-                    <button type="button" data-value="horizontal" aria-pressed="false">横向</button><button type="button" data-value="vertical" aria-pressed="false">纵向</button><button type="button" data-value="diagonal" aria-pressed="true">斜向</button>
+          <div class="header-settings-group" id="headerTitleGroup">
+            <span class="header-settings-group-title">标题</span>
+            <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>标题对齐</span><select class="control-select" id="headerAlignControl"><option value="left">居左</option><option value="center">居中</option></select></label></div>
+            <div class="conditional-field" id="headerTitleFontField"><label class="control-group"><span>标题字号</span><span class="range-control"><input id="headerTitleFontControl" type="range" min="20" max="48" step="1" value="32" aria-label="头部标题字号"><output id="headerTitleFontValue" class="range-value">32px</output></span></label></div>
+          </div>
+          <div class="header-settings-group header-settings-group--single" id="headerSubtitleGroup">
+            <span class="header-settings-group-title">副标题</span>
+            <div class="conditional-field" id="subtitleField"><label class="control-group"><span>副标题位置</span><select class="control-select" id="subtitleControl"><option value="none">无</option><option value="above">标题上方</option><option value="below">标题下方</option></select></label></div>
+          </div>
+          <div class="header-settings-group header-settings-group--single" id="headerMetaGroup">
+            <span class="header-settings-group-title">信息条</span>
+            <div class="conditional-field header-meta-composer" id="headerMetaField">
+              <span class="header-meta-label">信息条样式</span>
+              <select class="control-select" id="headerMetaControl" aria-label="信息条样式"><option value="plain" selected>无底</option><option value="surface">有底</option><option value="hidden">隐藏</option></select>
+              <span class="header-meta-separator-field" id="headerMetaSeparatorField"><select class="control-select" id="headerMetaSeparatorControl" aria-label="信息条连接符"><option value="dot">圆点</option><option value="line">竖线</option></select></span>
+            </div>
+          </div>
+          <div class="header-settings-group header-settings-group--brand" id="headerBrandGroup">
+            <span class="header-settings-group-title">背景与品牌</span>
+            <div class="header-background-composer">
+              <span class="header-background-label">头部底色</span>
+              <select class="control-select" id="headerControl" aria-label="头部底色"><option value="none" selected>无</option><option value="solid">单色</option><option value="gradient">渐变色</option><option value="glass">透明磨砂</option></select>
+              <label class="conditional-field header-color-only" id="headerSolidColorField"><input class="header-color-input" id="headerSolidColorControl" type="color" value="#ffffff" aria-label="自定义头部单色"></label>
+              <button class="conditional-field header-gradient-trigger" id="headerGradientTrigger" type="button" aria-label="调整头部渐变色" aria-haspopup="dialog" aria-expanded="false" hidden></button>
+              <div class="header-gradient-popover" id="headerGradientPopover" role="dialog" aria-label="头部渐变设置" hidden>
+                <div class="header-gradient-preview" id="headerGradientPreview" role="group" aria-label="渐变色标，点击添加色标"></div>
+                <div class="header-gradient-editor">
+                  <label class="gradient-editor-field gradient-editor-field-color"><span>颜色</span><input class="header-color-input" id="headerGradientStopColorControl" type="color" value="#ff8000" aria-label="当前色标颜色"></label>
+                  <label class="gradient-editor-field"><span>位置</span><span class="gradient-position-input"><input id="headerGradientStopPositionControl" type="number" min="0" max="100" step="1" value="0" aria-label="当前色标位置"><span>%</span></span></label>
+                  <label class="gradient-editor-field"><span>透明度</span><span class="gradient-opacity-control"><input id="headerGradientStopOpacityControl" type="range" min="0" max="100" step="1" value="100" aria-label="当前色标透明度"><output id="headerGradientStopOpacityValue">100%</output></span></label>
+                  <label class="gradient-editor-field"><span>删除</span><button class="gradient-stop-remove" id="headerGradientStopRemove" type="button" title="删除当前色标" aria-label="删除当前色标">−</button></label>
+                  <div class="header-gradient-direction-row">
+                    <div class="header-gradient-direction" id="headerGradientDirectionControl" aria-label="渐变方向">
+                      <button type="button" data-value="horizontal" aria-pressed="false">横向</button><button type="button" data-value="vertical" aria-pressed="false">纵向</button><button type="button" data-value="diagonal" aria-pressed="true">斜向</button>
+                    </div>
+                    <label class="header-gradient-angle" id="headerGradientAngleField" aria-label="渐变角度"><span class="header-gradient-angle-control"><input id="headerGradientAngleControl" type="number" min="0" max="360" step="1" value="180" aria-label="渐变角度"><span>°</span></span></label>
                   </div>
-                  <label class="header-gradient-angle" id="headerGradientAngleField" aria-label="渐变角度"><span class="header-gradient-angle-control"><input id="headerGradientAngleControl" type="number" min="0" max="360" step="1" value="180" aria-label="渐变角度"><span>°</span></span></label>
                 </div>
               </div>
             </div>
+            <div class="conditional-field" id="headerDecorationField"><label class="control-group"><span>动态装饰</span><select class="control-select" id="headerDecorationControl"><option value="none">无</option><option value="particles">漂浮微粒</option><option value="aurora">极光漂移</option><option value="sheen">流光扫过</option></select></label></div>
+            <div class="control-group" id="logoField"><span>Logo</span><div class="logo-control"><input class="logo-input" id="logoControl" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"><label class="logo-action" for="logoControl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4"></path><path d="M4 15v4h16v-4"></path></svg><span>上传</span></label><output class="logo-status" id="logoStatus">未上传</output><button class="logo-action" id="logoClearControl" type="button" title="移除 Logo" aria-label="移除 Logo" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div></div>
           </div>
-          <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>对齐</span><select class="control-select" id="headerAlignControl"><option value="left">居左</option><option value="center">居中</option></select></label></div>
-          <div class="conditional-field" id="headerTitleFontField"><label class="control-group"><span>标题字号</span><span class="range-control"><input id="headerTitleFontControl" type="range" min="20" max="48" step="1" value="32" aria-label="头部标题字号"><output id="headerTitleFontValue" class="range-value">32px</output></span></label></div>
-          <div class="conditional-field" id="subtitleField"><label class="control-group"><span>副标题</span><select class="control-select" id="subtitleControl"><option value="none">无</option><option value="above">标题上方</option><option value="below">标题下方</option></select></label></div>
-          <div class="conditional-field header-meta-composer" id="headerMetaField">
-            <span class="header-meta-label">信息条</span>
-            <select class="control-select" id="headerMetaControl" aria-label="信息条样式"><option value="plain" selected>无底</option><option value="surface">有底</option><option value="hidden">隐藏</option></select>
-            <span class="header-meta-separator-field" id="headerMetaSeparatorField"><select class="control-select" id="headerMetaSeparatorControl" aria-label="信息条连接符"><option value="dot">圆点</option><option value="line">竖线</option></select></span>
-          </div>
-          <div class="conditional-field" id="headerDecorationField"><label class="control-group"><span>动态装饰</span><select class="control-select" id="headerDecorationControl"><option value="none">无</option><option value="particles">漂浮微粒</option><option value="aurora">极光漂移</option><option value="sheen">流光扫过</option></select></label></div>
-          <div class="control-group" id="logoField"><span>Logo</span><div class="logo-control"><input class="logo-input" id="logoControl" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"><label class="logo-action" for="logoControl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4"></path><path d="M4 15v4h16v-4"></path></svg><span>上传</span></label><output class="logo-status" id="logoStatus">未上传</output><button class="logo-action" id="logoClearControl" type="button" title="移除 Logo" aria-label="移除 Logo" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div></div>
         </div>
       </div>
 
@@ -1530,6 +1550,10 @@
     const headerMetaControl = document.querySelector("#headerMetaControl");
     const headerMetaSeparatorControl = document.querySelector("#headerMetaSeparatorControl");
     const headerDecorationControl = document.querySelector("#headerDecorationControl");
+    const headerTitleGroup = document.querySelector("#headerTitleGroup");
+    const headerSubtitleGroup = document.querySelector("#headerSubtitleGroup");
+    const headerMetaGroup = document.querySelector("#headerMetaGroup");
+    const headerBrandGroup = document.querySelector("#headerBrandGroup");
     const headerAlignField = document.querySelector("#headerAlignField");
     const headerTitleFontField = document.querySelector("#headerTitleFontField");
     const subtitleField = document.querySelector("#subtitleField");
@@ -3043,6 +3067,29 @@
       });
     }
 
+    function setupToolbarBandCollapse() {
+      document.querySelectorAll(".toolbar-band > .toolbar-band-title").forEach((title) => {
+        const band = title.parentElement;
+        title.tabIndex = 0;
+        title.setAttribute("aria-expanded", "true");
+
+        const toggle = () => {
+          const collapsed = band.dataset.collapsed === "true";
+          band.dataset.collapsed = String(!collapsed);
+          title.setAttribute("aria-expanded", String(collapsed));
+        };
+        title.addEventListener("click", (event) => {
+          if (event.target.closest("button, input, select, textarea, a, label")) return;
+          toggle();
+        });
+        title.addEventListener("keydown", (event) => {
+          if (event.target !== title || !["Enter", " "].includes(event.key)) return;
+          event.preventDefault();
+          toggle();
+        });
+      });
+    }
+
     function closeCustomSelect(component, restoreFocus = false) {
       component.listbox.hidden = true;
       component.root.dataset.open = "false";
@@ -3830,6 +3877,10 @@
       const headerIsHidden = resolvedHeader === "hidden";
       headerVisibilityToggle.checked = state.headerVisible;
       headerBand.dataset.enabled = String(!headerIsHidden);
+      headerTitleGroup.hidden = headerIsHidden;
+      headerSubtitleGroup.hidden = headerIsHidden;
+      headerMetaGroup.hidden = headerIsHidden;
+      headerBrandGroup.hidden = headerIsHidden;
       headerAlignField.hidden = headerIsHidden;
       headerTitleFontField.hidden = headerIsHidden;
       subtitleField.hidden = headerIsHidden;
@@ -4218,6 +4269,7 @@
 
     setupLayoutEditor();
     setupCustomSelects();
+    setupToolbarBandCollapse();
     const savedWorkspaceState = readUrlWorkspaceState() || readWorkspaceState() || readProjectState();
     const workspaceRestored = restoreWorkspaceState(savedWorkspaceState);
     if (!workspaceRestored) selectPreset("fx-orange");
