@@ -16,6 +16,7 @@
         "language": { "enum": ["zh", "en"] },
         "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "mode": { "enum": ["light", "dark"] },
+        "paletteVersion": { "type": "string", "const": "1.0.0" },
         "sectionIcons": {
           "type": "object",
           "additionalProperties": { "type": "string", "pattern": "^[a-z0-9-]+$" }

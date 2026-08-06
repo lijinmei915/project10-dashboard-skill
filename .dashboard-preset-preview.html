@@ -270,7 +270,9 @@
       border-radius: 6px;
       background: #fff;
       color: var(--tool-text);
+      font-family: inherit;
       font-size: 11px;
+      font-weight: 400;
       line-height: 1;
       text-align: left;
       transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
@@ -278,6 +280,8 @@
     .custom-select-trigger:hover { border-color: #d4d4d8; background: #fafafa; }
     .custom-select-trigger:focus-visible { outline: 0; border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .12); }
     .custom-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .custom-select-trigger-preview { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; border-radius: 4px; }
+    .custom-select-trigger-preview:empty { display: none; }
     .custom-select-chevron { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: var(--tool-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; transition: transform .15s ease; }
     .custom-select[data-open="true"] .custom-select-chevron { transform: rotate(180deg); }
     .custom-select-listbox {
@@ -320,6 +324,27 @@
     .custom-select-option[aria-selected="true"] { color: var(--tool-text); font-weight: 650; }
     .custom-select-option[aria-selected="true"] .custom-select-check { visibility: visible; }
     .custom-select-group { padding: 7px 8px 3px; color: var(--tool-muted); font-size: 9px; font-weight: 700; pointer-events: none; }
+    .section-icon-style-option-preview { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 5px; color: var(--tool-muted); }
+    .section-icon-style-option-preview svg { width: 15px; height: 15px; fill: currentColor; }
+    .card-title-decoration-option-preview { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 5px; color: var(--tool-accent); }
+    .card-title-decoration-option-preview[data-container="soft"] { background: color-mix(in srgb, var(--tool-accent) 14%, transparent); }
+    .card-title-decoration-option-preview[data-container="solid"] { background: var(--tool-accent); color: #fff; }
+    .card-title-decoration-option-preview svg { width: 15px; height: 15px; fill: currentColor; }
+    .card-title-color-option-preview { width: 16px; height: 16px; flex: 0 0 16px; border: 1px solid color-mix(in srgb, currentColor 24%, transparent); border-radius: 4px; background: var(--title-color-preview); }
+    .card-title-color-option-preview[data-color-mode="neutral"] { --title-color-preview: var(--card-title-neutral-preview); }
+    .card-title-color-option-preview[data-color-mode="accent"] { --title-color-preview: var(--card-title-accent-preview); }
+    .card-title-color-option-preview[data-color-mode="gradient-accent"] { --title-color-preview: linear-gradient(135deg, var(--card-title-accent-preview), var(--card-title-accent-alt-preview)); }
+    .card-title-color-option-preview[data-color-mode="colorful"] { --title-color-preview: var(--card-title-colorful-preview); }
+    .card-title-color-option-preview[data-color-mode="gradient-colorful"] { --title-color-preview: linear-gradient(135deg, var(--card-title-colorful-preview), var(--card-title-colorful-alt-preview)); }
+    .custom-select-trigger-preview .card-title-decoration-option-preview { width: 18px; height: 18px; flex-basis: 18px; }
+    .custom-select-trigger-preview .card-title-decoration-option-preview svg { width: 13px; height: 13px; }
+    .custom-select-trigger-preview .card-title-color-option-preview { width: 14px; height: 14px; }
+    .custom-select-option[data-section-icon-style="line"] .section-icon-style-option-preview,
+    .custom-select-option[data-section-icon-style="filled"] .section-icon-style-option-preview { color: var(--tool-accent); }
+    .custom-select-option[data-section-icon-style="line-soft"] .section-icon-style-option-preview,
+    .custom-select-option[data-section-icon-style="filled-soft"] .section-icon-style-option-preview { background: color-mix(in srgb, var(--tool-accent) 14%, transparent); color: var(--tool-accent); }
+    .custom-select-option[data-section-icon-style="line-solid"] .section-icon-style-option-preview,
+    .custom-select-option[data-section-icon-style="filled-solid"] .section-icon-style-option-preview { background: var(--tool-accent); color: #fff; }
 
     .color-control { display: flex; align-items: center; gap: 7px; height: 30px; }
     .color-control input[type="color"] { width: 30px; height: 30px; padding: 3px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; }
@@ -338,12 +363,12 @@
     .header-color-input::-webkit-color-swatch { border: 0; }
     .header-color-input::-moz-color-swatch { border: 0; }
     .header-background-composer { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 5px 6px; min-width: 0; }
-    .header-background-label { grid-column: 1 / -1; color: var(--tool-muted); font-size: 10px; line-height: 1.2; }
+    .header-background-label { grid-column: 1 / -1; color: var(--tool-muted); font-size: 10px; font-weight: 650; line-height: 1.2; }
     #headerControl, .header-background-composer > .custom-select { grid-column: 1; grid-row: 2; width: 100%; min-width: 0; }
     .header-color-only { grid-column: 2; grid-row: 2; align-self: end; width: 30px; height: 30px; }
     .header-background-composer > .header-gradient-trigger { grid-column: 2; grid-row: 2; }
     .header-meta-composer { display: grid; grid-template-columns: minmax(0, 1fr) 70px; align-items: end; gap: 5px 6px; min-width: 0; }
-    .header-meta-label { grid-column: 1 / -1; color: var(--tool-muted); font-size: 10px; line-height: 1.2; }
+    .header-meta-label { grid-column: 1 / -1; color: var(--tool-muted); font-size: 10px; font-weight: 650; line-height: 1.2; }
     .header-meta-composer > .custom-select:first-of-type, #headerMetaControl { grid-column: 1; grid-row: 2; min-width: 0; width: 100%; }
     .header-meta-separator-field { grid-column: 2; grid-row: 2; min-width: 0; }
     .header-meta-separator-field[hidden] { display: none; }
@@ -365,6 +390,11 @@
     .kpi-icon-size-field .control-select, .kpi-icon-size-field .custom-select { width: 100%; min-width: 0; }
     .kpi-icon-composer .custom-select-trigger { gap: 4px; padding-right: 5px; padding-left: 7px; font-size: 10px; }
     .kpi-icon-composer .custom-select-chevron { width: 12px; height: 12px; flex-basis: 12px; }
+    #sectionIconStyleField .kpi-icon-composer { display: grid; grid-column: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%; }
+    #sectionIconStyleField .kpi-icon-composer > .custom-select,
+    #sectionIconStyleField .kpi-icon-composer > select { grid-column: auto; grid-row: auto; width: 100%; min-width: 0; }
+    .card-title-icon-composer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%; }
+    .card-title-icon-composer > .custom-select, .card-title-icon-composer > select { width: 100%; min-width: 0; }
     .kpi-icon-composer[data-show-weight="true"] { grid-template-columns: 1fr .72fr 1.35fr .6fr 1fr .75fr; }
     .kpi-icon-weight-field { display: none; min-width: 0; }
     .kpi-icon-composer[data-show-weight="true"] .kpi-icon-weight-field { display: block; grid-column: 2; grid-row: 2; }
@@ -387,7 +417,7 @@
     .kpi-style-sample[data-style="filled-soft"] .kpi-style-sample-preview { background: color-mix(in srgb, var(--sample-accent, #ff8000) 12%, #fff); color: var(--sample-accent, #ff8000); }
     .kpi-style-sample[data-style="line-solid"] .kpi-style-sample-preview { background: var(--sample-accent, #ff8000); color: #fff; }
     .kpi-style-sample[data-style="filled-solid"] .kpi-style-sample-preview { background: var(--sample-accent, #ff8000); color: #fff; }
-    .kpi-style-sample[data-style="filled-multi"] .kpi-style-sample-preview { background: linear-gradient(135deg, #5b8ff9 0 34%, #5ad8a6 34% 67%, #f6bd16 67%); color: #fff; }
+    .kpi-style-sample[data-style="filled-multi"] .kpi-style-sample-preview { background: linear-gradient(135deg, #5b8ff9 0 34%, #45b8d8 34% 67%, #43c59e 67%); color: #fff; }
     .kpi-style-sample:is([data-style="line-soft"], [data-style="filled-soft"], [data-style="line-solid"], [data-style="filled-solid"], [data-style="filled-multi"]) .kpi-style-sample-preview { width: 20px; height: 20px; }
     .kpi-style-sample:is([data-style="line-soft"], [data-style="filled-soft"], [data-style="line-solid"], [data-style="filled-solid"], [data-style="filled-multi"]) .kpi-style-sample-preview svg { width: 13px; height: 13px; }
     .kpi-style-samples[data-shape="circle"] .kpi-style-sample:is([data-style="line-soft"], [data-style="filled-soft"], [data-style="line-solid"], [data-style="filled-solid"], [data-style="filled-multi"]) .kpi-style-sample-preview { border-radius: 50%; }
@@ -507,15 +537,17 @@
       --icon-accent: #a76032;
       --icon-soft: #f5ebe5;
       --icon-on-solid: #ffffff;
-      --chart-accent: #e8684a;
-      --chart-bi-1: #e8684a;
-      --chart-bi-2: #f6bd16;
+      --chart-accent: #f06b72;
+      --chart-bi-1: #f06b72;
+      --chart-bi-2: #f3a83b;
       --chart-1: #5b8ff9;
-      --chart-2: #5ad8a6;
-      --chart-3: #5d7092;
-      --chart-4: #f6bd16;
-      --chart-5: #e8684a;
-      --chart-6: #6dc8ec;
+      --chart-2: #45b8d8;
+      --chart-3: #43c59e;
+      --chart-4: #96bf45;
+      --chart-5: #f3a83b;
+      --chart-6: #f06b72;
+      --chart-7: #de72b4;
+      --chart-8: #9270e8;
       --accent: var(--accent-structure);
       --success: #27a77f;
       --danger: #ef5b5b;
@@ -581,10 +613,15 @@
     }
     .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .report-hero { display: contents; }
     .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .hero-copy { padding: 0 calc(var(--space) * 2.2); }
+    .dashboard[data-page-type="dashboard"][data-header-background-type="none"][data-header-decoration]:not([data-header-decoration="none"]) .report-hero { display: block; background: transparent; }
+    .dashboard[data-page-type="dashboard"][data-header-background-type="none"][data-header-decoration]:not([data-header-decoration="none"]) .hero-copy { padding-top: calc(var(--space) * .8); padding-bottom: calc(var(--space) * .8); }
     .dashboard[data-header-background-type="none"] .hero-title,
     .dashboard[data-header-background-type="none"] .hero-attribution { width: fit-content; align-self: flex-start; }
+    .dashboard[data-header-background-type="none"][data-header-align="center"] .hero-title,
+    .dashboard[data-header-background-type="none"][data-header-align="center"] .hero-attribution { align-self: center; }
     .dashboard[data-header-background-type="none"] .hero-fx-layer,
     .dashboard[data-header-background-type="none"] .hero-decoration { display: none; }
+    .dashboard[data-header-background-type="none"][data-header-decoration="particles"] .hero-decoration { display: block; }
     .dashboard[data-header-background-type="glass"] .report-hero {
       -webkit-backdrop-filter: blur(24px) saturate(155%);
       backdrop-filter: blur(24px) saturate(155%);
@@ -649,15 +686,28 @@
     .section-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; padding: var(--section-pad-y) var(--section-pad-x) calc(var(--section-pad-y) + var(--section-bottom-pad)) calc(var(--section-pad-x) + var(--section-leading-pad)); border-bottom: var(--section-border-bottom); border-left: var(--section-border-left); border-radius: calc(var(--radius) * .55); background: var(--section-label-bg); }
     .section-heading::before { display: var(--section-marker-display); width: 4px; height: var(--section-marker-height); flex: 0 0 4px; border-radius: 999px; background: var(--accent-structure); content: ""; }
     .section-number { display: var(--section-number-display); color: var(--accent-structure); font-size: calc(25px * var(--font-scale)); font-weight: 750; line-height: 1; }
-    .section-icon { display: none; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: calc(var(--radius) * .35); color: var(--accent-structure); }
+    .section-icon { display: none; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: calc(var(--radius) * .35); color: var(--section-icon-color, var(--accent-structure)); }
     .section-icon svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
     .dashboard[data-section-leading="icon"] .section-icon { display: grid; }
-    .dashboard[data-section-icon-style="line-neutral"] .section-icon { color: var(--text-secondary); }
-    .dashboard[data-section-icon-style="line-accent"] .section-icon { color: var(--accent-structure); }
+    .dashboard[data-section-icon-color="neutral"] { --section-icon-color: var(--text-secondary); --section-icon-gradient: linear-gradient(135deg, var(--text-secondary), var(--text-main)); }
+    .dashboard[data-section-icon-color="accent"] { --section-icon-color: var(--accent-structure); --section-icon-gradient: linear-gradient(135deg, var(--accent-structure), var(--icon-theme-accent-alt)); }
+    .dashboard[data-section-icon-color="colorful"] { --section-icon-color: var(--section-icon-accent, var(--chart-1)); --section-icon-gradient: linear-gradient(135deg, var(--section-icon-accent, var(--chart-1)), var(--section-icon-accent-alt, var(--chart-2))); }
+    .dashboard[data-section-icon-color="gradient-accent"] { --section-icon-color: var(--accent-structure); --section-icon-gradient: linear-gradient(135deg, var(--accent-structure), var(--icon-theme-accent-alt)); }
+    .dashboard[data-section-icon-color="gradient-colorful"] { --section-icon-color: var(--section-icon-accent, var(--chart-1)); --section-icon-gradient: linear-gradient(135deg, var(--section-icon-accent, var(--chart-1)), var(--section-icon-accent-alt, var(--chart-2))); }
+    .dashboard[data-section-icon-color="colorful"] .section:nth-of-type(2),
+    .dashboard[data-section-icon-color="gradient-colorful"] .section:nth-of-type(2) { --section-icon-color: var(--chart-2); }
+    .dashboard[data-section-icon-color="colorful"] .section:nth-of-type(3),
+    .dashboard[data-section-icon-color="gradient-colorful"] .section:nth-of-type(3) { --section-icon-color: var(--chart-3); }
+    .dashboard[data-section-icon-color="colorful"] .section:nth-of-type(4),
+    .dashboard[data-section-icon-color="gradient-colorful"] .section:nth-of-type(4) { --section-icon-color: var(--chart-4); }
     .dashboard[data-section-icon-style="line-soft"] .section-icon,
     .dashboard[data-section-icon-style="filled-soft"] .section-icon { background: var(--accent-soft); color: var(--accent-on-soft); }
     .dashboard[data-section-icon-style="line-solid"] .section-icon,
     .dashboard[data-section-icon-style="filled-solid"] .section-icon { background: var(--accent-structure); color: var(--accent-on-solid); }
+    .dashboard[data-section-icon-style="line-soft"] .section-icon,
+    .dashboard[data-section-icon-style="filled-soft"] .section-icon { background: color-mix(in srgb, var(--section-icon-color) 14%, transparent); }
+    .dashboard[data-section-icon-style="line-solid"] .section-icon,
+    .dashboard[data-section-icon-style="filled-solid"] .section-icon { background: var(--section-icon-gradient); color: var(--accent-on-solid); }
     .section-heading h2 { margin: 0; color: var(--page-text-main); font-size: var(--section-title-size); font-weight: var(--section-title-weight); line-height: 1.3; }
     .section-heading small { display: var(--section-kicker-display); color: var(--page-text-secondary); font-size: var(--section-kicker-size); font-weight: 500; letter-spacing: 0; opacity: .72; }
     .section-heading small:empty { display: none; }
@@ -673,8 +723,15 @@
 
     .surface { min-width: 0; border: 0; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text-main); }
     .card-title { display: flex; align-items: center; gap: 8px; }
+    .card-title-marker { display: none; width: 3px; height: 1.05em; flex: 0 0 3px; border-radius: 2px; background: var(--accent-structure); }
+    .card-title-number { display: none; min-width: 24px; flex: 0 0 auto; color: var(--accent-structure); font-size: .82em; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .dashboard[data-card-title-leading="marker"] .card-title-marker { display: block; }
+    .dashboard[data-card-title-leading="number"] .card-title-number { display: inline; }
+    .dashboard:not([data-card-title-leading="icon"]) .card-title-icon { display: none !important; }
     .card-title-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: calc(var(--radius) * .55); color: var(--title-icon-accent); }
-    .card-title-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .card-title-icon svg { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+    .dashboard[data-card-title-icon-form="filled"] .card-title-icon svg,
+    .surface[data-card-title-icon-form="filled"] .card-title-icon svg { fill: currentColor; stroke: none; }
     .dashboard[data-card-title-icon="none"] .card-title-icon { display: none; }
     .dashboard[data-card-title-icon="line"] .card-title-icon { width: 20px; height: 20px; flex-basis: 20px; border-radius: 0; }
     .dashboard[data-card-title-icon="soft"] .card-title-icon { background: var(--title-icon-soft); color: var(--title-icon-accent); }
@@ -799,12 +856,14 @@
     .bar { flex: 1; min-width: 8px; height: var(--height); border-radius: 4px 4px 0 0; background: var(--chart-accent); }
     .dashboard[data-chart-palette="bichrome"] .bar:nth-child(odd) { background: var(--chart-bi-1); }
     .dashboard[data-chart-palette="bichrome"] .bar:nth-child(even) { background: var(--chart-bi-2); }
-    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 1) { background: var(--chart-1); }
-    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 2) { background: var(--chart-2); }
-    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 3) { background: var(--chart-3); }
-    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 4) { background: var(--chart-4); }
-    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n + 5) { background: var(--chart-5); }
-    .dashboard[data-chart-palette="categorical"] .bar:nth-child(6n) { background: var(--chart-6); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 1) { background: var(--chart-1); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 2) { background: var(--chart-2); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 3) { background: var(--chart-3); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 4) { background: var(--chart-4); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 5) { background: var(--chart-5); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 6) { background: var(--chart-6); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n + 7) { background: var(--chart-7); }
+    .dashboard[data-chart-palette="categorical"] .bar:nth-child(8n) { background: var(--chart-8); }
     .chart-axis { display: flex; justify-content: space-between; margin-top: 6px; color: var(--text-muted); font-size: max(12px, calc(9px * var(--font-scale))); }
     .ranking { display: grid; margin-top: 13px; }
     .ranking-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 60px; align-items: center; gap: 8px; min-height: 31px; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
@@ -814,21 +873,25 @@
     .rank-bar::after { display: block; width: var(--width); height: 100%; border-radius: inherit; background: var(--chart-accent); content: ""; }
     .dashboard[data-chart-palette="bichrome"] .ranking-row:nth-child(odd) .rank-bar::after { background: var(--chart-bi-1); }
     .dashboard[data-chart-palette="bichrome"] .ranking-row:nth-child(even) .rank-bar::after { background: var(--chart-bi-2); }
-    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 1) .rank-bar::after { background: var(--chart-1); }
-    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 2) .rank-bar::after { background: var(--chart-2); }
-    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 3) .rank-bar::after { background: var(--chart-3); }
-    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 4) .rank-bar::after { background: var(--chart-4); }
-    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 5) .rank-bar::after { background: var(--chart-5); }
-    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(6n) .rank-bar::after { background: var(--chart-6); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 1) .rank-bar::after { background: var(--chart-1); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 2) .rank-bar::after { background: var(--chart-2); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 3) .rank-bar::after { background: var(--chart-3); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 4) .rank-bar::after { background: var(--chart-4); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 5) .rank-bar::after { background: var(--chart-5); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 6) .rank-bar::after { background: var(--chart-6); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 7) .rank-bar::after { background: var(--chart-7); }
+    .dashboard[data-chart-palette="categorical"] .ranking-row:nth-child(8n) .rank-bar::after { background: var(--chart-8); }
     .dashboard .surface[data-chart-palette="monochrome"] .bar, .dashboard .surface[data-chart-palette="monochrome"] .rank-bar::after { background: var(--chart-accent) !important; }
     .dashboard .surface[data-chart-palette="bichrome"] .bar:nth-child(odd), .dashboard .surface[data-chart-palette="bichrome"] .ranking-row:nth-child(odd) .rank-bar::after { background: var(--chart-bi-1) !important; }
     .dashboard .surface[data-chart-palette="bichrome"] .bar:nth-child(even), .dashboard .surface[data-chart-palette="bichrome"] .ranking-row:nth-child(even) .rank-bar::after { background: var(--chart-bi-2) !important; }
-    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 1), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 1) .rank-bar::after { background: var(--chart-1) !important; }
-    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 2), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 2) .rank-bar::after { background: var(--chart-2) !important; }
-    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 3), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 3) .rank-bar::after { background: var(--chart-3) !important; }
-    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 4), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 4) .rank-bar::after { background: var(--chart-4) !important; }
-    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n + 5), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n + 5) .rank-bar::after { background: var(--chart-5) !important; }
-    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(6n), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(6n) .rank-bar::after { background: var(--chart-6) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 1), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 1) .rank-bar::after { background: var(--chart-1) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 2), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 2) .rank-bar::after { background: var(--chart-2) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 3), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 3) .rank-bar::after { background: var(--chart-3) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 4), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 4) .rank-bar::after { background: var(--chart-4) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 5), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 5) .rank-bar::after { background: var(--chart-5) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 6), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 6) .rank-bar::after { background: var(--chart-6) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n + 7), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n + 7) .rank-bar::after { background: var(--chart-7) !important; }
+    .dashboard .surface[data-chart-palette="categorical"] .bar:nth-child(8n), .dashboard .surface[data-chart-palette="categorical"] .ranking-row:nth-child(8n) .rank-bar::after { background: var(--chart-8) !important; }
     .surface[data-card-title-icon="none"] .card-title-icon { display: none; }
     .surface[data-card-title-icon="line"] .card-title-icon { display: grid; width: 20px; height: 20px; flex-basis: 20px; border-radius: 0; background: transparent; color: var(--title-icon-accent); }
     .surface[data-card-title-icon="soft"] .card-title-icon { display: grid; background: var(--title-icon-soft); color: var(--title-icon-accent); }
@@ -1199,6 +1262,8 @@
               <button type="button" data-preset="report-light" aria-pressed="false">阅读简洁</button>
               <button type="button" data-preset="operations-dark" aria-pressed="false">运营深色</button>
               <button type="button" data-preset="diagnostic-report" aria-pressed="false">诊断风格</button>
+              <button type="button" id="customPresetSave" title="将当前视觉配置保存为自定义预设">保存自定义</button>
+              <button type="button" id="customPresetRename" title="重命名当前自定义预设" hidden>重命名</button>
           </span></label>
         </div>
       </div>
@@ -1209,7 +1274,7 @@
           <label class="control-group"><span>语言</span><span class="segmented" id="languageControls"><button type="button" data-value="zh" aria-pressed="true">中文</button><button type="button" data-value="en" aria-pressed="false">English</button></span></label>
           <label class="control-group"><span>明暗</span><span class="segmented" id="modeControls"><button type="button" data-value="light" aria-pressed="true">浅色</button><button type="button" data-value="dark" aria-pressed="false">深色</button></span></label>
           <label class="control-group"><span>主题色</span><span class="color-control"><input id="accentControl" type="color" value="#ff8000" aria-label="主题色"><output id="accentValue" class="color-value">#ff8000</output></span></label>
-          <div class="control-group"><span>页面底色</span><div class="page-background-control"><select class="control-select" id="pageBackgroundControl" aria-label="页面底色"><option value="neutral">中性底色</option><option value="white">纯白色</option><option value="accent-soft">主题柔色</option><option value="custom">自定义颜色</option></select><span class="page-background-custom" id="customPageBackgroundField" hidden><input id="pageBackgroundColorControl" type="color" value="#f5f7fa" aria-label="自定义页面底色" disabled></span></div></div>
+          <div class="control-group"><span>页面底色</span><div class="page-background-control"><select class="control-select" id="pageBackgroundControl" aria-label="页面底色"><option value="neutral">中性色</option><option value="white">白色</option><option value="accent-soft">主题柔色</option><option value="custom">自定义颜色</option></select><span class="page-background-custom" id="customPageBackgroundField" hidden><input id="pageBackgroundColorControl" type="color" value="#f5f7fa" aria-label="自定义页面底色" disabled></span></div></div>
           <label class="control-group"><span>页面纹理</span><select class="control-select" id="pageTextureControl"><option value="none">无</option><option value="grid">细网格</option><option value="grain">微粒</option><option value="diagonal">斜纹</option></select></label>
           <label class="control-group"><span>基础字号</span><span class="range-control"><input id="fontControl" type="range" min="12" max="18" step="1" value="14"><output id="fontValue" class="range-value">14px</output></span></label>
         </div>
@@ -1220,7 +1285,7 @@
         <div class="toolbar-band-controls">
           <div class="header-settings-group" id="headerTitleGroup">
             <span class="header-settings-group-title">标题</span>
-            <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>标题对齐</span><select class="control-select" id="headerAlignControl"><option value="left">居左</option><option value="center">居中</option></select></label></div>
+            <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>整体对齐</span><select class="control-select" id="headerAlignControl"><option value="left">居左</option><option value="center">居中</option></select></label></div>
             <div class="conditional-field" id="headerTitleFontField"><label class="control-group"><span>标题字号</span><span class="range-control"><input id="headerTitleFontControl" type="range" min="20" max="48" step="1" value="32" aria-label="头部标题字号"><output id="headerTitleFontValue" class="range-value">32px</output></span></label></div>
           </div>
           <div class="header-settings-group header-settings-group--single" id="headerSubtitleGroup">
@@ -1267,12 +1332,12 @@
       <div class="toolbar-band" id="sectionTitleBand" data-enabled="false">
         <div class="toolbar-band-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>分组标题<label class="toggle"><input id="sectionVisibilityToggle" type="checkbox" aria-label="显示分组标题"></label></div>
         <div class="toolbar-band-controls section-composer-controls">
-          <label class="mini-control"><span>装饰</span><select class="control-select" id="sectionLeadingControl"><option value="none">无</option><option value="marker">短竖线</option><option value="number">编号</option><option value="icon">图标</option></select></label>
-          <label class="mini-control" id="sectionIconStyleField" hidden><span>图标样式</span><select class="control-select" id="sectionIconStyleControl"><optgroup label="无底"><option value="line-neutral">极简线型</option><option value="line-accent">主题线型</option><option value="filled-accent">主题面型</option></optgroup><optgroup label="有底"><option value="line-soft">浅底线型</option><option value="filled-soft">浅底面型</option><option value="line-solid">深底线型</option><option value="filled-solid">深底面型</option></optgroup></select></label>
           <label class="mini-control"><span>标题</span><select class="control-select" id="sectionCopyControl"><option value="title">中文标题</option><option value="subtitle">中文标题 + 副标题</option><option value="bilingual">中文标题 + 英文副标题</option></select></label>
           <label class="mini-control"><span>线</span><select class="control-select" id="sectionDividerControl"><option value="none">无</option><option value="trailing">右侧横线</option><option value="bottom">底部横线</option></select></label>
           <label class="mini-control"><span>字号</span><span class="range-control"><input id="sectionFontControl" type="range" min="12" max="24" step="1" value="15" aria-label="分组标题字号"><output id="sectionFontValue" class="range-value">15px</output></span></label>
           <label class="mini-control"><span>字重</span><select class="control-select" id="sectionWeightControl"><option value="500">常规</option><option value="600">中等</option><option value="700" selected>半粗</option><option value="800">粗体</option></select></label>
+          <label class="mini-control"><span>装饰</span><select class="control-select" id="sectionLeadingControl"><option value="none">无</option><option value="marker">短竖线</option><option value="number">编号</option><option value="icon">图标</option></select></label>
+          <div class="mini-control" id="sectionIconStyleField" hidden><span>图标</span><span class="kpi-icon-composer"><select class="control-select" id="sectionIconStyleControl" aria-label="图标样式"><optgroup label="无底"><option value="line">线型</option><option value="filled">面型</option></optgroup><optgroup label="有底"><option value="line-soft">浅底线型</option><option value="filled-soft">浅底面型</option><option value="line-solid">深底线型</option><option value="filled-solid">深底面型</option></optgroup></select><select class="control-select" id="sectionIconColorControl" aria-label="图标颜色"><option value="neutral">中性色</option><option value="accent" selected>主题色</option><option value="gradient-accent">主题渐变</option><option value="colorful">多色</option><option value="gradient-colorful">多色渐变</option></select></span></div>
           <div class="section-subtitle-editor" id="sectionSubtitleEditor" data-visible="false" aria-label="各分组副标题">
             <label class="section-subtitle-row"><span>经营摘要</span><input type="text" data-section-subtitle="summary" placeholder="输入副标题" maxlength="80"></label>
             <label class="section-subtitle-row"><span>核心指标</span><input type="text" data-section-subtitle="metrics" placeholder="输入副标题" maxlength="80"></label>
@@ -1288,8 +1353,9 @@
           <label class="control-group"><span>圆角</span><span class="range-control"><input id="radiusControl" type="range" min="0" max="16" step="1" value="12"><output id="radiusValue" class="range-value">12px</output></span></label>
           <label class="control-group"><span>标题字号</span><select class="control-select" id="cardTitleFontControl"><option value="12">12px</option><option value="14" selected>14px</option><option value="16">16px</option><option value="18">18px</option><option value="20">20px</option></select></label>
           <label class="control-group"><span>副标题</span><select class="control-select" id="cardSubtitleControl"><option value="none">无</option><option value="below" selected>标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label>
-          <label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleStyleControl" aria-label="标题图标样式"></select></label>
-          <label class="control-group"><span>线框</span><select class="control-select" id="frameControl"><option value="none" selected>无</option><option value="hairline">极弱</option><option value="soft">柔和</option><option value="standard">标准</option><option value="strong">强调</option></select></label>
+          <label class="control-group"><span>标题装饰</span><select class="control-select" id="cardTitleLeadingControl"><option value="none">无</option><option value="marker">竖线</option><option value="icon">图标</option><option value="number">序号</option></select></label>
+          <div class="control-group" id="cardTitleIconComposerField" hidden><span>标题图标</span><span class="card-title-icon-composer"><select class="control-select" id="cardTitleDecorationControl" aria-label="标题图标样式"><optgroup label="无底"><option value="line">线型</option><option value="filled">面型</option></optgroup><optgroup label="有底"><option value="line-soft">浅底线型</option><option value="filled-soft">浅底面型</option><option value="line-solid">深底线型</option><option value="filled-solid">深底面型</option></optgroup></select><select class="control-select" id="cardTitleColorControl" aria-label="标题图标颜色"><option value="neutral">中性色</option><option value="accent">主题色</option><option value="gradient-accent">主题渐变</option><option value="colorful">多色</option><option value="gradient-colorful">多色渐变</option></select></span></div>
+          <label class="control-group"><span>卡片边框</span><select class="control-select" id="frameControl"><option value="none" selected>无</option><option value="hairline">极弱</option><option value="soft">柔和</option><option value="standard">标准</option><option value="strong">强调</option></select></label>
           <label class="control-group"><span>阴影</span><select class="control-select" id="shadowControl"><option value="none">无</option><option value="weak" selected>轻</option><option value="medium">中</option><option value="strong">重</option></select></label>
         </div>
       </div>
@@ -1312,7 +1378,7 @@
           <div class="kpi-style-samples" id="cardKpiStyleSamples" hidden><span class="kpi-style-samples-label">图标样式</span><button class="kpi-style-sample" type="button" data-style="inherit"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>跟随全局</span></button><span class="kpi-style-samples-group">无底</span><button class="kpi-style-sample" type="button" data-style="none"><span class="kpi-style-sample-preview"></span><span>无</span></button><button class="kpi-style-sample" type="button" data-style="line-neutral"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>极简线型</span></button><button class="kpi-style-sample" type="button" data-style="line-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>主题线型</span></button><button class="kpi-style-sample" type="button" data-style="gradient-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>单色渐变</span></button><button class="kpi-style-sample" type="button" data-style="gradient-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色渐变</span></button><span class="kpi-style-samples-group">有底</span><button class="kpi-style-sample" type="button" data-style="line-soft"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>浅底线型</span></button><button class="kpi-style-sample" type="button" data-style="filled-solid"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>反白面型</span></button><button class="kpi-style-sample" type="button" data-style="filled-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色反白</span></button></div>
           <div class="conditional-field" id="cardChartPaletteField" hidden><label class="control-group"><span>图表配色</span><select class="control-select" id="cardChartPaletteControl"><option value="inherit">跟随全局</option><option value="monochrome">单色</option><option value="bichrome">双色</option><option value="categorical">多色</option></select></label></div>
           <div class="conditional-field" id="cardSubtitleField" hidden><label class="control-group"><span>副标题排布</span><select class="control-select" id="cardSubtitleOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="below">标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label><label class="control-group"><span>副标题文字</span><input class="control-input" id="cardSubtitleTextControl" type="text" maxlength="80" placeholder="输入副标题"></label></div>
-          <div class="conditional-field" id="cardTitleIconField" hidden><label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleStyleOverrideControl" aria-label="单卡标题图标样式"></select></label></div>
+          <div class="conditional-field section-icon-picker-field" id="cardTitleIconField" hidden><label class="control-group"><span>标题图标</span><button class="section-icon-picker-button" id="cardTitleIconPickerTrigger" type="button"><span id="cardTitleIconPickerPreview"></span><span id="cardTitleIconPickerName">自动匹配</span></button></label></div>
           <div class="conditional-field kpi-icon-composer" id="cardKpiIconField" hidden><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="cardKpiIconOverrideControl" aria-label="单卡 KPI 图标"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="cardKpiWeightField"><select class="control-select" id="cardKpiWeightControl" aria-label="单卡图标粗细"><option value="inherit">跟随全局</option><option value="thin">细</option><option value="regular">标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="cardIconColorField"><select class="control-select" id="cardIconColorControl" aria-label="单卡图标颜色"><option value="inherit">跟随全局</option><optgroup label="单色"><option value="neutral">单色 / 中性色</option><option value="accent">单色 / 主题色</option><option value="colorful">单色 / 多色</option></optgroup><optgroup label="渐变"><option value="gradient-neutral">渐变 / 中性色</option><option value="gradient-accent">渐变 / 主题色</option><option value="gradient-colorful">渐变 / 多色</option></optgroup></select></span><span class="kpi-icon-container-field" id="cardKpiContainerField"><select class="control-select" id="cardKpiContainerControl" aria-label="单卡图标底色"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option></select></span><span class="kpi-icon-shape-field" id="cardKpiShapeField"><select class="control-select" id="cardKpiShapeControl" aria-label="单卡图标形状"><option value="inherit">跟随全局</option><option value="rect">矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="cardKpiSizeField"><select class="control-select" id="cardKpiSizeControl" aria-label="单卡图标大小"><option value="inherit">跟随全局</option><option value="small">小</option><option value="medium">中</option><option value="large">大</option></select></span></div>
           <div class="conditional-field" id="cardKpiLayoutField" hidden><label class="control-group"><span>图标位置</span><select class="control-select" id="cardKpiLayoutControl"><option value="inherit">跟随全局</option><option value="left-top">左上</option><option value="left-middle">左中</option><option value="right-top">右上</option><option value="right-middle">右中</option></select></label></div>
           <div class="conditional-field" id="cardKpiBackgroundField" hidden><label class="control-group"><span>卡片底色</span><select class="control-select" id="cardKpiBackgroundControl"><option value="inherit">跟随整组</option><option value="default">默认</option><option value="white">白色</option><option value="single">单色</option><option value="multi">多色</option></select></label></div>
@@ -1505,7 +1571,10 @@
     const cardGapControl = document.querySelector("#cardGapControl");
     const cardTitleFontControl = document.querySelector("#cardTitleFontControl");
     const cardSubtitleControl = document.querySelector("#cardSubtitleControl");
-    const cardTitleStyleControl = document.querySelector("#cardTitleStyleControl");
+    const cardTitleLeadingControl = document.querySelector("#cardTitleLeadingControl");
+    const cardTitleIconComposerField = document.querySelector("#cardTitleIconComposerField");
+    const cardTitleDecorationControl = document.querySelector("#cardTitleDecorationControl");
+    const cardTitleColorControl = document.querySelector("#cardTitleColorControl");
     const fontControl = document.querySelector("#fontControl");
     const sectionFontControl = document.querySelector("#sectionFontControl");
     const sectionWeightControl = document.querySelector("#sectionWeightControl");
@@ -1572,6 +1641,7 @@
     const sectionLeadingControl = document.querySelector("#sectionLeadingControl");
     const sectionIconStyleField = document.querySelector("#sectionIconStyleField");
     const sectionIconStyleControl = document.querySelector("#sectionIconStyleControl");
+    const sectionIconColorControl = document.querySelector("#sectionIconColorControl");
     const sectionCopyControl = document.querySelector("#sectionCopyControl");
     const sectionSubtitleEditor = document.querySelector("#sectionSubtitleEditor");
     const sectionSubtitleControls = [...document.querySelectorAll("[data-section-subtitle]")];
@@ -1599,7 +1669,9 @@
     const cardSubtitleOverrideControl = document.querySelector("#cardSubtitleOverrideControl");
     const cardSubtitleTextControl = document.querySelector("#cardSubtitleTextControl");
     const cardTitleIconField = document.querySelector("#cardTitleIconField");
-    const cardTitleStyleOverrideControl = document.querySelector("#cardTitleStyleOverrideControl");
+    const cardTitleIconPickerTrigger = document.querySelector("#cardTitleIconPickerTrigger");
+    const cardTitleIconPickerPreview = document.querySelector("#cardTitleIconPickerPreview");
+    const cardTitleIconPickerName = document.querySelector("#cardTitleIconPickerName");
     const cardKpiIconField = document.querySelector("#cardKpiIconField");
     const cardKpiIconOverrideControl = document.querySelector("#cardKpiIconOverrideControl");
     const cardKpiWeightField = document.querySelector("#cardKpiWeightField");
@@ -1650,8 +1722,8 @@
         return;
       }
       const gradientId = `kpi-style-gradient-${index}`;
-      const endColor = style === "gradient-multi" ? "#5ad8a6" : "var(--sample-accent, #ff8000)";
-      svg.innerHTML = `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${style === "gradient-multi" ? "#5b8ff9" : "var(--sample-accent, #ff8000)"}"/><stop offset="1" stop-color="${endColor}" stop-opacity=".3"/></linearGradient></defs>${fillPath}`;
+      const endColor = style === "gradient-multi" ? "#45b8d8" : "var(--sample-accent, #ff8000)";
+      svg.innerHTML = `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${style === "gradient-multi" ? "#5b8ff9" : "var(--sample-accent, #ff8000)"}"/><stop offset="1" stop-color="${endColor}"/></linearGradient></defs>${fillPath}`;
       svg.querySelectorAll(":scope > path").forEach((path) => { path.style.fill = `url(#${gradientId})`; });
     });
     kpiSizeField.closest(".kpi-icon-composer").querySelector(".kpi-icon-composer-label").textContent = "图标大小";
@@ -1710,6 +1782,30 @@
       "filled-multi": { cardTitleIcon: "solid", cardTitleIconColor: "colorful", cardTitleIconEffect: "multi-solid" }
     };
 
+    function deriveCardTitleControls(source) {
+      const legacyStyle = source.cardTitleStyle && cardTitleStylePresets[source.cardTitleStyle]
+        ? cardTitleStylePresets[source.cardTitleStyle]
+        : source;
+      const container = legacyStyle.cardTitleIcon || "none";
+      const filled = source.cardTitleStyle?.startsWith("filled-");
+      const decoration = container === "none" ? "none" : `${filled ? "filled" : "line"}${container === "soft" ? "-soft" : container === "solid" ? "-solid" : ""}`;
+      const color = legacyStyle.cardTitleIconEffect === "gradient-theme" ? "gradient-accent"
+        : legacyStyle.cardTitleIconEffect === "gradient-multi" || legacyStyle.cardTitleIconEffect === "multi-solid" ? "gradient-colorful"
+        : legacyStyle.cardTitleIconColor === "colorful" ? "colorful"
+        : legacyStyle.cardTitleIconColor === "accent" ? "accent" : "neutral";
+      return { decoration, color };
+    }
+
+    function applyCardTitleControls(target, decoration, color) {
+      const hasBackground = decoration.endsWith("-soft") || decoration.endsWith("-solid");
+      target.cardTitleDecoration = decoration;
+      target.cardTitleColor = color;
+      target.cardTitleIcon = decoration === "none" ? "none" : decoration.endsWith("-soft") ? "soft" : decoration.endsWith("-solid") ? "solid" : "line";
+      target.cardTitleIconForm = decoration.startsWith("filled") ? "filled" : "line";
+      target.cardTitleIconColor = color.includes("colorful") ? "colorful" : color.includes("accent") ? "accent" : "neutral";
+      target.cardTitleIconEffect = color === "gradient-accent" ? "gradient-theme" : color === "gradient-colorful" ? (hasBackground ? "multi-solid" : "gradient-multi") : "none";
+    }
+
     function populateSharedIconStyleSelect(select, includeInherit = false) {
       const groups = new Map();
       if (includeInherit) select.add(new Option("跟随全局", "inherit"));
@@ -1721,22 +1817,33 @@
       });
       groups.forEach((group) => select.append(group));
     }
-    populateSharedIconStyleSelect(cardTitleStyleControl);
-    populateSharedIconStyleSelect(cardTitleStyleOverrideControl, true);
     let kpiColorContext = null;
     let selectedHeaderGradientStopId = null;
     let selectedCardId = null;
     let selectedSectionId = null;
     let iconSearchTimer = null;
+    let iconPickerTarget = "section";
     const sectionIconSvgCache = new Map();
     let logoFileName = "";
     const customSelects = new Map();
     const WORKSPACE_STORAGE_KEY = "dashboard-preset-preview:v1";
+    const CUSTOM_PRESET_STORAGE_KEY = "dashboard-preset-preview:custom-presets:v1";
     const WORKSPACE_PREVIOUS_KEY = "dashboard-preset-preview:previous:v1";
     const WORKSPACE_HISTORY_KEY = "dashboard-preset-preview:history:v1";
     const PROJECT_STATE_SCRIPT_ID = "dashboard-project-state";
     let workspaceIsRestoring = true;
     let savedWorkspaceSnapshot = null;
+
+    function readCustomPresets() {
+      try { return JSON.parse(localStorage.getItem(CUSTOM_PRESET_STORAGE_KEY) || "[]"); } catch { return []; }
+    }
+    let customPresets = readCustomPresets();
+    function writeCustomPresets() { localStorage.setItem(CUSTOM_PRESET_STORAGE_KEY, JSON.stringify(customPresets)); }
+    function getCustomPreset(id) { return customPresets.find((preset) => preset.id === id); }
+    function createCustomPresetTheme() {
+      const { preset, pageType, language, cardOverrides, sectionIcons, sectionSubtitles, ...theme } = state;
+      return JSON.parse(JSON.stringify(theme));
+    }
 
     function setSaveStatus(message) {
       designSaveStatus.textContent = message;
@@ -1841,7 +1948,7 @@
     }
 
     function restoreWorkspaceState(saved) {
-      if (!saved || ![1, 2].includes(saved.version) || !saved.theme || !presets[saved.theme.preset]) return false;
+      if (!saved || ![1, 2].includes(saved.version) || !saved.theme || (!presets[saved.theme.preset] && !getCustomPreset(saved.theme.preset))) return false;
       selectPreset(saved.theme.preset);
       const restoredTheme = { ...saved.theme };
       if (saved.version === 1) restoredTheme.headerAlign = restoredTheme.pageType === "report" ? "center" : "left";
@@ -2033,6 +2140,16 @@
       }
     }
 
+    async function updateCardTitleIconPickerPreview(card) {
+      const iconName = state.cardOverrides?.[card.dataset.itemId]?.cardTitleIconName || defaultCardTitleIcons[card.dataset.itemId] || "square";
+      cardTitleIconPickerName.textContent = state.cardOverrides?.[card.dataset.itemId]?.cardTitleIconName ? iconName : `自动匹配 · ${iconName}`;
+      try {
+        cardTitleIconPickerPreview.innerHTML = await resolveSectionIconSvg(iconName, "regular");
+      } catch {
+        cardTitleIconPickerPreview.replaceChildren();
+      }
+    }
+
     function updateCardContext() {
       const card = selectedCard();
       const section = selectedSection();
@@ -2092,6 +2209,7 @@
       cardContextHint.hidden = hasControls;
       cardOverrideReset.hidden = !Object.keys(override).length;
       setCardContextFields(type === "kpi" ? "kpi" : type === "chart" ? "chart" : hasTitleIcon ? "generic" : "none");
+      cardTitleIconField.hidden = !hasTitleIcon;
       cardSubtitleField.hidden = !subtitle;
       cardIconColorField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
       cardKpiContainerField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
@@ -2099,7 +2217,7 @@
       cardChartPaletteControl.value = override.chartPalette || "inherit";
       cardSubtitleOverrideControl.value = override.cardSubtitle || "inherit";
       cardSubtitleTextControl.value = override.cardSubtitleText ?? subtitle?.textContent.trim() ?? "";
-      cardTitleStyleOverrideControl.value = override.cardTitleStyle || "inherit";
+      if (hasTitleIcon) updateCardTitleIconPickerPreview(card);
       cardKpiIconOverrideControl.value = override.kpiIcon || "inherit";
       cardKpiWeightControl.value = override.kpiIconWeight || "inherit";
       cardKpiContainerControl.value = override.kpiIconContainer || "inherit";
@@ -2158,15 +2276,32 @@
     function openSectionIconPicker() {
       const section = selectedSection();
       if (!section) return;
+      iconPickerTarget = "section";
       sectionIconPickerDialog.hidden = false;
       sectionIconPickerSearch.focus();
       searchSectionIcons(sectionLabel(section));
+    }
+
+    function openCardTitleIconPicker() {
+      const card = selectedCard();
+      if (!card) return;
+      iconPickerTarget = "card";
+      sectionIconPickerDialog.hidden = false;
+      sectionIconPickerSearch.focus();
+      searchSectionIcons(cardLabel(card));
     }
 
     function setSectionIconOverride(iconName) {
       if (!selectedSectionId || !iconName) return;
       state.sectionIcons ||= {};
       state.sectionIcons[selectedSectionId] = iconName;
+      closeSectionIconPicker();
+      applyState();
+    }
+
+    function setCardTitleIconOverride(iconName) {
+      if (!selectedCardId || !iconName) return;
+      setCardOverride("cardTitleIconName", iconName);
       closeSectionIconPicker();
       applyState();
     }
@@ -2211,20 +2346,21 @@
         const svg = card.querySelector(".card-title-icon svg");
         if (!svg) return;
         const effect = card.dataset.cardTitleIconEffect || dashboard.dataset.cardTitleIconEffect;
-        svg.style.stroke = "";
+        svg.style.fill = "";
         const existingDefs = svg.querySelector("defs[data-title-icon-gradient]");
         if (!effect.startsWith("gradient-")) {
           existingDefs?.remove();
+          svg.querySelectorAll(":scope > path").forEach((path) => { path.style.fill = ""; });
           return;
         }
         const gradientId = `card-title-gradient-${index}`;
-        const end = effect === "gradient-multi" ? "var(--chart-2)" : "var(--icon-theme-accent)";
+        const end = effect === "gradient-multi" ? "var(--chart-2)" : "var(--icon-theme-accent-alt)";
         const start = effect === "gradient-multi" ? "var(--chart-1)" : "var(--icon-theme-accent)";
         const defs = existingDefs || document.createElementNS("http://www.w3.org/2000/svg", "defs");
         defs.dataset.titleIconGradient = "true";
-        defs.innerHTML = `<linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${start}"/><stop offset="1" stop-color="${end}" stop-opacity=".3"/></linearGradient>`;
+        defs.innerHTML = `<linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${start}"/><stop offset="1" stop-color="${end}"/></linearGradient>`;
         if (!existingDefs) svg.prepend(defs);
-        svg.style.stroke = `url(#${gradientId})`;
+        svg.querySelectorAll(":scope > path").forEach((path) => { path.style.fill = `url(#${gradientId})`; });
       });
     }
 
@@ -2322,6 +2458,7 @@
         if (["neutral", "accent", "colorful", "gradient-neutral", "gradient-accent", "gradient-colorful"].includes(override.iconColor)) card.dataset.iconColor = override.iconColor;
       });
       renderKpiIcons();
+      renderCardTitleIcons();
       applyKpiColorTokens();
     }
 
@@ -2342,8 +2479,8 @@
         const colorMode = card.dataset.iconColor || state.kpiIconColor;
         const gradientId = `kpi-gradient-${card.dataset.itemId}`;
         const gradientEnd = colorMode === "gradient-colorful"
-          ? '<stop offset="1" style="stop-color:var(--icon-accent-alt);stop-opacity:.3"/>'
-          : '<stop offset="1" style="stop-color:var(--icon-accent);stop-opacity:.3"/>';
+          ? '<stop offset="1" style="stop-color:var(--icon-accent-alt)"/>'
+          : '<stop offset="1" style="stop-color:var(--icon-accent-alt)"/>';
         svg.setAttribute("viewBox", "0 0 256 256");
         svg.innerHTML = colorMode.startsWith("gradient-")
           ? `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--icon-accent)"/>${gradientEnd}</linearGradient></defs>${icon[pathStyle]}`
@@ -2366,12 +2503,29 @@
         const colorMode = card.dataset.iconColor || state.kpiIconColor;
         if (!["colorful", "gradient-colorful"].includes(colorMode)) return;
         const tokens = paletteTokens;
-        card.style.setProperty("--icon-accent", tokens.accent);
-        card.style.setProperty("--icon-accent-alt", deriveIconGradientAlternateAccent(paletteSeed, state.mode, kpiColorContext.surface));
+        card.style.setProperty("--icon-accent", paletteSeed);
+        card.style.setProperty("--icon-accent-alt", kpiColorContext.palette[(index + 1) % kpiColorContext.palette.length]);
         card.style.setProperty("--icon-soft", tokens.soft);
         card.style.setProperty("--icon-solid", tokens.solid);
         card.style.setProperty("--icon-solid-alt", deriveIconGradientAlternate(paletteSeed, state.mode, kpiColorContext.surface));
         card.style.setProperty("--icon-on-solid", tokens.onSolid);
+      });
+    }
+
+    function applySectionIconColorTokens(palette, surface) {
+      const sections = [...dashboard.querySelectorAll('.section[data-section-id]')];
+      sections.forEach((section) => {
+        ["--section-icon-accent", "--section-icon-accent-alt"].forEach((name) => section.style.removeProperty(name));
+      });
+      if (!['colorful', 'gradient-colorful'].includes(state.sectionIconColor)) return;
+      const visibleSections = sections.filter((section) => {
+        const heading = section.querySelector(':scope > .section-heading');
+        return heading && getComputedStyle(heading).display !== 'none';
+      });
+      visibleSections.forEach((section, index) => {
+        const seed = palette[index % palette.length];
+        section.style.setProperty("--section-icon-accent", seed);
+        section.style.setProperty("--section-icon-accent-alt", palette[(index + 1) % palette.length]);
       });
     }
 
@@ -3118,6 +3272,9 @@
       component.value.textContent = select.selectedOptions[0]?.textContent || "";
       component.trigger.disabled = select.disabled;
       component.options.forEach((option, index) => option.setAttribute("aria-selected", String(index === select.selectedIndex)));
+      component.triggerPreview.replaceChildren();
+      const optionPreview = component.options[select.selectedIndex]?.querySelector(".custom-select-option-preview");
+      if (optionPreview && component.root.dataset.triggerTextOnly !== "true") component.triggerPreview.append(optionPreview.cloneNode(true));
     }
 
     function syncCustomSelects() {
@@ -3146,7 +3303,8 @@
         let container = select.parentElement;
         if (container.tagName === "LABEL") {
           const replacement = document.createElement("div");
-          replacement.className = container.className;
+          // Keep the original field identity and visibility when converting native selects.
+          [...container.attributes].forEach((attribute) => replacement.setAttribute(attribute.name, attribute.value));
           while (container.firstChild) replacement.appendChild(container.firstChild);
           container.replaceWith(replacement);
           container = replacement;
@@ -3155,6 +3313,7 @@
         const visibleLabel = [...container.children].find((child) => child.tagName === "SPAN")?.textContent || select.getAttribute("aria-label") || "选择";
         const root = document.createElement("div");
         const trigger = document.createElement("button");
+        const triggerPreview = document.createElement("span");
         const value = document.createElement("span");
         const listbox = document.createElement("div");
         const triggerId = `custom-select-trigger-${index}`;
@@ -3162,6 +3321,7 @@
 
         root.className = "custom-select";
         root.dataset.open = "false";
+        root.dataset.triggerTextOnly = String(["cardTitleDecorationControl", "cardTitleColorControl"].includes(select.id));
         select.before(root);
         root.appendChild(select);
         select.hidden = true;
@@ -3174,6 +3334,8 @@
         trigger.setAttribute("aria-haspopup", "listbox");
         trigger.setAttribute("aria-expanded", "false");
         trigger.setAttribute("aria-controls", listboxId);
+        triggerPreview.className = "custom-select-trigger-preview";
+        trigger.appendChild(triggerPreview);
         trigger.appendChild(value);
         trigger.insertAdjacentHTML("beforeend", '<svg class="custom-select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>');
 
@@ -3197,10 +3359,33 @@
           option.type = "button";
           option.id = `${listboxId}-option-${optionIndex}`;
           option.className = "custom-select-option";
+          option.dataset.value = nativeOption.value;
           option.setAttribute("role", "option");
           option.dataset.active = "false";
           optionLabel.textContent = nativeOption.textContent;
           option.appendChild(optionLabel);
+          if (select.id === "sectionIconStyleControl") {
+            const preview = document.createElement("span");
+            const isFilled = nativeOption.value.startsWith("filled-");
+            preview.className = "section-icon-style-option-preview custom-select-option-preview";
+            preview.innerHTML = `<svg viewBox="0 0 256 256" aria-hidden="true">${phosphorKpiIcons["users-three"][isFilled ? "fill" : "regular"]}</svg>`;
+            option.dataset.sectionIconStyle = nativeOption.value;
+            option.prepend(preview);
+          }
+          if (select.id === "cardTitleDecorationControl" && nativeOption.value !== "none") {
+            const preview = document.createElement("span");
+            const isFilled = nativeOption.value.startsWith("filled");
+            preview.className = "card-title-decoration-option-preview custom-select-option-preview";
+            preview.dataset.container = nativeOption.value.endsWith("-soft") ? "soft" : nativeOption.value.endsWith("-solid") ? "solid" : "none";
+            preview.innerHTML = `<svg viewBox="0 0 256 256" aria-hidden="true">${phosphorKpiIcons["chart-line-up"][isFilled ? "fill" : "regular"]}</svg>`;
+            option.prepend(preview);
+          }
+          if (select.id === "cardTitleColorControl") {
+            const preview = document.createElement("span");
+            preview.className = "card-title-color-option-preview custom-select-option-preview";
+            preview.dataset.colorMode = nativeOption.value;
+            option.prepend(preview);
+          }
           option.insertAdjacentHTML("beforeend", '<svg class="custom-select-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>');
           option.addEventListener("click", () => selectCustomOption(component, optionIndex));
           option.addEventListener("mousemove", () => setActiveCustomOption(component, optionIndex));
@@ -3209,7 +3394,7 @@
         });
 
         root.append(trigger, listbox);
-        const component = { select, root, trigger, value, listbox, options, activeIndex: select.selectedIndex };
+        const component = { select, root, trigger, triggerPreview, value, listbox, options, activeIndex: select.selectedIndex };
         customSelects.set(select, component);
 
         trigger.addEventListener("click", () => {
@@ -3527,9 +3712,11 @@
       return deriveIconTokens(adjacent, mode, surface).accent;
     }
 
+    const DASHBOARD_CATEGORICAL_PALETTE = ["#5b8ff9","#45b8d8","#43c59e","#96bf45","#f3a83b","#f06b72","#de72b4","#9270e8"];
+
     function deriveChartPalette(seed) {
       const source = hexToHsl(seed);
-      const categorical = ["#5b8ff9", "#5ad8a6", "#5d7092", "#f6bd16", "#e8684a", "#6dc8ec"];
+      const categorical = DASHBOARD_CATEGORICAL_PALETTE;
       const ranked = source.s < 8
         ? categorical
         : [...categorical].sort((first, second) => {
@@ -3565,6 +3752,8 @@
     }
 
     const defaultSectionIcons = { summary: "clipboard-text", metrics: "gauge", trends: "chart-line-up", health: "shield-check" };
+    const defaultCardTitleIcons = { "summary-card": "clipboard-text", "opportunity-trend": "chart-line-up", "source-ranking": "list-numbers", "customer-health": "heartbeat", "risk-items": "warning" };
+    const sectionIconFallbacks = { summary: "users-three", metrics: "pulse", trends: "chart-line-up", health: "pulse" };
 
     async function resolveSectionIconSvg(name, weight) {
       const key = `${name}:${weight}`;
@@ -3577,7 +3766,8 @@
     }
 
     async function renderSectionIcons() {
-      const weight = state.sectionIconStyle.startsWith("filled-") ? "fill" : "regular";
+      const filled = state.sectionIconStyle === "filled" || state.sectionIconStyle.startsWith("filled-");
+      const weight = filled ? "fill" : state.sectionWeight >= 700 ? "bold" : "regular";
       const tasks = [...dashboard.querySelectorAll(".section[data-section-id]")].map(async (section) => {
         const heading = section.querySelector(":scope > .section-heading");
         if (!heading) return;
@@ -3590,14 +3780,75 @@
         }
         const iconName = state.sectionIcons?.[section.dataset.sectionId] || defaultSectionIcons[section.dataset.sectionId] || "circle";
         icon.dataset.iconName = iconName;
+        const renderKey = `${iconName}:${weight}`;
+        icon.dataset.iconRenderKey = renderKey;
         try {
           const svg = await resolveSectionIconSvg(iconName, weight);
-          if (icon.dataset.iconName === iconName) icon.innerHTML = svg;
+          if (icon.dataset.iconRenderKey === renderKey) icon.innerHTML = svg;
         } catch {
-          icon.replaceChildren();
+          const fallback = phosphorKpiIcons[sectionIconFallbacks[section.dataset.sectionId] || "users-three"];
+          if (icon.dataset.iconRenderKey === renderKey) {
+            icon.innerHTML = fallback?.[weight] ? `<svg viewBox="0 0 256 256" aria-hidden="true">${fallback[weight]}</svg>` : "";
+          }
         }
+        if (icon.dataset.iconRenderKey === renderKey) applySectionIconGradient(icon, section.dataset.sectionId);
       });
       await Promise.all(tasks);
+    }
+
+    async function renderCardTitleIcons() {
+      const tasks = [...dashboard.querySelectorAll("[data-item-id] .card-title-icon")].map(async (icon) => {
+        const card = icon.closest("[data-item-id]");
+        const iconName = state.cardOverrides?.[card.dataset.itemId]?.cardTitleIconName || defaultCardTitleIcons[card.dataset.itemId];
+        if (!iconName) return;
+        const decoration = state.cardTitleDecoration || "line";
+        const weight = decoration.startsWith("filled") ? "fill" : "regular";
+        const renderKey = `${iconName}:${weight}`;
+        icon.dataset.iconRenderKey = renderKey;
+        try {
+          const svg = await resolveSectionIconSvg(iconName, weight);
+          if (icon.dataset.iconRenderKey === renderKey) icon.innerHTML = svg;
+        } catch {}
+      });
+      await Promise.all(tasks);
+      renderCardTitleIconEffects();
+    }
+
+    function renderCardTitleDecorations() {
+      const titles = [...dashboard.querySelectorAll("[data-item-id]:not(.metric) .card-title")];
+      let visibleIndex = 0;
+      titles.forEach((title) => {
+        let marker = title.querySelector(":scope > .card-title-marker");
+        let number = title.querySelector(":scope > .card-title-number");
+        if (!marker) {
+          marker = document.createElement("span");
+          marker.className = "card-title-marker";
+          marker.setAttribute("aria-hidden", "true");
+          title.prepend(marker);
+        }
+        if (!number) {
+          number = document.createElement("span");
+          number.className = "card-title-number";
+          number.setAttribute("aria-hidden", "true");
+          title.prepend(number);
+        }
+        const visible = getComputedStyle(title).display !== "none";
+        number.textContent = visible ? String(++visibleIndex).padStart(2, "0") : "";
+      });
+    }
+
+    function applySectionIconGradient(icon, sectionId) {
+      if (!state.sectionIconColor?.startsWith("gradient-")) return;
+      const svg = icon.querySelector("svg");
+      if (!svg) return;
+      const gradientId = `section-icon-gradient-${sectionId}`;
+      const isColorful = state.sectionIconColor === "gradient-colorful";
+      const startColor = isColorful ? "var(--section-icon-accent)" : "var(--icon-accent)";
+      const endColor = isColorful ? "var(--section-icon-accent-alt)" : "var(--icon-accent)";
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      defs.innerHTML = `<linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:${startColor}"/><stop offset="1" style="stop-color:${endColor}"/></linearGradient>`;
+      svg.prepend(defs);
+      svg.querySelectorAll(":scope > path").forEach((path) => { path.style.fill = `url(#${gradientId})`; });
     }
 
     function updatePresetOptions() {
@@ -3607,20 +3858,36 @@
         button.textContent = view.labels[presetName] || presets[presetName].label;
         button.hidden = !view.allowed.includes(presetName) && presetName !== state.preset;
       });
+      document.querySelectorAll("#presetControls [data-custom-preset]").forEach((button) => button.remove());
+      customPresets.forEach((preset) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.customPreset = preset.id;
+        button.textContent = preset.name;
+        button.setAttribute("aria-pressed", String(state.preset === preset.id));
+        document.querySelector("#customPresetSave").before(button);
+      });
+      document.querySelector("#customPresetRename").hidden = !getCustomPreset(state.preset);
     }
 
     function applyState() {
-      const preset = presets[state.preset];
+      const preset = presets[state.preset] || presets["fx-orange"];
       state.cardGap = cardGapSteps.reduce((closest, step) => Math.abs(step - state.cardGap) < Math.abs(closest - state.cardGap) ? step : closest, 12);
       state.cardTitleFont = [12, 14, 16, 18, 20].includes(Number(state.cardTitleFont)) ? Number(state.cardTitleFont) : 14;
       if (state.cardSubtitle === "right") state.cardSubtitle = "title-right";
       if (!["none", "below", "title-right", "card-right", "icon"].includes(state.cardSubtitle)) state.cardSubtitle = "below";
-      if (!cardTitleStylePresets[state.cardTitleStyle]) {
-        state.cardTitleStyle = Object.entries(cardTitleStylePresets).find(([, preset]) => (
-          preset.cardTitleIcon === state.cardTitleIcon && preset.cardTitleIconColor === state.cardTitleIconColor
-        ))?.[0] || "none";
+      if (!state.cardTitleDecoration || !state.cardTitleColor) {
+        const migrated = deriveCardTitleControls(state);
+        state.cardTitleDecoration ||= migrated.decoration;
+        state.cardTitleColor ||= migrated.color;
       }
-      applyCardTitleStyle(state.cardTitleStyle, state);
+      if (!state.cardTitleLeading) state.cardTitleLeading = state.cardTitleDecoration !== "none" || state.cardTitleIcon !== "none" ? "icon" : "none";
+      if (!["none", "marker", "icon", "number"].includes(state.cardTitleLeading)) state.cardTitleLeading = "none";
+      if (state.pageType === "dashboard" && state.cardTitleLeading === "number") state.cardTitleLeading = "none";
+      if (state.cardTitleDecoration === "none") state.cardTitleDecoration = "line";
+      if (!["none", "line", "filled", "line-soft", "filled-soft", "line-solid", "filled-solid"].includes(state.cardTitleDecoration)) state.cardTitleDecoration = "none";
+      if (!["neutral", "accent", "gradient-accent", "colorful", "gradient-colorful"].includes(state.cardTitleColor)) state.cardTitleColor = "neutral";
+      applyCardTitleControls(state, state.cardTitleDecoration, state.cardTitleColor);
       if (!["monochrome", "bichrome", "categorical"].includes(state.chartPalette)) state.chartPalette = "monochrome";
       if (state.kpiLayout === "stacked") state.kpiLayout = "right-top";
       if (state.kpiLayout === "horizontal") state.kpiLayout = "left-top";
@@ -3681,7 +3948,18 @@
       if (!["title", "subtitle", "bilingual"].includes(state.sectionCopy)) state.sectionCopy = "title";
       if (state.sectionLeading === "accent") state.sectionLeading = "marker";
       if (!["none", "marker", "number", "icon"].includes(state.sectionLeading)) state.sectionLeading = "none";
-      if (!["line-neutral", "line-accent", "filled-accent", "line-soft", "filled-soft", "line-solid", "filled-solid"].includes(state.sectionIconStyle)) state.sectionIconStyle = "line-accent";
+      const legacySectionIconStyles = {
+        "line-neutral": ["line", "neutral"],
+        "line-accent": ["line", "accent"],
+        "filled-accent": ["filled", "accent"]
+      };
+      if (legacySectionIconStyles[state.sectionIconStyle]) {
+        const [style, color] = legacySectionIconStyles[state.sectionIconStyle];
+        state.sectionIconStyle = style;
+        if (!state.sectionIconColor) state.sectionIconColor = color;
+      }
+      if (!["line", "filled", "line-soft", "filled-soft", "line-solid", "filled-solid"].includes(state.sectionIconStyle)) state.sectionIconStyle = "line";
+      if (!["neutral", "accent", "gradient-accent", "colorful", "gradient-colorful"].includes(state.sectionIconColor)) state.sectionIconColor = "accent";
       if (!state.sectionIcons || typeof state.sectionIcons !== "object" || Array.isArray(state.sectionIcons)) state.sectionIcons = {};
       if (![500, 600, 700, 800].includes(Number(state.sectionWeight))) state.sectionWeight = 700;
       if (!state.sectionSubtitles || typeof state.sectionSubtitles !== "object" || Array.isArray(state.sectionSubtitles)) state.sectionSubtitles = {};
@@ -3717,6 +3995,11 @@
       const iconTokens = deriveIconTokens(state.accent, state.mode, resolvedSurface);
       const iconGradientAlternate = deriveIconGradientAlternate(state.accent, state.mode, resolvedSurface);
       const iconGradientAlternateAccent = deriveIconGradientAlternateAccent(state.accent, state.mode, resolvedSurface);
+      const titleIconTokens = state.cardTitleIconColor === "neutral"
+        ? { accent: state.mode === "dark" ? "#a1a1aa" : "#62626b", soft: state.mode === "dark" ? "#34343a" : "#f0f0f2", onSolid: "#ffffff" }
+        : state.cardTitleIconColor === "colorful"
+          ? { accent: chartPalette.categorical[0], soft: mixHex(chartPalette.categorical[0], resolvedSurface, state.mode === "dark" ? .16 : .10), onSolid: "#ffffff" }
+          : iconTokens;
       kpiColorContext = { surface: resolvedSurface, palette: chartPalette.categorical };
       const resolvedHeaderSolidColor = state.headerSolidLinkedToMode ? resolvedSurface : state.headerSolidColor;
       let headerBackground = state.headerBackgroundType === "none" ? "transparent" : resolvedSurface;
@@ -3754,7 +4037,7 @@
         "--accent-on-soft": accentTokens.onSoft, "--accent-on-solid": accentTokens.onSolid, "--accent-line": accentTokens.line,
         "--icon-accent": iconTokens.accent, "--icon-accent-alt": iconGradientAlternateAccent, "--icon-soft": iconTokens.soft, "--icon-solid": iconTokens.solid, "--icon-solid-alt": iconGradientAlternate, "--icon-on-solid": iconTokens.onSolid,
         "--icon-theme-accent": iconTokens.accent, "--icon-theme-accent-alt": iconGradientAlternateAccent, "--icon-theme-soft": iconTokens.soft, "--icon-theme-solid": iconTokens.solid, "--icon-theme-solid-alt": iconGradientAlternate, "--icon-theme-on-solid": iconTokens.onSolid,
-        "--title-icon-accent": iconTokens.accent, "--title-icon-soft": iconTokens.soft, "--title-icon-on-solid": iconTokens.onSolid,
+        "--title-icon-accent": titleIconTokens.accent, "--title-icon-soft": titleIconTokens.soft, "--title-icon-on-solid": titleIconTokens.onSolid,
         "--icon-neutral": state.mode === "dark" ? "#a1a1aa" : "#62626b",
         "--icon-neutral-alt": state.mode === "dark" ? "#d4d4d8" : "#3f3f46",
         "--icon-neutral-soft": state.mode === "dark" ? "#34343a" : "#f0f0f2",
@@ -3767,6 +4050,7 @@
         "--chart-bi-1": chartPalette.bichrome[0], "--chart-bi-2": chartPalette.bichrome[1],
         "--chart-1": chartPalette.categorical[0], "--chart-2": chartPalette.categorical[1], "--chart-3": chartPalette.categorical[2],
         "--chart-4": chartPalette.categorical[3], "--chart-5": chartPalette.categorical[4], "--chart-6": chartPalette.categorical[5],
+        "--chart-7": chartPalette.categorical[6], "--chart-8": chartPalette.categorical[7],
         "--accent": accentTokens.structure,
         "--radius": `${state.radius}px`, "--card-gap": `${state.cardGap}px`, "--card-title-size": `${state.cardTitleFont}px`, "--card-subtitle-size": `max(12px, ${(state.cardTitleFont * .82).toFixed(2)}px)`, "--hero-title-size": `${state.headerTitleFont}px`,
         "--font-scale": (state.font / 14).toFixed(3), "--section-title-size": `${state.sectionFont}px`, "--section-title-weight": state.sectionWeight, "--section-marker-height": `${(state.sectionFont * 1.05).toFixed(2)}px`,
@@ -3774,6 +4058,11 @@
       };
       Object.entries(vars).forEach(([name, value]) => dashboard.style.setProperty(name, value));
       designDrawer.style.setProperty("--sample-accent", state.accent);
+      designDrawer.style.setProperty("--card-title-neutral-preview", state.mode === "dark" ? "#a1a1aa" : "#62626b");
+      designDrawer.style.setProperty("--card-title-accent-preview", iconTokens.accent);
+      designDrawer.style.setProperty("--card-title-accent-alt-preview", iconGradientAlternateAccent);
+      designDrawer.style.setProperty("--card-title-colorful-preview", chartPalette.categorical[0]);
+      designDrawer.style.setProperty("--card-title-colorful-alt-preview", chartPalette.categorical[1]);
       document.body.style.background = state.pageType === "report"
         ? (state.pageBackground === "accent-soft" ? softThemeSurfaces.outer : surfaceTokens.outer)
         : resolvedPageBackground;
@@ -3794,6 +4083,7 @@
       dashboard.dataset.sectionVisibility = resolvedSectionVisibility;
       dashboard.dataset.sectionLeading = state.sectionLeading;
       dashboard.dataset.sectionIconStyle = state.sectionIconStyle;
+      dashboard.dataset.sectionIconColor = state.sectionIconColor;
       dashboard.dataset.sectionCopy = state.sectionCopy;
       dashboard.dataset.sectionDivider = state.sectionDivider;
       dashboard.dataset.sectionSurface = "none";
@@ -3810,11 +4100,15 @@
       dashboard.dataset.kpiLayout = state.kpiLayout;
       dashboard.dataset.kpiCardBackground = state.kpiCardBackground;
       dashboard.dataset.cardTitleIcon = state.cardTitleIcon;
+      dashboard.dataset.cardTitleLeading = state.cardTitleLeading;
+      dashboard.dataset.cardTitleIconForm = state.cardTitleIconForm;
       dashboard.dataset.cardTitleIconColor = state.cardTitleIconColor;
       dashboard.dataset.cardTitleIconEffect = state.cardTitleIconEffect;
       dashboard.dataset.cardSubtitle = state.cardSubtitle;
       dashboard.dataset.chartPalette = state.chartPalette;
       dashboard.dataset.pageTexture = state.pageTexture;
+      applySectionIconColorTokens(chartPalette.categorical, resolvedSurface);
+      renderCardTitleDecorations();
       renderSectionIcons();
       applyCardOverrides();
       document.querySelector("#accentValue").textContent = state.accent;
@@ -3831,7 +4125,14 @@
       cardGapControl.value = state.cardGap;
       cardTitleFontControl.value = state.cardTitleFont;
       cardSubtitleControl.value = state.cardSubtitle;
-      cardTitleStyleControl.value = state.cardTitleStyle;
+      cardTitleLeadingControl.value = state.cardTitleLeading;
+      cardTitleLeadingControl.querySelector('option[value="number"]').hidden = state.pageType === "dashboard";
+      customSelects.get(cardTitleLeadingControl)?.options.forEach((option) => {
+        if (option.dataset.value === "number") option.hidden = state.pageType === "dashboard";
+      });
+      cardTitleIconComposerField.hidden = state.cardTitleLeading !== "icon";
+      cardTitleDecorationControl.value = state.cardTitleDecoration;
+      cardTitleColorControl.value = state.cardTitleColor;
       fontControl.value = state.font;
       sectionFontControl.value = state.sectionFont;
       sectionWeightControl.value = String(state.sectionWeight);
@@ -3893,7 +4194,8 @@
       sectionTitleBand.dataset.enabled = String(sectionTitlesVisible);
       sectionLeadingControl.value = state.sectionLeading;
       sectionIconStyleControl.value = state.sectionIconStyle;
-      sectionIconStyleField.hidden = state.sectionLeading !== "icon";
+      sectionIconColorControl.value = state.sectionIconColor;
+      sectionIconStyleControl.closest(".mini-control").hidden = state.sectionLeading !== "icon";
       sectionCopyControl.value = state.sectionCopy;
       sectionSubtitleEditor.dataset.visible = String(state.sectionCopy === "subtitle");
       sectionSubtitleControls.forEach((control) => { control.value = state.sectionSubtitles[control.dataset.sectionSubtitle] || ""; });
@@ -3914,15 +4216,46 @@
     }
 
     function selectPreset(name) {
+      const customPreset = getCustomPreset(name);
+      if (customPreset) {
+        const pageType = state.pageType || "dashboard";
+        const language = state.language || "zh";
+        selectPreset("fx-orange");
+        state = { ...state, ...customPreset.theme, preset: customPreset.id, pageType, language };
+        applyState();
+        return;
+      }
       const preset = presets[name];
       const language = state.language || "zh";
       const pageType = state.pageType || "dashboard";
-      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: pageType === "report" ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid", headerBackgroundDefaultVersion: 2, headerAlign: "auto", headerTitleFont: 32, subtitle: preset.subtitle || "none", headerMetaStyle: pageType === "dashboard" ? "plain" : "surface", headerMetaDefaultVersion: 2, headerMetaSeparator: "dot", headerDecoration: "none", headerSolidLinkedToMode: true, pageBackground: "neutral", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionIconStyle: "line-accent", sectionIcons: {}, sectionCopy: preset.sectionCopy || "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, sectionWeight: 700, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleStyle: "none", cardTitleIcon: "none", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: pageType === "report" ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid", headerBackgroundDefaultVersion: 2, headerAlign: "auto", headerTitleFont: 32, subtitle: preset.subtitle || "none", headerMetaStyle: pageType === "dashboard" ? "plain" : "surface", headerMetaDefaultVersion: 2, headerMetaSeparator: "dot", headerDecoration: "none", headerSolidLinkedToMode: true, pageBackground: "neutral", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionIconStyle: "line", sectionIconColor: "accent", sectionIcons: {}, sectionCopy: preset.sectionCopy || "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, sectionWeight: 700, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleStyle: "none", cardTitleLeading: "none", cardTitleDecoration: "line", cardTitleColor: "neutral", cardTitleIcon: "none", cardTitleIconForm: "line", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
       state.headerAlign = pageType === "report" ? "center" : "left";
       applyState();
     }
 
-    document.querySelector("#presetControls").addEventListener("click", (event) => { const name = event.target.dataset.preset; if (name) selectPreset(name); });
+    document.querySelector("#presetControls").addEventListener("click", (event) => {
+      const name = event.target.dataset.preset || event.target.dataset.customPreset;
+      if (name) selectPreset(name);
+    });
+    document.querySelector("#customPresetSave").addEventListener("click", () => {
+      const name = window.prompt("自定义预设名称", "我的预设")?.trim();
+      if (!name) return;
+      const id = `custom-${Date.now()}`;
+      customPresets.push({ id, name: name.slice(0, 30), theme: createCustomPresetTheme() });
+      writeCustomPresets();
+      state.preset = id;
+      applyState();
+      setSaveStatus("已保存自定义预设");
+    });
+    document.querySelector("#customPresetRename").addEventListener("click", () => {
+      const preset = getCustomPreset(state.preset);
+      if (!preset) return;
+      const name = window.prompt("重命名自定义预设", preset.name)?.trim();
+      if (!name) return;
+      preset.name = name.slice(0, 30);
+      writeCustomPresets();
+      updatePresetOptions();
+    });
     document.querySelector("#pageTypeControls").addEventListener("click", (event) => {
       const nextPageType = event.target.dataset.value;
       if (!nextPageType || nextPageType === state.pageType) return;
@@ -3948,7 +4281,9 @@
     cardGapControl.addEventListener("change", () => { state.cardGap = Number(cardGapControl.value); applyState(); });
     cardTitleFontControl.addEventListener("change", () => { state.cardTitleFont = Number(cardTitleFontControl.value); applyState(); });
     cardSubtitleControl.addEventListener("change", () => { state.cardSubtitle = cardSubtitleControl.value; applyState(); });
-    cardTitleStyleControl.addEventListener("change", () => { state.cardTitleStyle = cardTitleStyleControl.value; applyState(); });
+    cardTitleLeadingControl.addEventListener("change", () => { state.cardTitleLeading = cardTitleLeadingControl.value; applyState(); });
+    cardTitleDecorationControl.addEventListener("change", () => { state.cardTitleDecoration = cardTitleDecorationControl.value; applyState(); });
+    cardTitleColorControl.addEventListener("change", () => { state.cardTitleColor = cardTitleColorControl.value; applyState(); });
     fontControl.addEventListener("input", () => {
       const nextFont = Number(fontControl.value);
       const delta = nextFont - Number(state.font);
@@ -3979,7 +4314,6 @@
     cardChartPaletteControl.addEventListener("change", () => setCardOverride("chartPalette", cardChartPaletteControl.value));
     cardSubtitleOverrideControl.addEventListener("change", () => setCardOverride("cardSubtitle", cardSubtitleOverrideControl.value));
     cardSubtitleTextControl.addEventListener("input", () => setCardOverride("cardSubtitleText", cardSubtitleTextControl.value));
-    cardTitleStyleOverrideControl.addEventListener("change", () => setCardTitleStyleOverride(cardTitleStyleOverrideControl.value));
     cardKpiIconOverrideControl.addEventListener("change", () => setCardOverride("kpiIcon", cardKpiIconOverrideControl.value));
     cardKpiWeightControl.addEventListener("change", () => setCardOverride("kpiIconWeight", cardKpiWeightControl.value));
     cardKpiLayoutControl.addEventListener("change", () => setCardOverride("kpiLayout", cardKpiLayoutControl.value));
@@ -3993,6 +4327,7 @@
     cardKpiShapeControl.addEventListener("change", () => setCardOverride("kpiIconShape", cardKpiShapeControl.value));
     cardKpiSizeControl.addEventListener("change", () => setCardOverride("kpiIconSize", cardKpiSizeControl.value));
     sectionIconPickerTrigger.addEventListener("click", openSectionIconPicker);
+    cardTitleIconPickerTrigger.addEventListener("click", openCardTitleIconPicker);
     sectionWidthControl.addEventListener("change", () => {
       const section = selectedSection();
       if (!section) return;
@@ -4020,7 +4355,10 @@
     });
     sectionIconPickerResults.addEventListener("click", (event) => {
       const button = event.target.closest("[data-icon-name]");
-      if (button) setSectionIconOverride(button.dataset.iconName);
+      if (button) {
+        if (iconPickerTarget === "card") setCardTitleIconOverride(button.dataset.iconName);
+        else setSectionIconOverride(button.dataset.iconName);
+      }
     });
     cardOverrideReset.addEventListener("click", () => {
       if (selectedSectionId) {
@@ -4202,7 +4540,17 @@
       applyState();
     });
     sectionLeadingControl.addEventListener("change", () => { state.sectionLeading = sectionLeadingControl.value; applyState(); });
-    sectionIconStyleControl.addEventListener("change", () => { state.sectionIconStyle = sectionIconStyleControl.value; applyState(); });
+    sectionIconStyleControl.addEventListener("change", () => {
+      state.sectionIconStyle = sectionIconStyleControl.value;
+      // A style choice is meaningful only with an icon, so make that relationship explicit.
+      state.sectionLeading = "icon";
+      applyState();
+    });
+    sectionIconColorControl.addEventListener("change", () => {
+      state.sectionIconColor = sectionIconColorControl.value;
+      state.sectionLeading = "icon";
+      applyState();
+    });
     sectionCopyControl.addEventListener("change", () => { state.sectionCopy = sectionCopyControl.value; applyState(); });
     sectionSubtitleControls.forEach((control) => {
       control.addEventListener("input", () => {

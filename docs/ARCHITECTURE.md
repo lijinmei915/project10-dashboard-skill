@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-08-05
+last_verified: 2026-08-06
 depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 ---
 
@@ -26,6 +26,8 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
   提供平台侧展示与描述信息
 - `assets/templates/starter.html`
   提供默认 dashboard HTML 起始骨架
+- `assets/palette.v1.json`
+  提供图表、KPI、分组标题共用的轻量固定色板；完整规则按需读取 `references/color-system.md`
 - `references/*.md`
   提供布局规则、输出约束、测试方式和测试样例
 - `data/icon-aliases.zh.json`
@@ -46,6 +48,21 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 5. 页面状态只记录各分组最终选择的图标名，预览 DOM 按需注入对应 SVG
 6. 导出时移除设计器、搜索弹窗、脚本和 Agent API 依赖，只保留已选中的内联 SVG
 7. 最终交付可离线使用的 standalone HTML 页面
+
+## 生成能力分层
+
+```txt
+真实数据与用户意图
+  -> 完整模式：Agent/Studio 的 Phosphor + ECharts SSR
+  -> 通用模式：宿主 Agent 的图标、图表或包管理能力
+  -> 降级模式：纯文字图标位 + 表格/排行/KPI 数据表达
+  -> 统一固化为 standalone HTML
+```
+
+- 图标库和图表库是生成期依赖，不是默认成品依赖。
+- 完整模式和通用模式都把最终选中的 SVG 内联到 HTML；默认导出后不再需要原始库。
+- 降级模式保留数据与语义完整性。缺少图标时不保留空容器，缺少图表引擎时不保留空 canvas。
+- 交互图表属于显式增强交付，按实际功能加入最小运行时，不改变静态导出的默认边界。
 
 ## 当前边界
 

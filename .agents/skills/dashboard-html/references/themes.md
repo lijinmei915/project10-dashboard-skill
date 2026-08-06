@@ -87,7 +87,7 @@ accent       -> 非语义强调色 seed，由主题契约派生正文适配色
 - 饱和度低于约 `8%` 的黑、白、灰 seed 没有稳定色相：浅色使用可见深灰结构色，深色使用可见浅灰结构色。
 - `--accent-line` 必须能随主题色识别，但弱于 `--accent-structure`；普通卡片边框仍使用中性 `--line-soft`。
 - `--icon-accent` 保留主题色相，但降低饱和度；图标不得直接读取高饱和 `--accent-seed`。
-- `--chart-accent` 从固定六色色板中选择与 accent seed 色相距离最近的一色。
+- `--chart-accent` 从产品固定 8 色分类色板中选择与 accent seed 色相距离最近的一色。
 - `--chart-bi-1 / --chart-bi-2` 从同一固定色板中选择与主题色相距离最近的两色，不重新计算明度或饱和度。
 
 组件映射：分组竖线、摘要竖线使用 `--accent-structure`；分组横线、摘要分隔线使用 `--accent-line`；图标使用 `--icon-accent / --icon-soft / --icon-on-solid`；band 头部使用 `--accent-seed + --accent-on-solid`。图表单色、双色和彩色共用一套 AntV/G2 固定色板；成功、警告、危险、信息色保持独立。
@@ -114,10 +114,10 @@ accent       -> 非语义强调色 seed，由主题契约派生正文适配色
 ```txt
 monochrome   -> 使用固定色板中最接近主题色相的一色
 bichrome     -> 使用固定色板中最接近主题色相的两色
-categorical  -> 不同类别或系列使用 AntV/G2 默认六色色板
+categorical  -> 不同类别或系列使用产品固定 8 色分类色板
 ```
 
-`monochrome` 是默认值，按主题色相从固定色板取最近一色；`bichrome` 取最近两色；`categorical` 依次使用完整的 `#5B8FF9 / #5AD8A6 / #5D7092 / #F6BD16 / #E8684A / #6DC8EC`。不对取出的颜色重新计算明度或饱和度。黑白灰主题没有稳定色相时，单色回退第一色，双色回退前两色。颜色之外仍须使用图例、标签或数值区分系列。双色只用于两组数据或明确二分类，不得把单系列时间序列按奇偶项交替着色。
+`monochrome` 是默认值，按主题色相从固定色板取最近一色；`bichrome` 取最近两色；`categorical` 使用完整固定色板。色值、可见项排序、多色和多色渐变规则以 `color-system.md` 与 `assets/palette.v1.json` 为准。双色只用于两组数据或明确二分类，不得把单系列时间序列按奇偶项交替着色。
 
 ## Card Overrides
 

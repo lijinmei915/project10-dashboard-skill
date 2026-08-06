@@ -9,7 +9,7 @@
 ---
 layer: knowledge
 type: status
-last_verified: 2026-08-05
+last_verified: 2026-08-06
 depends_on: [PROJECT.md]
 ---
 
@@ -38,6 +38,13 @@ depends_on: [PROJECT.md]
 - Dashboard 画布拖动已改为带 5px 启动阈值的指针排序；拖动卡跟随指针，同高同 `span` 占位块按 12 列网格吸附，目标中央留有防抖区；自由卡片可跨原 section 移动，KPI 作为整组节点并保存 `canvasOrder`
 - KPI 组内卡片与整组的编辑入口已互斥：悬停卡片只显示单卡拖动/宽度，组左上边缘热区显示整组拖动，整组选中后内部把手全部隐藏，点击卡片可切回单卡层级
 - KPI 单卡的跟手拖动只识别本 `.metric-grid` 内的兄弟卡片；组外显示禁止状态，松手不会进入 Dashboard 一级画布，跨组结构操作保留给后续明确命令
+- Skill 新增版本化轻量色板 `assets/palette.v1.json` 和按需读取的 `references/color-system.md`；图表、KPI 与分组标题多色共用固定分类色，多色渐变使用相邻色板项
+- 固定分类色板已升级到 `1.2.0` 的 8 色体系，按蓝、青、绿、黄绿、橙、红、洋红、紫形成连续色相环；预览器、starter、图表循环和 Agent 预览服务已同步
+- 卡片标题图标已从旧组合预设改为横向“装饰样式 + 颜色”，选项与触发器均显示图标实例或真实 token 色样；局部选中任意带标题图标的非 KPI 卡后，可使用与分组标题相同的 Phosphor 搜索替换具体图标，旧 `cardTitleStyle` 状态仍可迁移
+- 卡片标题已恢复独立的装饰类型：无、竖线、图标、序号；Dashboard 不提供序号，Report 的序号只统计可见卡片标题，图标样式和颜色仅在装饰选择图标时显示
+- 多色按当前可见项分配，隐藏分组标题不再占色位；契约检查会阻止色板、starter 和探索预览之间的色值漂移
+- 产品与 Skill 已定义完整模式、通用 Agent 模式和便携降级模式；图标/图表资源只参与生成，默认成品固化内联 SVG
+- 无可信图标资源时回退纯文字，无成熟图表引擎时回退表格/排行/进度/KPI；对应验收用例已加入测试参考
 
 - 已保留内容自由的 dashboard 布局原语，不引入固定业务模块
 - 已增加 `references/themes.md`，定义主题、头部和分组标题的职责边界
@@ -64,7 +71,7 @@ depends_on: [PROJECT.md]
 - 点击保存后页面会通过 `location.replace` 正式加载带配置的新地址；之后刷新恢复该快照，未保存修改刷新后丢弃
 - 主题色已拆为 seed、结构色、浅底、两类对比前景、弱结构线和图表色；分组线、摘要、卡片/KPI 图标与图表已映射，语义状态色保持独立
 - 主题 seed 同时轻量派生外部画布、页面、卡片和 muted surface；Report 使用三层背景，Dashboard 使用连续页面与卡片两层，对比度基于最终卡片色计算
-- 图表 `chartPalette` 支持 `monochrome / bichrome / categorical`：三者共用固定 AntV/G2 六色色板，单色按主题色相取最近一色，双色取最近两色；旧自动/状态配置迁移为单色
+- 图表 `chartPalette` 支持 `monochrome / bichrome / categorical`：三者共用产品固定 8 色分类色板，单色按主题色相取最近一色，双色取最近两色；旧自动/状态配置迁移为单色
 - 卡片标题与 KPI 图标使用独立 `icon-accent / icon-soft / icon-on-solid`，不再直接使用高饱和主题原色
 - 设计模式支持点击选中具体卡片；图表、KPI、普通卡按类型显示上下文设置，单卡 override 随保存恢复并固化到导出 HTML，选中态不导出
 - 侧栏使用全局/局部 Tab 分离设置范围；默认全局，点击卡片自动切至局部，局部无选择时仅显示引导文案

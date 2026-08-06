@@ -116,7 +116,7 @@ function normalizeChartRequest(input) {
 }
 
 function chartOption({ type, labels, series, palette }) {
-  const colors = palette.length ? palette : ["#5b8ff9", "#5ad8a6", "#5d7092", "#f6bd16", "#e8684a", "#6dc8ec"];
+  const colors = palette.length ? palette : ["#5b8ff9", "#45b8d8", "#43c59e", "#96bf45", "#f3a83b", "#f06b72", "#de72b4", "#9270e8"];
   const textStyle = { color: "#71717a", fontFamily: "sans-serif", fontSize: 12 };
   if (type === "pie") {
     const values = series[0].values;

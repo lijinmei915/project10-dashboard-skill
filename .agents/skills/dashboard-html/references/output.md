@@ -19,6 +19,9 @@
 - starter 已有对应组件或布局 class 时直接复用，只填内容，不重写其背景、圆角、阴影、间距或排版；仅对未覆盖的新内容类型新增样式。
 - 页面同时适配桌面、平板和手机；多列与侧栏在窄屏自然收缩或堆叠，触控区域不拥挤。
 - 需要固化用户布局时，使用 `data-section-id`、`data-item-id`、`data-layout` 和 `data-span`；最终 HTML 只保留布局结果，不包含拖动手柄、尺寸菜单或设计工具代码。
+- 图标和图表库只在生成期使用；默认成品只保留已选图标或已渲染图表的内联 SVG，不携带完整库、搜索索引或 Agent API 地址。
+- 生成环境缺少可信图标资源时，移除可选图标及空容器并保留文字；缺少成熟图表引擎时，将数据降级为表格、排行、进度列表或 KPI 摘要，不输出空 canvas。
+- 只有用户明确要求图表交互或实时数据时，才加入实际使用能力所需的最小运行时。
 
 ## 主题与边界
 
@@ -27,7 +30,7 @@
 - 主题色写入 `--accent-seed`，并完整派生 `--accent-structure / --accent-soft / --accent-on-soft / --accent-on-solid / --accent-line`；图表使用独立固定色板，成功、提醒、错误等语义色保持含义。
 - 同一 seed 轻量派生 `--outer-bg / --page-bg / --surface / --surface-muted`；Report 保留三层背景，Dashboard 合并外部画布与页面背景。
 - 页面纹理由独立 `pageTexture` 控制，只使用纯 CSS 作用于画布，不进入卡片或依赖外部资源。
-- 图表声明 `data-chart-palette="monochrome|bichrome|categorical"`；单色和双色使用 `--chart-accent / --chart-bi-1 / --chart-bi-2` 从固定 AntV/G2 色板按色相最近邻取色，彩色使用完整 `--chart-1...6`，双色仅用于真实的两组数据或二分类。
+- 图表声明 `data-chart-palette="monochrome|bichrome|categorical"`；单色和双色使用 `--chart-accent / --chart-bi-1 / --chart-bi-2` 从固定分类色板按色相最近邻取色，彩色使用完整 `--chart-1...8`，双色仅用于真实的两组数据或二分类。
 - 单卡覆盖使用稳定 `data-item-id` 与卡片自身的视觉 `data-*` 属性固化；编辑选中态、上下文控件和 `data-selected` 不得进入成品 HTML。
 - 选择视觉预设或头部/分组标题样式时，只改变 token 和表现方式，不改变内容、模块数量、布局原语、section 顺序或移动端规则。
 - 只切换 `pageType` 时，保留视觉主题、深浅模式、主题色、字号、圆角、阴影和用户数据，只调整编排策略。
@@ -42,3 +45,4 @@
 - [ ] 主题色未改写语义状态色
 - [ ] 桌面、平板、手机均可用，多列在窄屏收缩或堆叠
 - [ ] 最终交付不包含布局编辑控件；手机端布局为单列且无横向溢出
+- [ ] 没有空图标、空图表、断开的资源 URL 或无效交互控件

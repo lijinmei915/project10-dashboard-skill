@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-06-30
+last_verified: 2026-08-06
 depends_on: [README.md, PROJECT.md]
 ---
 
@@ -14,19 +14,21 @@ depends_on: [README.md, PROJECT.md]
 ## 当前定位
 
 - 项目名：`project10-dashboard-skill`
-- 当前定位：`一个用于生成轻量 standalone HTML dashboard 的 Codex skill 仓库`
-- 当前交付物：`dashboard-html skill、参考文档、测试样例、starter HTML 模板`
+- 当前定位：`一个可移植的 Dashboard / Report 生成 Skill，以及可选的本地 Studio 增强应用`
+- 当前交付物：`dashboard-html skill、轻量规范资产、starter HTML、workspace 协议与 Agent/Studio 预览服务`
 
 ## 目标用户
 
 - 需要快速生成 dashboard HTML 的 AI 使用者
 - 希望保留通用布局骨架、后续再自行替换内容的协作者
+- 需要将真实企业对象数据转换为可阅读 Dashboard 或 Report 的业务团队
 
 ## 解决的问题
 
 - 给生成式 UI 提供一套轻量、稳定、可复用的 dashboard 起始模板
 - 降低每次重新发明 dashboard 页面骨架的成本
 - 让输出默认兼顾桌面端、平板和手机端
+- 让完整图标、图表等重资源只参与生成，不增加默认成品的运行负担
 
 ## 设计原则
 
@@ -34,8 +36,18 @@ depends_on: [README.md, PROJECT.md]
 - 通用优先：尽量描述布局原语，不预设业务组件
 - 可编辑优先：保留通用标题和英文占位，方便二次替换
 - 多端优先：桌面、平板、手机都应保持可读
+- 生成端可重、交付端轻：Agent/Studio 可以使用完整资源，默认成品只固化选中结果
+- 可移植优先：同一 Skill 可进入不同 Agent；增强能力不可成为生成完整页面的硬前提
+- 完整降级：能力不足时保留信息和操作语义，不输出空图标、空图表或失效控件
+
+## 能力模式
+
+- 完整模式：使用本项目 Agent/Studio 的 Phosphor 搜索、ECharts SSR、实时预览和导出能力
+- 通用 Agent 模式：复用宿主已有图标、图表或包管理能力，在生成期取得资源并固化结果
+- 便携降级模式：不依赖服务或重库；可选图标回退为纯文字，图表回退为数据表、排行或 KPI 摘要
+
+三种模式交付同一种轻量 standalone HTML。只有用户明确要求筛选联动、实时刷新或图表交互时，才允许把实际需要的最小运行时带入成品。
 
 ## 当前未定义
 
-- 暂无更细的品牌视觉规范
 - 暂无具体行业或业务域限制
