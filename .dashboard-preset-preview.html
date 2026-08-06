@@ -246,6 +246,8 @@
     .control-select:hover { border-color: #d4d4d8; background-color: #fafafa; }
     .control-select:focus-visible { outline: 0; border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .12); }
     .control-select:disabled { cursor: not-allowed; opacity: .55; }
+    .control-input { width: 100%; min-width: 0; height: 32px; padding: 0 9px; border: 1px solid var(--tool-line); border-radius: 6px; outline: 0; background: #fff; color: var(--tool-text); font: inherit; font-size: 11px; }
+    .control-input:focus { border-color: var(--tool-text); box-shadow: 0 0 0 2px rgba(24, 24, 27, .1); }
 
     .custom-select { position: relative; width: 100%; min-width: 100px; }
     .custom-select-trigger {
@@ -385,6 +387,11 @@
     .kpi-style-sample[data-style="gradient-theme"] .kpi-style-sample-preview { color: var(--sample-accent, #ff8000); }
     .kpi-style-sample[data-style="gradient-multi"] .kpi-style-sample-preview { background: transparent; }
     .kpi-style-sample[data-style="none"] .kpi-style-sample-preview::before { width: 15px; height: 1px; background: currentColor; content: ""; transform: rotate(-35deg); }
+    .card-title-style-samples { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .card-title-style-samples[hidden] { display: none; }
+    .card-title-style-samples .kpi-style-sample[data-style="soft"] .kpi-style-sample-preview { width: 20px; height: 20px; background: color-mix(in srgb, var(--sample-accent, #ff8000) 12%, #fff); color: var(--sample-accent, #ff8000); }
+    .card-title-style-samples .kpi-style-sample[data-style="solid"] .kpi-style-sample-preview { width: 20px; height: 20px; background: var(--sample-accent, #ff8000); color: #fff; }
+    .card-title-style-samples .kpi-style-sample:is([data-style="soft"], [data-style="solid"]) .kpi-style-sample-preview svg { width: 13px; height: 13px; }
     #kpiControls, #cardContextControls:has(#cardKpiStyleSamples:not([hidden])) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     #kpiStyleSamples + .kpi-icon-composer, #cardKpiIconField:not([hidden]) { display: contents; }
     #kpiStyleSamples + .kpi-icon-composer > .kpi-icon-composer-label, #cardKpiIconField > .kpi-icon-composer-label { display: none; }
@@ -430,7 +437,12 @@
     .header-gradient-angle-control input { width: 100%; min-width: 0; height: 32px; padding: 0 2px 0 5px; border: 0; outline: 0; appearance: textfield; background: transparent; color: var(--tool-text); cursor: ew-resize; font-size: 11px; text-align: right; }
     .header-gradient-angle-control input::-webkit-inner-spin-button, .header-gradient-angle-control input::-webkit-outer-spin-button { margin: 0; appearance: none; }
     .range-control { display: flex; align-items: center; gap: 7px; height: 30px; }
-    .range-control input { width: 88px; accent-color: var(--tool-accent); }
+    .range-control input[type="range"] { width: 88px; height: 16px; appearance: none; background: transparent; cursor: pointer; }
+    .range-control input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: linear-gradient(90deg, var(--tool-accent) 0 var(--range-progress, 50%), #d4d4d8 var(--range-progress, 50%) 100%); }
+    .range-control input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -6px; appearance: none; border: 0; border-radius: 50%; background: var(--tool-accent); box-shadow: none; }
+    .range-control input[type="range"]::-moz-range-track { height: 4px; border-radius: 999px; background: #d4d4d8; }
+    .range-control input[type="range"]::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--tool-accent); }
+    .range-control input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: var(--tool-accent); box-shadow: none; }
     .range-value { min-width: 34px; color: var(--tool-muted); font-size: 11px; }
 
     .logo-control { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; width: 100%; min-width: 0; height: 30px; overflow: hidden; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; }
@@ -559,8 +571,8 @@
       position: relative;
       background: var(--hero-bg);
     }
-    .dashboard[data-header-background-type="none"] .report-hero { display: contents; }
-    .dashboard[data-header-background-type="none"] .hero-copy { padding: 0 calc(var(--space) * 2.2); }
+    .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .report-hero { display: contents; }
+    .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .hero-copy { padding: 0 calc(var(--space) * 2.2); }
     .dashboard[data-header-background-type="none"] .hero-title,
     .dashboard[data-header-background-type="none"] .hero-attribution { width: fit-content; align-self: flex-start; }
     .dashboard[data-header-background-type="none"] .hero-fx-layer,
@@ -604,7 +616,7 @@
     }
     .brand { display: flex; order: 0; align-items: center; max-width: min(220px, 100%); }
     .brand img { display: block; width: auto; max-width: 100%; height: auto; max-height: 28px; object-fit: contain; }
-    .hero-title { order: 2; max-width: 580px; margin: 0; color: var(--hero-text-main); font-size: calc(32px * var(--font-scale)); font-weight: 760; line-height: 1.22; text-wrap: balance; overflow-wrap: anywhere; }
+    .hero-title { order: 2; max-width: 580px; margin: 0; color: var(--hero-text-main); font-size: var(--hero-title-size, 32px); font-weight: 760; line-height: 1.22; text-wrap: balance; overflow-wrap: anywhere; }
     .hero-kicker { display: none; order: 1; max-width: 760px; margin: 0; color: var(--hero-text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); letter-spacing: .04em; text-wrap: balance; }
     .hero-attribution { --attribution-text: var(--text-secondary); --attribution-icon: var(--text-muted); display: inline-flex; order: 3; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%; gap: 9px; margin-top: 16px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: var(--attribution-text); font-size: max(12px, calc(10px * var(--font-scale))); line-height: 16px; }
     .dashboard[data-header-meta="plain"] .hero-attribution { --attribution-text: var(--hero-text-secondary); --attribution-icon: var(--hero-text-muted); padding: 0; border: 0; border-radius: 0; background: transparent; }
@@ -624,7 +636,7 @@
     .dashboard[data-page-type="dashboard"] .report-body > .section[data-grouped="false"],
     .dashboard[data-page-type="dashboard"] .report-body > .section[data-grouped="false"] > .layout-group { display: contents; }
     .dashboard[data-page-type="dashboard"] .report-body > .section[data-grouped="false"] > .section-heading { display: none; }
-    .dashboard[data-page-type="dashboard"] .report-body > .section[data-grouped="false"] > .summary { grid-column: span 12; }
+    .dashboard[data-page-type="dashboard"] .report-body > .section[data-grouped="false"] > .summary { grid-column: span var(--item-span, 12); }
     .dashboard[data-page-type="dashboard"] .report-body > .section[data-grouped="false"] > .layout-group > .layout-item { grid-column: span var(--item-span, 12); }
     .section-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; padding: var(--section-pad-y) var(--section-pad-x) calc(var(--section-pad-y) + var(--section-bottom-pad)) calc(var(--section-pad-x) + var(--section-leading-pad)); border-bottom: var(--section-border-bottom); border-left: var(--section-border-left); border-radius: calc(var(--radius) * .55); background: var(--section-label-bg); }
     .section-heading::before { display: var(--section-marker-display); width: 4px; height: var(--section-marker-height); flex: 0 0 4px; border-radius: 999px; background: var(--accent-structure); content: ""; }
@@ -660,7 +672,9 @@
     .dashboard[data-card-title-icon="soft"] .card-title-icon { background: var(--title-icon-soft); color: var(--title-icon-accent); }
     .dashboard[data-card-title-icon="solid"] .card-title-icon { background: var(--title-icon-accent); color: var(--title-icon-on-solid); }
     .dashboard[data-card-title-icon-color="neutral"] { --title-icon-accent: var(--icon-neutral); --title-icon-soft: var(--icon-neutral-soft); --title-icon-on-solid: var(--icon-neutral-on-solid); }
-    .summary { display: grid; grid-template-columns: minmax(0, 1fr) 200px; align-items: center; gap: var(--space); padding: calc(var(--space) * 1.25); }
+    .dashboard[data-card-title-icon-color="colorful"] { --title-icon-accent: var(--chart-1); --title-icon-soft: color-mix(in srgb, var(--chart-1) 13%, var(--surface)); --title-icon-on-solid: #fff; }
+    .dashboard[data-card-title-icon-effect="multi-solid"] .card-title-icon { background: linear-gradient(135deg, var(--chart-1), var(--chart-2)); color: #fff; }
+    .summary { display: grid; grid-template-columns: minmax(0, 1fr) 200px; align-items: center; gap: var(--space); padding: calc(var(--space) * 1.25); container-type: inline-size; }
     .summary-card-title { display: none; grid-column: 1 / -1; margin: 0; font-size: var(--card-title-size); line-height: 1.35; }
     .dashboard[data-section-visibility="hidden"] .summary-card-title { display: flex; }
     .summary-copy { position: relative; padding: 3px 18px; }
@@ -670,6 +684,8 @@
     .summary-score { border-left: 1px solid var(--accent-line); text-align: center; }
     .summary-score strong { display: block; color: var(--accent-structure); font-size: calc(34px * var(--font-scale)); line-height: 1; }
     .summary-score span { display: block; margin-top: 8px; color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
+    .summary[data-compact="true"] { grid-template-columns: minmax(0, 1fr); }
+    .summary[data-compact="true"] .summary-score { padding-top: 14px; border-top: 1px solid var(--accent-line); border-left: 0; }
 
     .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); }
     .metric { position: relative; --kpi-icon-box: 40px; --kpi-icon-glyph: 23px; --kpi-icon-offset: 50px; --kpi-icon-shift-y: -11px; padding: var(--space); }
@@ -749,8 +765,28 @@
 
     .content-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); gap: var(--card-gap); }
     .panel { padding: var(--space); }
+    .card-heading { display: block; position: relative; }
     .panel h3 { margin: 0; font-size: var(--card-title-size); }
-    .panel-note { margin: 4px 0 0; color: var(--text-secondary); font-size: max(12px, calc(10px * var(--font-scale))); }
+    .panel-note { margin: 4px 0 0; color: var(--text-secondary); font-size: var(--card-subtitle-size); line-height: 1.4; }
+    .dashboard[data-card-subtitle="none"] .panel:not([data-card-subtitle]) .panel-note,
+    .panel[data-card-subtitle="none"] .panel-note { display: none; }
+    .dashboard[data-card-subtitle="title-right"] .panel:not([data-card-subtitle]) .card-heading,
+    .panel[data-card-subtitle="title-right"] .card-heading,
+    .dashboard[data-card-subtitle="card-right"] .panel:not([data-card-subtitle]) .card-heading,
+    .panel[data-card-subtitle="card-right"] .card-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+    .dashboard[data-card-subtitle="title-right"] .panel:not([data-card-subtitle]) .panel-note,
+    .panel[data-card-subtitle="title-right"] .panel-note { margin: 0; }
+    .dashboard[data-card-subtitle="card-right"] .panel:not([data-card-subtitle]) .panel-note,
+    .panel[data-card-subtitle="card-right"] .panel-note { margin: 0 0 0 auto; }
+    .dashboard[data-card-subtitle="icon"] .panel:not([data-card-subtitle]) .panel-note,
+    .panel[data-card-subtitle="icon"] .panel-note { position: relative; display: grid; width: 18px; height: 18px; margin: 0; font-size: 0; cursor: help; place-items: center; }
+    .dashboard[data-card-subtitle="icon"] .panel:not([data-card-subtitle]) .card-heading,
+    .panel[data-card-subtitle="icon"] .card-heading { display: flex; align-items: center; gap: 8px; }
+    .card-subtitle-icon { display: none; width: 18px; height: 18px; fill: currentColor; }
+    .dashboard[data-card-subtitle="icon"] .panel:not([data-card-subtitle]) .card-subtitle-icon,
+    .panel[data-card-subtitle="icon"] .card-subtitle-icon { display: block; }
+    .dashboard[data-card-subtitle="icon"] .panel:not([data-card-subtitle]) .panel-note:is(:hover, :focus-visible)::after,
+    .panel[data-card-subtitle="icon"] .panel-note:is(:hover, :focus-visible)::after { position: absolute; z-index: 8; top: calc(100% + 7px); right: 0; width: max-content; max-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow); color: var(--text-main); content: attr(data-tooltip); font-size: 12px; font-weight: 400; line-height: 1.4; }
     .bar-chart { display: flex; align-items: end; gap: 9px; height: 150px; padding-top: 22px; }
     .bar { flex: 1; min-width: 8px; height: var(--height); border-radius: 4px 4px 0 0; background: var(--chart-accent); }
     .dashboard[data-chart-palette="bichrome"] .bar:nth-child(odd) { background: var(--chart-bi-1); }
@@ -791,6 +827,8 @@
     .surface[data-card-title-icon="solid"] .card-title-icon { display: grid; background: var(--title-icon-accent); color: var(--title-icon-on-solid); }
     .surface[data-card-title-icon-color="neutral"] { --title-icon-accent: var(--icon-neutral); --title-icon-soft: var(--icon-neutral-soft); --title-icon-on-solid: var(--icon-neutral-on-solid); }
     .surface[data-card-title-icon-color="accent"] { --title-icon-accent: var(--icon-theme-accent); --title-icon-soft: var(--icon-theme-soft); --title-icon-on-solid: var(--icon-theme-on-solid); }
+    .surface[data-card-title-icon-color="colorful"] { --title-icon-accent: var(--chart-1); --title-icon-soft: color-mix(in srgb, var(--chart-1) 13%, var(--surface)); --title-icon-on-solid: #fff; }
+    .surface[data-card-title-icon-effect="multi-solid"] .card-title-icon { background: linear-gradient(135deg, var(--chart-1), var(--chart-2)); color: #fff; }
     .surface[data-icon-color="neutral"], .surface[data-icon-color="gradient-neutral"] { --icon-accent: var(--icon-neutral); --icon-accent-alt: var(--icon-neutral-alt); --icon-soft: var(--icon-neutral-soft); --icon-solid: var(--icon-neutral-solid); --icon-solid-alt: var(--icon-neutral-solid-alt); --icon-on-solid: var(--icon-neutral-on-solid); }
     .surface[data-kpi-icon="none"] .metric-icon { display: none; }
     .surface[data-kpi-icon="outline"], .surface[data-kpi-icon="filled"] { --kpi-icon-display: grid; }
@@ -847,7 +885,7 @@
     .dashboard[data-subtitle="above"] .hero-title { margin-top: 6px; }
     .dashboard[data-subtitle="below"] .hero-title { order: 1; }
     .dashboard[data-subtitle="below"] .hero-kicker { display: block; order: 2; margin-top: 6px; }
-    .dashboard[data-language="en"] .hero-title { max-width: 760px; font-size: calc(30px * var(--font-scale)); }
+    .dashboard[data-language="en"] .hero-title { max-width: 760px; font-size: var(--hero-title-size, 32px); }
     .dashboard[data-section-copy="bilingual"],
     .dashboard[data-section-copy="subtitle"] { --section-kicker-display: inline; }
     .dashboard[data-section-leading="marker"] { --section-marker-display: block; }
@@ -906,21 +944,24 @@
     .layout-section-tools { margin-left: auto; }
     body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"],
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section { position: relative; }
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"] > .layout-section-handle { display: inline-flex; opacity: 0; }
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"] > .layout-section-handle:hover,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] > .layout-section-handle,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"].layout-dragging > .layout-section-handle { opacity: 1; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"] > .layout-section-handle { display: none; }
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]::before {
+      position: absolute;
+      z-index: 15;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 10px;
+      cursor: grab;
+      content: "";
+    }
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section:hover > .layout-section-handle,
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section:focus-within > .layout-section-handle,
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .section.layout-dragging > .layout-section-handle { display: inline-flex; }
     body[data-design-mode="true"] .dashboard[data-page-type="report"] .layout-section-inline-drag { display: none; }
-    body[data-design-mode="true"] .section.layout-group-active { outline: 2px solid rgba(24, 24, 27, .58); outline-offset: 7px; border-radius: calc(var(--radius) + 3px); }
+    body[data-design-mode="true"] .section.layout-group-active,
+    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"].layout-group-hover { outline: 2px solid rgba(24, 24, 27, .58); outline-offset: 7px; border-radius: calc(var(--radius) + 3px); }
     body[data-design-mode="true"] .section.layout-group-active [data-item-id][data-selected="true"] { outline-color: transparent; }
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] .layout-item-drag-label,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] .layout-resize-handle,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]:has(> .layout-section-handle:hover) .layout-item-drag-label,
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"]:has(> .layout-section-handle:hover) .layout-resize-handle { display: none !important; }
-    body[data-design-mode="true"] .dashboard[data-page-type="dashboard"] .section[data-grouped="true"][data-selected="true"] .layout-item { cursor: default; }
     .layout-section-handle {
       position: absolute;
       z-index: 18;
@@ -940,6 +981,7 @@
       color: #52525b;
       cursor: grab;
     }
+    .dashboard[data-page-type="report"] .layout-section-handle { width: 26px; min-width: 26px; padding: 0; }
     .layout-section-handle:active { cursor: grabbing; }
     .layout-section-handle { touch-action: none; }
     .layout-section-handle:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(24, 24, 27, .12), 0 3px 10px rgba(15, 23, 42, .12); }
@@ -956,43 +998,11 @@
     body[data-design-mode="true"] .section[data-selected="true"] { outline: 2px solid color-mix(in srgb, var(--tool-text) 72%, transparent); outline-offset: 6px; }
     body[data-design-mode="true"] .layout-item:hover .layout-resize-handle,
     body[data-design-mode="true"] .layout-item:focus-within .layout-resize-handle,
-    body[data-design-mode="true"] .layout-item[data-resizing="true"] .layout-resize-handle {
+    body[data-design-mode="true"] .layout-item[data-resizing="true"] .layout-resize-handle,
+    body[data-design-mode="true"] .surface[data-item-id]:not(.layout-item):hover .layout-resize-handle,
+    body[data-design-mode="true"] .surface[data-item-id]:not(.layout-item)[data-resizing="true"] .layout-resize-handle {
       display: grid;
     }
-    .layout-item-drag-label { display: none; }
-    body[data-design-mode="true"] .layout-item:hover > .layout-item-drag-label,
-    body[data-design-mode="true"] .layout-item:focus-within > .layout-item-drag-label,
-    body[data-design-mode="true"] .layout-item.layout-dragging > .layout-item-drag-label {
-      display: inline-flex;
-    }
-    .layout-item-drag-label {
-      position: absolute;
-      z-index: 16;
-      top: -10px;
-      left: 106px;
-      width: max-content;
-      min-width: 88px;
-      height: 26px;
-      padding: 0 6px;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      border: 1px solid #d4d4d8;
-      border-radius: 5px;
-      background: #ffffff;
-      box-shadow: 0 3px 10px rgba(15, 23, 42, .12);
-      color: #52525b;
-      font-size: 11px;
-      font-weight: 650;
-      line-height: 1;
-      letter-spacing: 0;
-      cursor: grab;
-      pointer-events: auto;
-      touch-action: none;
-      white-space: nowrap;
-    }
-    .layout-item-drag-label svg { width: 14px; height: 14px; fill: currentColor; }
-    .layout-item-drag-label:active { cursor: grabbing; }
     .layout-resize-handle {
       position: absolute;
       z-index: 14;
@@ -1036,12 +1046,51 @@
     .layout-pointer-dragging.layout-drag-outside { opacity: .58 !important; filter: saturate(.35); }
     .layout-grid-placeholder {
       min-width: 0;
-      border: 2px dashed color-mix(in srgb, var(--tool-text) 30%, transparent);
+      border: 1px dashed color-mix(in srgb, var(--tool-text) 22%, transparent);
       border-radius: var(--radius);
-      background: color-mix(in srgb, var(--tool-text) 5%, transparent);
+      background: color-mix(in srgb, var(--tool-text) 3%, transparent);
       transition: height 140ms ease;
     }
-    .layout-drop-target { outline: 2px solid rgba(24, 24, 27, .58) !important; outline-offset: 4px; }
+    .layout-drop-candidate { position: relative; }
+    .layout-drop-candidate::before,
+    .layout-drop-candidate::after {
+      position: absolute;
+      z-index: 15;
+      top: 14%;
+      width: 4px;
+      height: 72%;
+      border: 1px solid color-mix(in srgb, var(--tool-text) 18%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--tool-text) 9%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface) 75%, transparent);
+      content: "";
+      pointer-events: none;
+    }
+    .layout-drop-candidate::before { left: -7px; }
+    .layout-drop-candidate::after { right: -7px; }
+    .layout-drop-target { outline: 0; box-shadow: none; }
+    .layout-drop-target[data-drop-side="left"]::before,
+    .layout-drop-target[data-drop-side="right"]::after {
+      border-color: var(--accent-structure);
+      background: var(--accent-structure);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-structure) 18%, transparent);
+    }
+    .layout-drop-target[data-drop-side="top"]::before,
+    .layout-drop-target[data-drop-side="bottom"]::after {
+      width: 72%;
+      height: 4px;
+      right: auto;
+      left: 14%;
+      border-color: var(--accent-structure);
+      background: var(--accent-structure);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-structure) 18%, transparent);
+    }
+    .layout-drop-target[data-drop-side="top"]::before { top: -7px; }
+    .layout-drop-target[data-drop-side="bottom"]::after { top: auto; bottom: -7px; }
+    .layout-drop-target[data-drop-side="top"]::after,
+    .layout-drop-target[data-drop-side="bottom"]::before { display: none; }
+    .layout-drop-landed { animation: layout-drop-landed-fade 520ms ease-out forwards; outline: 2px solid rgba(24, 24, 27, .7); outline-offset: 4px; }
+    @keyframes layout-drop-landed-fade { 0%, 45% { outline-color: rgba(24, 24, 27, .7); } 100% { outline-color: transparent; } }
 
     @media (min-width: 1480px) {
       body[data-design-mode="true"] .workspace { padding-right: 444px; }
@@ -1075,15 +1124,15 @@
       .segmented { overflow-x: auto; }
       .preset-tabs { max-width: 100%; flex-wrap: nowrap; }
       .hero-copy { padding: 22px 18px; }
-      .hero-title { font-size: calc(27px * var(--font-scale)); }
+      .hero-title { font-size: min(var(--hero-title-size, 32px), 32px); }
       .brand:not([hidden]) ~ .hero-title { margin-top: 16px; }
       .dashboard[data-subtitle="above"] .brand:not([hidden]) ~ .hero-kicker { margin-top: 14px; }
       .dashboard[data-subtitle="above"] .hero-title { margin-top: 5px; }
-      .dashboard[data-language="en"] .hero-title { font-size: calc(25px * var(--font-scale)); }
+      .dashboard[data-language="en"] .hero-title { font-size: min(var(--hero-title-size, 32px), 32px); }
       .hero-attribution { align-items: flex-start; gap: 7px 9px; margin-top: 14px; }
       .attribution-separator { align-self: center; }
       .report-body { padding: 24px 14px 28px; }
-      .dashboard[data-header-background-type="none"] .hero-copy { padding-right: 14px; padding-left: 14px; }
+      .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .hero-copy { padding-right: 14px; padding-left: 14px; }
       .section-heading { flex-wrap: wrap; }
       .section-heading small { flex-basis: 100%; padding-left: 35px; }
       .metric-grid { grid-template-columns: 1fr; }
@@ -1113,6 +1162,9 @@
           </button>
           <button class="design-action-button" id="designResetControl" type="button" aria-label="放弃未保存修改" title="放弃未保存修改" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+          </button>
+          <button class="design-action-button" id="designPresetResetControl" type="button" aria-label="恢复当前默认预设" title="恢复当前默认预设">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-5V2"></path><path d="M20 7a8.5 8.5 0 0 0-14.8-2.1L3 7"></path><path d="M4 17h5v5"></path><path d="M4 17a8.5 8.5 0 0 0 14.8 2.1L21 17"></path></svg>
           </button>
           <button class="design-action-button" id="designDownloadControl" type="button" aria-label="下载成品 HTML" title="下载成品 HTML">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
@@ -1179,7 +1231,8 @@
               </div>
             </div>
           </div>
-          <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>对齐</span><select class="control-select" id="headerAlignControl"><option value="auto">跟随类型</option><option value="left">居左</option><option value="center">居中</option></select></label></div>
+          <div class="conditional-field" id="headerAlignField"><label class="control-group"><span>对齐</span><select class="control-select" id="headerAlignControl"><option value="left">居左</option><option value="center">居中</option></select></label></div>
+          <div class="conditional-field" id="headerTitleFontField"><label class="control-group"><span>标题字号</span><span class="range-control"><input id="headerTitleFontControl" type="range" min="20" max="48" step="1" value="32" aria-label="头部标题字号"><output id="headerTitleFontValue" class="range-value">32px</output></span></label></div>
           <div class="conditional-field" id="subtitleField"><label class="control-group"><span>副标题</span><select class="control-select" id="subtitleControl"><option value="none">无</option><option value="above">标题上方</option><option value="below">标题下方</option></select></label></div>
           <div class="conditional-field header-meta-composer" id="headerMetaField">
             <span class="header-meta-label">信息条</span>
@@ -1214,8 +1267,8 @@
         <div class="toolbar-band-controls">
           <label class="control-group"><span>圆角</span><span class="range-control"><input id="radiusControl" type="range" min="0" max="16" step="1" value="12"><output id="radiusValue" class="range-value">12px</output></span></label>
           <label class="control-group"><span>标题字号</span><select class="control-select" id="cardTitleFontControl"><option value="12">12px</option><option value="14" selected>14px</option><option value="16">16px</option><option value="18">18px</option><option value="20">20px</option></select></label>
-          <label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleIconControl"><option value="none" selected>无</option><option value="line">线型</option><option value="soft">浅色底</option><option value="solid">实色底</option></select></label>
-          <div class="conditional-field" id="cardTitleIconColorGlobalField" hidden><label class="control-group"><span>标题图标配色</span><select class="control-select" id="cardTitleIconColorControl"><option value="neutral" selected>中性色</option><option value="accent">主题色</option></select></label></div>
+          <label class="control-group"><span>副标题</span><select class="control-select" id="cardSubtitleControl"><option value="none">无</option><option value="below" selected>标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label>
+          <label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleStyleControl" aria-label="标题图标样式"></select></label>
           <label class="control-group"><span>线框</span><select class="control-select" id="frameControl"><option value="none" selected>无</option><option value="hairline">极弱</option><option value="soft">柔和</option><option value="standard">标准</option><option value="strong">强调</option></select></label>
           <label class="control-group"><span>阴影</span><select class="control-select" id="shadowControl"><option value="none">无</option><option value="weak" selected>轻</option><option value="medium">中</option><option value="strong">重</option></select></label>
         </div>
@@ -1238,8 +1291,8 @@
           <div class="conditional-field section-icon-picker-field" id="sectionIconPickerField" hidden><label class="control-group"><span>标题图标</span><button class="section-icon-picker-button" id="sectionIconPickerTrigger" type="button"><span id="sectionIconPickerPreview"></span><span id="sectionIconPickerName">自动匹配</span></button></label></div>
           <div class="kpi-style-samples" id="cardKpiStyleSamples" hidden><span class="kpi-style-samples-label">图标样式</span><button class="kpi-style-sample" type="button" data-style="inherit"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>跟随全局</span></button><span class="kpi-style-samples-group">无底</span><button class="kpi-style-sample" type="button" data-style="none"><span class="kpi-style-sample-preview"></span><span>无</span></button><button class="kpi-style-sample" type="button" data-style="line-neutral"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>极简线型</span></button><button class="kpi-style-sample" type="button" data-style="line-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>主题线型</span></button><button class="kpi-style-sample" type="button" data-style="gradient-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>单色渐变</span></button><button class="kpi-style-sample" type="button" data-style="gradient-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色渐变</span></button><span class="kpi-style-samples-group">有底</span><button class="kpi-style-sample" type="button" data-style="line-soft"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>浅底线型</span></button><button class="kpi-style-sample" type="button" data-style="filled-solid"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>反白面型</span></button><button class="kpi-style-sample" type="button" data-style="filled-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色反白</span></button></div>
           <div class="conditional-field" id="cardChartPaletteField" hidden><label class="control-group"><span>图表配色</span><select class="control-select" id="cardChartPaletteControl"><option value="inherit">跟随全局</option><option value="monochrome">单色</option><option value="bichrome">双色</option><option value="categorical">多色</option></select></label></div>
-          <div class="conditional-field" id="cardTitleIconField" hidden><label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleIconOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="line">线型</option><option value="soft">浅色底</option><option value="solid">实色底</option></select></label></div>
-          <div class="conditional-field" id="cardTitleIconColorField" hidden><label class="control-group"><span>标题图标配色</span><select class="control-select" id="cardTitleIconColorOverrideControl"><option value="inherit">跟随全局</option><option value="neutral">中性色</option><option value="accent">主题色</option></select></label></div>
+          <div class="conditional-field" id="cardSubtitleField" hidden><label class="control-group"><span>副标题排布</span><select class="control-select" id="cardSubtitleOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="below">标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label><label class="control-group"><span>副标题文字</span><input class="control-input" id="cardSubtitleTextControl" type="text" maxlength="80" placeholder="输入副标题"></label></div>
+          <div class="conditional-field" id="cardTitleIconField" hidden><label class="control-group"><span>标题图标</span><select class="control-select" id="cardTitleStyleOverrideControl" aria-label="单卡标题图标样式"></select></label></div>
           <div class="conditional-field kpi-icon-composer" id="cardKpiIconField" hidden><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="cardKpiIconOverrideControl" aria-label="单卡 KPI 图标"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="cardKpiWeightField"><select class="control-select" id="cardKpiWeightControl" aria-label="单卡图标粗细"><option value="inherit">跟随全局</option><option value="thin">细</option><option value="regular">标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="cardIconColorField"><select class="control-select" id="cardIconColorControl" aria-label="单卡图标颜色"><option value="inherit">跟随全局</option><optgroup label="单色"><option value="neutral">单色 / 中性色</option><option value="accent">单色 / 主题色</option><option value="colorful">单色 / 多色</option></optgroup><optgroup label="渐变"><option value="gradient-neutral">渐变 / 中性色</option><option value="gradient-accent">渐变 / 主题色</option><option value="gradient-colorful">渐变 / 多色</option></optgroup></select></span><span class="kpi-icon-container-field" id="cardKpiContainerField"><select class="control-select" id="cardKpiContainerControl" aria-label="单卡图标底色"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option></select></span><span class="kpi-icon-shape-field" id="cardKpiShapeField"><select class="control-select" id="cardKpiShapeControl" aria-label="单卡图标形状"><option value="inherit">跟随全局</option><option value="rect">矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="cardKpiSizeField"><select class="control-select" id="cardKpiSizeControl" aria-label="单卡图标大小"><option value="inherit">跟随全局</option><option value="small">小</option><option value="medium">中</option><option value="large">大</option></select></span></div>
           <div class="conditional-field" id="cardKpiLayoutField" hidden><label class="control-group"><span>图标位置</span><select class="control-select" id="cardKpiLayoutControl"><option value="inherit">跟随全局</option><option value="left-top">左上</option><option value="left-middle">左中</option><option value="right-top">右上</option><option value="right-middle">右中</option></select></label></div>
           <div class="conditional-field" id="cardKpiBackgroundField" hidden><label class="control-group"><span>卡片底色</span><select class="control-select" id="cardKpiBackgroundControl"><option value="inherit">跟随整组</option><option value="default">默认</option><option value="white">白色</option><option value="single">单色</option><option value="multi">多色</option></select></label></div>
@@ -1421,6 +1474,7 @@
     const designSaveStatus = document.querySelector("#designSaveStatus");
     const designSaveControl = document.querySelector("#designSaveControl");
     const designResetControl = document.querySelector("#designResetControl");
+    const designPresetResetControl = document.querySelector("#designPresetResetControl");
     const designDownloadControl = document.querySelector("#designDownloadControl");
     const accentControl = document.querySelector("#accentControl");
     const pageBackgroundControl = document.querySelector("#pageBackgroundControl");
@@ -1430,9 +1484,8 @@
     const radiusControl = document.querySelector("#radiusControl");
     const cardGapControl = document.querySelector("#cardGapControl");
     const cardTitleFontControl = document.querySelector("#cardTitleFontControl");
-    const cardTitleIconControl = document.querySelector("#cardTitleIconControl");
-    const cardTitleIconColorGlobalField = document.querySelector("#cardTitleIconColorGlobalField");
-    const cardTitleIconColorControl = document.querySelector("#cardTitleIconColorControl");
+    const cardSubtitleControl = document.querySelector("#cardSubtitleControl");
+    const cardTitleStyleControl = document.querySelector("#cardTitleStyleControl");
     const fontControl = document.querySelector("#fontControl");
     const sectionFontControl = document.querySelector("#sectionFontControl");
     const sectionWeightControl = document.querySelector("#sectionWeightControl");
@@ -1471,11 +1524,14 @@
     const headerGradientAngleControl = document.querySelector("#headerGradientAngleControl");
     const headerGradientAngleScrubber = headerGradientAngleControl.closest(".header-gradient-angle-control");
     const headerAlignControl = document.querySelector("#headerAlignControl");
+    const headerTitleFontControl = document.querySelector("#headerTitleFontControl");
+    const headerTitleFontValue = document.querySelector("#headerTitleFontValue");
     const subtitleControl = document.querySelector("#subtitleControl");
     const headerMetaControl = document.querySelector("#headerMetaControl");
     const headerMetaSeparatorControl = document.querySelector("#headerMetaSeparatorControl");
     const headerDecorationControl = document.querySelector("#headerDecorationControl");
     const headerAlignField = document.querySelector("#headerAlignField");
+    const headerTitleFontField = document.querySelector("#headerTitleFontField");
     const subtitleField = document.querySelector("#subtitleField");
     const headerMetaField = document.querySelector("#headerMetaField");
     const headerMetaSeparatorField = document.querySelector("#headerMetaSeparatorField");
@@ -1515,10 +1571,11 @@
     const sectionIconPickerResults = document.querySelector("#sectionIconPickerResults");
     const cardChartPaletteField = document.querySelector("#cardChartPaletteField");
     const cardChartPaletteControl = document.querySelector("#cardChartPaletteControl");
+    const cardSubtitleField = document.querySelector("#cardSubtitleField");
+    const cardSubtitleOverrideControl = document.querySelector("#cardSubtitleOverrideControl");
+    const cardSubtitleTextControl = document.querySelector("#cardSubtitleTextControl");
     const cardTitleIconField = document.querySelector("#cardTitleIconField");
-    const cardTitleIconOverrideControl = document.querySelector("#cardTitleIconOverrideControl");
-    const cardTitleIconColorField = document.querySelector("#cardTitleIconColorField");
-    const cardTitleIconColorOverrideControl = document.querySelector("#cardTitleIconColorOverrideControl");
+    const cardTitleStyleOverrideControl = document.querySelector("#cardTitleStyleOverrideControl");
     const cardKpiIconField = document.querySelector("#cardKpiIconField");
     const cardKpiIconOverrideControl = document.querySelector("#cardKpiIconOverrideControl");
     const cardKpiWeightField = document.querySelector("#cardKpiWeightField");
@@ -1575,7 +1632,35 @@
     });
     kpiSizeField.closest(".kpi-icon-composer").querySelector(".kpi-icon-composer-label").textContent = "图标大小";
     cardKpiSizeField.closest(".kpi-icon-composer").querySelector(".kpi-icon-composer-label").textContent = "图标大小";
+    dashboard.querySelectorAll(".panel").forEach((panel) => {
+      const title = panel.querySelector(":scope > .card-title");
+      const subtitle = panel.querySelector(":scope > .panel-note");
+      if (!title || !subtitle) return;
+      const heading = document.createElement("div");
+      heading.className = "card-heading";
+      panel.insertBefore(heading, title);
+      heading.append(title, subtitle);
+      const subtitleText = document.createElement("span");
+      subtitleText.className = "card-subtitle-text";
+      subtitleText.textContent = subtitle.textContent.trim();
+      subtitle.replaceChildren(subtitleText);
+      subtitle.insertAdjacentHTML("afterbegin", '<svg class="card-subtitle-icon" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"/></svg>');
+      subtitle.tabIndex = 0;
+      subtitle.dataset.tooltip = subtitleText.textContent.trim();
+    });
     let state = {};
+    const sharedIconStyleOptions = [
+      { value: "none", label: "无", group: "无底" },
+      { value: "line-neutral", label: "极简线型", group: "无底" },
+      { value: "line-theme", label: "主题线型", group: "无底" },
+      { value: "gradient-theme", label: "单色渐变", group: "无底" },
+      { value: "gradient-multi", label: "多色渐变", group: "无底" },
+      { value: "line-soft", label: "浅底线型", group: "有底" },
+      { value: "filled-soft", label: "浅底面型", group: "有底" },
+      { value: "line-solid", label: "深底线型", group: "有底" },
+      { value: "filled-solid", label: "反白面型", group: "有底" },
+      { value: "filled-multi", label: "多色反白", group: "有底" }
+    ];
     const kpiStylePresets = {
       none: { kpiIcon: "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none" },
       "line-neutral": { kpiIcon: "outline", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none" },
@@ -1588,6 +1673,32 @@
       "gradient-theme": { kpiIcon: "filled", kpiIconWeight: "regular", kpiIconColor: "gradient-accent", kpiIconContainer: "none" },
       "gradient-multi": { kpiIcon: "filled", kpiIconWeight: "regular", kpiIconColor: "gradient-colorful", kpiIconContainer: "none" }
     };
+    const cardTitleStylePresets = {
+      none: { cardTitleIcon: "none", cardTitleIconColor: "neutral", cardTitleIconEffect: "none" },
+      "line-neutral": { cardTitleIcon: "line", cardTitleIconColor: "neutral", cardTitleIconEffect: "none" },
+      "line-theme": { cardTitleIcon: "line", cardTitleIconColor: "accent", cardTitleIconEffect: "none" },
+      "gradient-theme": { cardTitleIcon: "line", cardTitleIconColor: "accent", cardTitleIconEffect: "gradient-theme" },
+      "gradient-multi": { cardTitleIcon: "line", cardTitleIconColor: "colorful", cardTitleIconEffect: "gradient-multi" },
+      "line-soft": { cardTitleIcon: "soft", cardTitleIconColor: "accent", cardTitleIconEffect: "none" },
+      "filled-soft": { cardTitleIcon: "soft", cardTitleIconColor: "accent", cardTitleIconEffect: "none" },
+      "line-solid": { cardTitleIcon: "solid", cardTitleIconColor: "accent", cardTitleIconEffect: "none" },
+      "filled-solid": { cardTitleIcon: "solid", cardTitleIconColor: "accent", cardTitleIconEffect: "none" },
+      "filled-multi": { cardTitleIcon: "solid", cardTitleIconColor: "colorful", cardTitleIconEffect: "multi-solid" }
+    };
+
+    function populateSharedIconStyleSelect(select, includeInherit = false) {
+      const groups = new Map();
+      if (includeInherit) select.add(new Option("跟随全局", "inherit"));
+      sharedIconStyleOptions.forEach((option) => {
+        if (!groups.has(option.group)) groups.set(option.group, document.createElement("optgroup"));
+        const group = groups.get(option.group);
+        group.label = option.group;
+        group.append(new Option(option.label, option.value));
+      });
+      groups.forEach((group) => select.append(group));
+    }
+    populateSharedIconStyleSelect(cardTitleStyleControl);
+    populateSharedIconStyleSelect(cardTitleStyleOverrideControl, true);
     let kpiColorContext = null;
     let selectedHeaderGradientStopId = null;
     let selectedCardId = null;
@@ -1709,7 +1820,7 @@
       if (!saved || ![1, 2].includes(saved.version) || !saved.theme || !presets[saved.theme.preset]) return false;
       selectPreset(saved.theme.preset);
       const restoredTheme = { ...saved.theme };
-      if (saved.version === 1) restoredTheme.headerAlign = "auto";
+      if (saved.version === 1) restoredTheme.headerAlign = restoredTheme.pageType === "report" ? "center" : "left";
       state = { ...state, ...restoredTheme, preset: saved.theme.preset };
       if (!Object.prototype.hasOwnProperty.call(restoredTheme, "headerBackgroundDefaultVersion")) delete state.headerBackgroundDefaultVersion;
       if (!Object.prototype.hasOwnProperty.call(restoredTheme, "headerMetaDefaultVersion")) delete state.headerMetaDefaultVersion;
@@ -1876,8 +1987,8 @@
       sectionLayoutField.hidden = true;
       sectionIconPickerField.hidden = type !== "section";
       cardChartPaletteField.hidden = type !== "chart";
+      cardSubtitleField.hidden = true;
       cardTitleIconField.hidden = type !== "generic";
-      cardTitleIconColorField.hidden = type !== "generic";
       cardKpiIconField.hidden = type !== "kpi";
       cardKpiStyleSamples.hidden = type !== "kpi";
       cardKpiLayoutField.hidden = type !== "kpi";
@@ -1943,10 +2054,12 @@
       cardContextTitle.textContent = "当前卡片";
       card.dataset.selected = "true";
       const type = card.dataset.cardType || "generic";
+      const subtitle = card.querySelector(".panel-note");
       const hasTitleIcon = type !== "kpi" && cardHasVisibleTitle(card);
-      const hasControls = type === "chart" || type === "kpi" || hasTitleIcon;
+      const hasControls = type === "chart" || type === "kpi" || hasTitleIcon || Boolean(subtitle);
       const override = state.cardOverrides?.[selectedCardId] || {};
-      const effectiveTitleIcon = override.cardTitleIcon || state.cardTitleIcon;
+      const effectiveTitleStyle = override.cardTitleStyle || state.cardTitleStyle;
+      const effectiveTitleIcon = cardTitleStylePresets[effectiveTitleStyle]?.cardTitleIcon || state.cardTitleIcon;
       const effectiveKpiIcon = override.kpiIcon || state.kpiIcon;
       cardOverrideReset.textContent = type === "kpi" ? "恢复跟随整组" : "恢复全局";
       cardKpiIconField.dataset.showWeight = String(type === "kpi" && effectiveKpiIcon === "outline");
@@ -1955,13 +2068,14 @@
       cardContextHint.hidden = hasControls;
       cardOverrideReset.hidden = !Object.keys(override).length;
       setCardContextFields(type === "kpi" ? "kpi" : type === "chart" ? "chart" : hasTitleIcon ? "generic" : "none");
-      cardTitleIconColorField.hidden = !hasTitleIcon || effectiveTitleIcon === "none";
+      cardSubtitleField.hidden = !subtitle;
       cardIconColorField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
       cardKpiContainerField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
       cardKpiShapeField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
       cardChartPaletteControl.value = override.chartPalette || "inherit";
-      cardTitleIconOverrideControl.value = override.cardTitleIcon || "inherit";
-      cardTitleIconColorOverrideControl.value = override.cardTitleIconColor || "inherit";
+      cardSubtitleOverrideControl.value = override.cardSubtitle || "inherit";
+      cardSubtitleTextControl.value = override.cardSubtitleText ?? subtitle?.textContent.trim() ?? "";
+      cardTitleStyleOverrideControl.value = override.cardTitleStyle || "inherit";
       cardKpiIconOverrideControl.value = override.kpiIcon || "inherit";
       cardKpiWeightControl.value = override.kpiIconWeight || "inherit";
       cardKpiContainerControl.value = override.kpiIconContainer || "inherit";
@@ -2046,8 +2160,48 @@
       scheduleWorkspaceSave();
     }
 
+    function setCardTitleStyleOverride(style) {
+      if (!selectedCardId) return;
+      state.cardOverrides ||= {};
+      const override = { ...(state.cardOverrides[selectedCardId] || {}) };
+      ["cardTitleStyle", "cardTitleIcon", "cardTitleIconColor", "cardTitleIconEffect"].forEach((key) => delete override[key]);
+      if (style !== "inherit" && cardTitleStylePresets[style]) override.cardTitleStyle = style;
+      if (Object.keys(override).length) state.cardOverrides[selectedCardId] = override;
+      else delete state.cardOverrides[selectedCardId];
+      applyCardOverrides();
+      updateCardContext();
+      scheduleWorkspaceSave();
+    }
+
     function matchingKpiStyle(source) {
       return Object.entries(kpiStylePresets).find(([, preset]) => Object.entries(preset).every(([key, value]) => source[key] === value))?.[0] || "";
+    }
+
+    function applyCardTitleStyle(style, target) {
+      const preset = cardTitleStylePresets[style] || cardTitleStylePresets.none;
+      Object.assign(target, preset);
+    }
+
+    function renderCardTitleIconEffects() {
+      dashboard.querySelectorAll("[data-item-id]").forEach((card, index) => {
+        const svg = card.querySelector(".card-title-icon svg");
+        if (!svg) return;
+        const effect = card.dataset.cardTitleIconEffect || dashboard.dataset.cardTitleIconEffect;
+        svg.style.stroke = "";
+        const existingDefs = svg.querySelector("defs[data-title-icon-gradient]");
+        if (!effect.startsWith("gradient-")) {
+          existingDefs?.remove();
+          return;
+        }
+        const gradientId = `card-title-gradient-${index}`;
+        const end = effect === "gradient-multi" ? "var(--chart-2)" : "var(--icon-theme-accent)";
+        const start = effect === "gradient-multi" ? "var(--chart-1)" : "var(--icon-theme-accent)";
+        const defs = existingDefs || document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        defs.dataset.titleIconGradient = "true";
+        defs.innerHTML = `<linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${start}"/><stop offset="1" stop-color="${end}" stop-opacity=".3"/></linearGradient>`;
+        if (!existingDefs) svg.prepend(defs);
+        svg.style.stroke = `url(#${gradientId})`;
+      });
     }
 
     function syncKpiStyleSamples() {
@@ -2101,6 +2255,8 @@
         delete card.dataset.chartPalette;
         delete card.dataset.cardTitleIcon;
         delete card.dataset.cardTitleIconColor;
+        delete card.dataset.cardTitleIconEffect;
+        delete card.dataset.cardSubtitle;
         delete card.dataset.kpiIcon;
         delete card.dataset.kpiIconWeight;
         delete card.dataset.kpiIconContainer;
@@ -2112,8 +2268,24 @@
         const override = state.cardOverrides[card.dataset.itemId];
         if (!override) return;
         if (["monochrome", "bichrome", "categorical"].includes(override.chartPalette)) card.dataset.chartPalette = override.chartPalette;
-        if (["none", "line", "soft", "solid"].includes(override.cardTitleIcon)) card.dataset.cardTitleIcon = override.cardTitleIcon;
-        if (["neutral", "accent"].includes(override.cardTitleIconColor)) card.dataset.cardTitleIconColor = override.cardTitleIconColor;
+        if (cardTitleStylePresets[override.cardTitleStyle]) {
+          const titleStyle = cardTitleStylePresets[override.cardTitleStyle];
+          card.dataset.cardTitleIcon = titleStyle.cardTitleIcon;
+          card.dataset.cardTitleIconColor = titleStyle.cardTitleIconColor;
+          card.dataset.cardTitleIconEffect = titleStyle.cardTitleIconEffect;
+        } else {
+          if (["none", "line", "soft", "solid"].includes(override.cardTitleIcon)) card.dataset.cardTitleIcon = override.cardTitleIcon;
+          if (["neutral", "accent", "colorful"].includes(override.cardTitleIconColor)) card.dataset.cardTitleIconColor = override.cardTitleIconColor;
+        }
+        if (override.cardSubtitle === "right") override.cardSubtitle = "title-right";
+        if (["none", "below", "title-right", "card-right", "icon"].includes(override.cardSubtitle)) card.dataset.cardSubtitle = override.cardSubtitle;
+        const subtitle = card.querySelector(".panel-note");
+        if (subtitle) {
+          const subtitleText = subtitle.querySelector(".card-subtitle-text");
+          const translatedText = translations[state.language]?.[subtitle.dataset.i18n] || subtitleText.textContent.trim();
+          subtitleText.textContent = typeof override.cardSubtitleText === "string" ? override.cardSubtitleText : translatedText;
+          subtitle.dataset.tooltip = subtitleText.textContent.trim();
+        }
         if (["none", "outline", "filled"].includes(override.kpiIcon)) card.dataset.kpiIcon = override.kpiIcon;
         if (["thin", "regular", "bold"].includes(override.kpiIconWeight)) card.dataset.kpiIconWeight = override.kpiIconWeight;
         if (["none", "outline", "soft", "solid", "gradient", "bigradient"].includes(override.kpiIconContainer)) card.dataset.kpiIconContainer = override.kpiIconContainer;
@@ -2156,6 +2328,7 @@
           svg.querySelectorAll(":scope > path").forEach((path) => { path.style.fill = `url(#${gradientId})`; });
         }
       });
+      renderCardTitleIconEffects();
     }
 
     function applyKpiColorTokens() {
@@ -2239,9 +2412,11 @@
       const nextSpan = nearestLayoutSpan(Number(span));
       item.dataset.span = String(nextSpan);
       item.style.setProperty("--item-span", nextSpan);
-      group.dataset.layout = "custom";
-      groupLayoutSelect.value = "custom";
-      syncCustomSelect(groupLayoutSelect);
+      if (group) {
+        group.dataset.layout = "custom";
+        groupLayoutSelect.value = "custom";
+        syncCustomSelect(groupLayoutSelect);
+      }
       scheduleWorkspaceSave();
     }
 
@@ -2306,9 +2481,34 @@
     }
 
     function clearLayoutDragState() {
-      document.querySelectorAll(".layout-dragging, .layout-pointer-dragging, .layout-drag-outside, .layout-drop-target, .layout-group-active").forEach((element) => element.classList.remove("layout-dragging", "layout-pointer-dragging", "layout-drag-outside", "layout-drop-target", "layout-group-active"));
+      document.querySelectorAll(".layout-dragging, .layout-pointer-dragging, .layout-drag-outside, .layout-drop-candidate, .layout-drop-target, .layout-group-active, .layout-group-hover").forEach((element) => {
+        element.classList.remove("layout-dragging", "layout-pointer-dragging", "layout-drag-outside", "layout-drop-candidate", "layout-drop-target", "layout-group-active", "layout-group-hover");
+        delete element.dataset.dropSide;
+      });
       document.querySelectorAll(".layout-grid-placeholder").forEach((element) => element.remove());
       layoutDragState = null;
+    }
+
+    function setLayoutDropCandidates(candidates, source) {
+      candidates.filter((candidate) => candidate !== source).forEach((candidate) => candidate.classList.add("layout-drop-candidate"));
+    }
+
+    function setLayoutDropTarget(target, event) {
+      document.querySelectorAll(".layout-drop-target").forEach((element) => {
+        element.classList.remove("layout-drop-target");
+        delete element.dataset.dropSide;
+      });
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const sameRow = Math.abs(event.clientY - (rect.top + rect.height / 2)) < rect.height * .3;
+      target.dataset.dropSide = sameRow ? event.clientX < rect.left + rect.width / 2 ? "left" : "right" : event.clientY < rect.top + rect.height / 2 ? "top" : "bottom";
+      target.classList.add("layout-drop-target");
+    }
+
+    function flashLayoutDropLanded(node) {
+      document.querySelectorAll(".layout-drop-landed").forEach((element) => element.classList.remove("layout-drop-landed"));
+      node.classList.add("layout-drop-landed");
+      window.setTimeout(() => node.classList.remove("layout-drop-landed"), 540);
     }
 
     function placeDraggedElement(source, target, event, verticalOnly = false) {
@@ -2323,6 +2523,20 @@
 
     function isDashboardFreeCard(item) {
       return dashboard.dataset.pageType === "dashboard" && item.closest(".section[data-section-id]")?.dataset.grouped === "false";
+    }
+
+    function isSingleColumnSection(section) {
+      const group = section?.querySelector(":scope > .layout-group");
+      const items = group ? [...group.querySelectorAll(":scope > .layout-item")] : [];
+      if (items.length <= 1) return true;
+      const columns = new Set(items.map((item) => Math.round(item.getBoundingClientRect().left)));
+      return columns.size <= 1;
+    }
+
+    function updateGroupHover(section, target) {
+      if (dashboard.dataset.pageType !== "dashboard" || section.dataset.grouped !== "true") return;
+      const overCard = Boolean(target.closest(".layout-item[data-item-id]"));
+      section.classList.toggle("layout-group-hover", !overCard || isSingleColumnSection(section));
     }
 
     function dashboardCanvasNodes(reportBody) {
@@ -2441,7 +2655,15 @@
     function setupDashboardPointerDrag(handle, node, reportBody) {
       handle.addEventListener("pointerdown", (event) => {
         if (dashboard.dataset.pageType !== "dashboard" || document.body.dataset.designMode !== "true" || event.button !== 0) return;
-        if (node.matches("[data-item-id]") && node.closest(".section[data-selected='true']")) return;
+        const nodeSection = node.closest(".section[data-section-id]");
+        if (node.matches("[data-item-id]") && nodeSection?.dataset.grouped === "true" && isSingleColumnSection(nodeSection)) return;
+        // Ungrouped dashboard sections are display: contents; their cards are the real grid items.
+        if (node.matches(".section[data-section-id]") && node.dataset.grouped !== "true") return;
+        if (node.matches(".section[data-section-id]")) {
+          const card = event.target.closest(".layout-item[data-item-id]");
+          if (card && (node.dataset.grouped !== "true" || !isSingleColumnSection(node))) return;
+          selectSection(node);
+        }
         const interactiveTarget = event.target.closest(".layout-resize-handle, button, input, select, textarea, a, [contenteditable='true']");
         if (interactiveTarget && interactiveTarget !== handle) return;
         const handleWasDraggable = handle.draggable;
@@ -2457,6 +2679,7 @@
         const pointerOffsetY = event.clientY - originRect.top;
         const dragPointerId = event.pointerId;
         let active = false;
+        let activeDragState = null;
         handle.setPointerCapture(event.pointerId);
 
         const move = (moveEvent) => {
@@ -2470,14 +2693,17 @@
             if (groupedCardGroup?.dataset.layout === "custom") placeholder.style.gridColumn = `span ${Number(node.dataset.span) || 4}`;
             if (groupedCardGroup) {
               node.after(placeholder);
-              layoutDragState = { type: "grouped-item", element: node, placeholder, group: groupedCardGroup };
+              activeDragState = { type: "grouped-item", element: node, placeholder, group: groupedCardGroup };
+              setLayoutDropCandidates([...groupedCardGroup.querySelectorAll(":scope > .layout-item[data-item-id]")], node);
             } else {
               placeholder.style.gridColumn = `span ${node.matches(".section[data-section-id]") ? Number(node.dataset.span) || 12 : Number(node.dataset.span) || 12}`;
-              placeholder.style.order = node.style.order;
-              reportBody.appendChild(placeholder);
-              layoutDragState = { type: "canvas-item", element: node, placeholder, canvasOrder: applyDashboardCanvasOrder(reportBody) };
-              placeholder.style.order = node.style.order;
+              // Keep the source slot in place while the fixed drag preview is out of the grid.
+              placeholder.style.order = node.style.order || "0";
+              node.after(placeholder);
+              activeDragState = { type: "canvas-item", element: node, placeholder, canvasOrder: applyDashboardCanvasOrder(reportBody) };
+              setLayoutDropCandidates(dashboardCanvasNodes(reportBody), node);
             }
+            layoutDragState = activeDragState;
             Object.assign(node.style, {
               position: "fixed",
               left: `${originRect.left}px`,
@@ -2496,18 +2722,21 @@
             document.body.style.cursor = insideGroup ? "" : "not-allowed";
             const hit = insideGroup ? document.elementFromPoint(moveEvent.clientX, moveEvent.clientY) : null;
             const target = hit?.closest(".layout-item[data-item-id]");
-            document.querySelectorAll(".layout-drop-target").forEach((element) => element.classList.remove("layout-drop-target"));
             if (target && target !== node && target.parentElement === groupedCardGroup) {
-              target.classList.add("layout-drop-target");
-              reorderGroupedCardPlaceholder(groupedCardGroup, node, layoutDragState.placeholder, target, moveEvent);
+              setLayoutDropTarget(target, moveEvent);
+              reorderGroupedCardPlaceholder(groupedCardGroup, node, activeDragState.placeholder, target, moveEvent);
+            } else {
+              setLayoutDropTarget(null, moveEvent);
             }
             return;
           }
           const target = dashboardCanvasNodeAtPoint(reportBody, moveEvent.clientX, moveEvent.clientY);
-          document.querySelectorAll(".layout-drop-target").forEach((element) => element.classList.remove("layout-drop-target"));
-          if (!target || target === node) return;
-          target.classList.add("layout-drop-target");
-          reorderDashboardCanvasCard(reportBody, node, target, moveEvent);
+          activeDragState.dropTarget = target && target !== node ? target : null;
+          if (!activeDragState.dropTarget) {
+            setLayoutDropTarget(null, moveEvent);
+            return;
+          }
+          setLayoutDropTarget(activeDragState.dropTarget, moveEvent);
         };
 
         const finish = (finishEvent) => {
@@ -2524,9 +2753,29 @@
             clearLayoutDragState();
             return;
           }
-          const placeholderRect = layoutDragState.placeholder.getBoundingClientRect();
+          const dragState = activeDragState;
+          if (!dragState) {
+            clearLayoutDragState();
+            return;
+          }
+          layoutDragState = dragState;
+          if (!groupedCardGroup) {
+            dragState.placeholder.remove();
+            if (dragState.dropTarget) reorderDashboardCanvasCard(reportBody, node, dragState.dropTarget, finishEvent);
+            node.style.position = "";
+            node.style.left = "";
+            node.style.top = "";
+            node.style.width = "";
+            node.style.height = "";
+            node.style.transform = "";
+            scheduleWorkspaceSave();
+            clearLayoutDragState();
+            flashLayoutDropLanded(node);
+            return;
+          }
+          const placeholderRect = dragState.placeholder.getBoundingClientRect();
           const floatingRect = node.getBoundingClientRect();
-          if (groupedCardGroup) layoutDragState.placeholder.before(node);
+          dragState.placeholder.before(node);
           node.style.transition = "transform 160ms cubic-bezier(.2,.8,.2,1)";
           node.style.transform = `translate3d(${placeholderRect.left - floatingRect.left + parseFloat(new DOMMatrix(getComputedStyle(node).transform).m41 || 0)}px, ${placeholderRect.top - floatingRect.top + parseFloat(new DOMMatrix(getComputedStyle(node).transform).m42 || 0)}px, 0)`;
           window.setTimeout(() => {
@@ -2539,6 +2788,7 @@
             node.style.transition = "";
             scheduleWorkspaceSave();
             clearLayoutDragState();
+            flashLayoutDropLanded(node);
           }, 165);
         };
 
@@ -2555,6 +2805,15 @@
       summaryCard.dataset.cardType = "generic";
       summaryCard.dataset.span = "12";
       summaryCard.style.setProperty("--item-span", 12);
+      const syncSummaryCompactLayout = () => {
+        summaryCard.dataset.compact = String(summaryCard.getBoundingClientRect().width < 680);
+      };
+      new ResizeObserver(syncSummaryCompactLayout).observe(summaryCard);
+      syncSummaryCompactLayout();
+      summaryCard.append(
+        createLayoutResizeHandle(summaryCard, null, null, "left"),
+        createLayoutResizeHandle(summaryCard, null, null, "right")
+      );
       setupDashboardPointerDrag(summaryCard, summaryCard, reportBody);
       const groupDefinitions = [
         { sectionId: "metrics", selector: ".metric-grid", items: [["priority-customers", 4, "kpi"], ["opportunity-value", 4, "kpi"], ["conversion-rate", 4, "kpi"]] },
@@ -2604,7 +2863,6 @@
         });
         dragButton.addEventListener("dragend", clearLayoutDragState);
         sectionHandle.className = "layout-section-handle";
-        sectionHandle.insertAdjacentHTML("beforeend", "<span>拖动整组</span>");
         sectionHandle.addEventListener("pointerenter", () => section.classList.add("layout-group-active"));
         sectionHandle.addEventListener("pointerleave", () => {
           if (!section.classList.contains("layout-dragging")) section.classList.remove("layout-group-active");
@@ -2642,6 +2900,10 @@
         }
         heading.appendChild(tools);
 
+        section.addEventListener("pointermove", (event) => updateGroupHover(section, event.target));
+        section.addEventListener("pointerleave", () => section.classList.remove("layout-group-hover"));
+        setupDashboardPointerDrag(section, section, reportBody);
+
         section.addEventListener("dragover", (event) => {
           if (layoutDragState?.type !== "section" || layoutDragState.element === section) return;
           event.preventDefault();
@@ -2665,29 +2927,7 @@
         [...group.children].filter((child) => child.classList.contains("layout-item")).forEach((item) => {
           const leftResizeHandle = createLayoutResizeHandle(item, group, groupLayoutSelect, "left");
           const rightResizeHandle = createLayoutResizeHandle(item, group, groupLayoutSelect, "right");
-          const dragLabel = document.createElement("span");
-          dragLabel.className = "layout-item-drag-label";
-          dragLabel.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="7" r="1.5"></circle><circle cx="16" cy="7" r="1.5"></circle><circle cx="8" cy="12" r="1.5"></circle><circle cx="16" cy="12" r="1.5"></circle><circle cx="8" cy="17" r="1.5"></circle><circle cx="16" cy="17" r="1.5"></circle></svg><span>拖动卡片</span>';
           item.draggable = true;
-          item.addEventListener("pointerenter", () => {
-            const section = item.closest(".section[data-section-id]");
-            if (!section) return;
-            if (dashboard.dataset.pageType === "dashboard" && section.dataset.grouped === "true") {
-              section.style.setProperty("--group-handle-left", "-10px");
-              section.style.setProperty("--group-handle-top", "-10px");
-              return;
-            }
-            const itemRect = item.getBoundingClientRect();
-            const sectionRect = section.getBoundingClientRect();
-            section.style.setProperty("--group-handle-left", `${Math.max(-10, itemRect.left - sectionRect.left + 10)}px`);
-            section.style.setProperty("--group-handle-top", `${itemRect.top - sectionRect.top - 10}px`);
-          });
-          item.addEventListener("pointerleave", () => {
-            const section = item.closest(".section[data-section-id]");
-            if (!section || section.dataset.grouped !== "true") return;
-            section.style.setProperty("--group-handle-left", "-10px");
-            section.style.setProperty("--group-handle-top", "-10px");
-          });
           item.addEventListener("dragstart", (event) => {
             if (document.body.dataset.designMode !== "true" || item.dataset.resizing === "true") {
               event.preventDefault();
@@ -2704,7 +2944,7 @@
             if (layoutDragState?.type === "canvas-item") scheduleWorkspaceSave();
             clearLayoutDragState();
           });
-          item.append(dragLabel, leftResizeHandle, rightResizeHandle);
+          item.append(leftResizeHandle, rightResizeHandle);
           setupDashboardPointerDrag(item, item, reportBody);
 
           item.addEventListener("dragover", (event) => {
@@ -2743,6 +2983,7 @@
       window.DashboardLayoutEditor = Object.freeze({
         getConfig: () => ({
           canvasOrder: dashboardCanvasNodes(reportBody).sort((a, b) => Number(a.style.order) - Number(b.style.order)).map(dashboardCanvasNodeId),
+          summarySpan: Number(summaryCard.dataset.span) || 12,
           sections: [...reportBody.querySelectorAll(":scope > .section[data-section-id]")].map((section) => {
             const group = section.querySelector(":scope > .layout-group");
             return {
@@ -2755,6 +2996,9 @@
           })
         }),
         applyConfig: (config) => {
+          const summarySpan = [3, 4, 6, 8, 9, 12].includes(Number(config.summarySpan)) ? Number(config.summarySpan) : 12;
+          summaryCard.dataset.span = String(summarySpan);
+          summaryCard.style.setProperty("--item-span", summarySpan);
           const configuredSectionIds = new Set(config.sections?.map((section) => section.id) || []);
           config.sections?.forEach((sectionConfig) => {
             const section = [...reportBody.children].find((child) => child.dataset.sectionId === sectionConfig.id);
@@ -2962,6 +3206,13 @@
 
     function setPressed(group, value) {
       document.querySelectorAll(`#${group} button`).forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.value === value || button.dataset.preset === value)));
+    }
+
+    function syncRangeTrack(control) {
+      const min = Number(control.min) || 0;
+      const max = Number(control.max) || 100;
+      const progress = max === min ? 0 : ((Number(control.value) - min) / (max - min)) * 100;
+      control.style.setProperty("--range-progress", `${Math.max(0, Math.min(100, progress))}%`);
     }
 
     function resolveCssColor(value) {
@@ -3248,8 +3499,14 @@
       const copy = translations[state.language];
       document.documentElement.lang = state.language === "en" ? "en" : "zh-CN";
       dashboard.dataset.language = state.language;
-      document.querySelectorAll("[data-i18n]").forEach((element) => { element.textContent = copy[element.dataset.i18n]; });
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        if (!element.classList.contains("panel-note")) element.textContent = copy[element.dataset.i18n];
+      });
+      dashboard.querySelectorAll(".panel-note[data-i18n]").forEach((subtitle) => {
+        subtitle.querySelector(".card-subtitle-text").textContent = copy[subtitle.dataset.i18n];
+      });
       dashboard.querySelector(".hero-title").textContent = state.pageType === "dashboard" ? copy.dashboardTitle : copy.title;
+      dashboard.querySelectorAll(".panel-note").forEach((subtitle) => { subtitle.dataset.tooltip = subtitle.querySelector(".card-subtitle-text").textContent.trim(); });
       if (state.sectionCopy === "subtitle") {
         document.querySelectorAll(".section[data-section-id]").forEach((section) => {
           const subtitle = section.querySelector(".section-heading small");
@@ -3309,8 +3566,14 @@
       const preset = presets[state.preset];
       state.cardGap = cardGapSteps.reduce((closest, step) => Math.abs(step - state.cardGap) < Math.abs(closest - state.cardGap) ? step : closest, 12);
       state.cardTitleFont = [12, 14, 16, 18, 20].includes(Number(state.cardTitleFont)) ? Number(state.cardTitleFont) : 14;
-      if (!["none", "line", "soft", "solid"].includes(state.cardTitleIcon)) state.cardTitleIcon = "none";
-      if (!["neutral", "accent"].includes(state.cardTitleIconColor)) state.cardTitleIconColor = "neutral";
+      if (state.cardSubtitle === "right") state.cardSubtitle = "title-right";
+      if (!["none", "below", "title-right", "card-right", "icon"].includes(state.cardSubtitle)) state.cardSubtitle = "below";
+      if (!cardTitleStylePresets[state.cardTitleStyle]) {
+        state.cardTitleStyle = Object.entries(cardTitleStylePresets).find(([, preset]) => (
+          preset.cardTitleIcon === state.cardTitleIcon && preset.cardTitleIconColor === state.cardTitleIconColor
+        ))?.[0] || "none";
+      }
+      applyCardTitleStyle(state.cardTitleStyle, state);
       if (!["monochrome", "bichrome", "categorical"].includes(state.chartPalette)) state.chartPalette = "monochrome";
       if (state.kpiLayout === "stacked") state.kpiLayout = "right-top";
       if (state.kpiLayout === "horizontal") state.kpiLayout = "left-top";
@@ -3320,6 +3583,13 @@
       if (!["thin", "regular", "bold"].includes(state.kpiIconWeight)) state.kpiIconWeight = "regular";
       Object.values(state.cardOverrides || {}).forEach((override) => {
         if (override.kpiIcon === "duotone") override.kpiIcon = "filled";
+        if (!cardTitleStylePresets[override.cardTitleStyle] && ["none", "line", "soft", "solid"].includes(override.cardTitleIcon)) {
+          override.cardTitleStyle = Object.entries(cardTitleStylePresets).find(([, preset]) => (
+            preset.cardTitleIcon === override.cardTitleIcon && preset.cardTitleIconColor === override.cardTitleIconColor
+          ))?.[0] || "none";
+          delete override.cardTitleIcon;
+          delete override.cardTitleIconColor;
+        }
       });
       if (!["neutral", "accent", "colorful", "gradient-neutral", "gradient-accent", "gradient-colorful"].includes(state.kpiIconColor)) state.kpiIconColor = "neutral";
       if (!["none", "outline", "soft", "solid", "gradient", "bigradient"].includes(state.kpiIconContainer)) state.kpiIconContainer = "none";
@@ -3359,7 +3629,8 @@
       state.headerMetaDefaultVersion = 2;
       if (!["dot", "line"].includes(state.headerMetaSeparator)) state.headerMetaSeparator = "dot";
       if (!["none", "particles", "aurora", "sheen"].includes(state.headerDecoration)) state.headerDecoration = "none";
-      if (!["auto", "left", "center"].includes(state.headerAlign)) state.headerAlign = "auto";
+      if (!["left", "center"].includes(state.headerAlign)) state.headerAlign = state.pageType === "report" ? "center" : "left";
+      state.headerTitleFont = Math.max(20, Math.min(48, Number(state.headerTitleFont) || 32));
       if (!["title", "subtitle", "bilingual"].includes(state.sectionCopy)) state.sectionCopy = "title";
       if (state.sectionLeading === "accent") state.sectionLeading = "marker";
       if (!["none", "marker", "number", "icon"].includes(state.sectionLeading)) state.sectionLeading = "none";
@@ -3368,9 +3639,9 @@
       if (![500, 600, 700, 800].includes(Number(state.sectionWeight))) state.sectionWeight = 700;
       if (!state.sectionSubtitles || typeof state.sectionSubtitles !== "object" || Array.isArray(state.sectionSubtitles)) state.sectionSubtitles = {};
       const resolvedContentWidth = state.contentWidth === "auto" ? (state.pageType === "dashboard" ? "fluid" : "readable") : state.contentWidth;
-      const resolvedSectionVisibility = state.sectionVisibility === "auto" ? (state.pageType === "dashboard" ? "hidden" : "visible") : state.sectionVisibility;
+      const resolvedSectionVisibility = state.pageType === "dashboard" ? "hidden" : state.sectionVisibility === "auto" ? "visible" : state.sectionVisibility;
       const resolvedHeader = !state.headerVisible ? "hidden" : state.headerBackgroundType === "none" ? "minimal" : state.headerBackgroundType === "gradient" ? "brand" : state.headerSolidMode === "accent-solid" && state.headerBackgroundType === "solid" ? "band" : "surface";
-      const resolvedHeaderAlign = state.headerAlign === "auto" ? (state.pageType === "dashboard" ? "left" : "center") : state.headerAlign;
+      const resolvedHeaderAlign = state.headerAlign;
       const colors = state.mode === "dark" ? darkTokens : preset.light;
       const surfaceTokens = deriveSurfaceTokens(state.accent, state.mode, colors);
       const softThemeSurfaces = deriveSoftThemeSurfaces(state.accent, state.mode, colors);
@@ -3450,7 +3721,7 @@
         "--chart-1": chartPalette.categorical[0], "--chart-2": chartPalette.categorical[1], "--chart-3": chartPalette.categorical[2],
         "--chart-4": chartPalette.categorical[3], "--chart-5": chartPalette.categorical[4], "--chart-6": chartPalette.categorical[5],
         "--accent": accentTokens.structure,
-        "--radius": `${state.radius}px`, "--card-gap": `${state.cardGap}px`, "--card-title-size": `${state.cardTitleFont}px`,
+        "--radius": `${state.radius}px`, "--card-gap": `${state.cardGap}px`, "--card-title-size": `${state.cardTitleFont}px`, "--card-subtitle-size": `max(12px, ${(state.cardTitleFont * .82).toFixed(2)}px)`, "--hero-title-size": `${state.headerTitleFont}px`,
         "--font-scale": (state.font / 14).toFixed(3), "--section-title-size": `${state.sectionFont}px`, "--section-title-weight": state.sectionWeight, "--section-marker-height": `${(state.sectionFont * 1.05).toFixed(2)}px`,
         "--section-kicker-size": "12px", "--space": `${spaces[state.spacing]}px`, "--shadow": shadowMap[state.shadow]
       };
@@ -3493,6 +3764,8 @@
       dashboard.dataset.kpiCardBackground = state.kpiCardBackground;
       dashboard.dataset.cardTitleIcon = state.cardTitleIcon;
       dashboard.dataset.cardTitleIconColor = state.cardTitleIconColor;
+      dashboard.dataset.cardTitleIconEffect = state.cardTitleIconEffect;
+      dashboard.dataset.cardSubtitle = state.cardSubtitle;
       dashboard.dataset.chartPalette = state.chartPalette;
       dashboard.dataset.pageTexture = state.pageTexture;
       renderSectionIcons();
@@ -3510,9 +3783,8 @@
       radiusControl.value = state.radius;
       cardGapControl.value = state.cardGap;
       cardTitleFontControl.value = state.cardTitleFont;
-      cardTitleIconControl.value = state.cardTitleIcon;
-      cardTitleIconColorControl.value = state.cardTitleIconColor;
-      cardTitleIconColorGlobalField.hidden = state.cardTitleIcon === "none";
+      cardSubtitleControl.value = state.cardSubtitle;
+      cardTitleStyleControl.value = state.cardTitleStyle;
       fontControl.value = state.font;
       sectionFontControl.value = state.sectionFont;
       sectionWeightControl.value = String(state.sectionWeight);
@@ -3547,6 +3819,8 @@
       headerGradientAngleControl.value = Math.round(state.headerGradientAngle);
       if (state.headerBackgroundType !== "gradient") closeHeaderGradientPopover();
       headerAlignControl.value = state.headerAlign;
+      headerTitleFontControl.value = state.headerTitleFont;
+      headerTitleFontValue.textContent = `${state.headerTitleFont}px`;
       subtitleControl.value = state.subtitle;
       headerMetaControl.value = state.headerMetaStyle;
       headerMetaSeparatorControl.value = state.headerMetaSeparator;
@@ -3557,11 +3831,13 @@
       headerVisibilityToggle.checked = state.headerVisible;
       headerBand.dataset.enabled = String(!headerIsHidden);
       headerAlignField.hidden = headerIsHidden;
+      headerTitleFontField.hidden = headerIsHidden;
       subtitleField.hidden = headerIsHidden;
       headerMetaField.hidden = headerIsHidden;
       headerDecorationField.hidden = headerIsHidden;
       logoField.hidden = headerIsHidden;
       const sectionTitlesVisible = resolvedSectionVisibility === "visible";
+      sectionTitleBand.hidden = state.pageType === "dashboard";
       sectionVisibilityToggle.checked = sectionTitlesVisible;
       sectionTitleBand.dataset.enabled = String(sectionTitlesVisible);
       sectionLeadingControl.value = state.sectionLeading;
@@ -3572,6 +3848,7 @@
       sectionSubtitleControls.forEach((control) => { control.value = state.sectionSubtitles[control.dataset.sectionSubtitle] || ""; });
       sectionDividerControl.value = state.sectionDivider;
       applyLanguage();
+      applyCardOverrides();
       updatePresetOptions();
       setPressed("presetControls", state.preset);
       setPressed("pageTypeControls", state.pageType);
@@ -3580,6 +3857,7 @@
       setPressed("spacingControls", state.spacing);
       syncCustomSelects();
       syncKpiStyleSamples();
+      document.querySelectorAll('.range-control input[type="range"]').forEach(syncRangeTrack);
       if (selectedCardId || selectedSectionId) updateCardContext();
       scheduleWorkspaceSave();
     }
@@ -3588,14 +3866,28 @@
       const preset = presets[name];
       const language = state.language || "zh";
       const pageType = state.pageType || "dashboard";
-      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: pageType === "dashboard" && ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid", headerBackgroundDefaultVersion: 2, headerAlign: "auto", subtitle: preset.subtitle || "none", headerMetaStyle: pageType === "dashboard" ? "plain" : "surface", headerMetaDefaultVersion: 2, headerMetaSeparator: "dot", headerDecoration: "none", headerSolidLinkedToMode: true, pageBackground: "neutral", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionIconStyle: "line-accent", sectionIcons: {}, sectionCopy: preset.sectionCopy || "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, sectionWeight: 700, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleIcon: "none", cardTitleIconColor: "neutral", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: pageType === "report" ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid", headerBackgroundDefaultVersion: 2, headerAlign: "auto", headerTitleFont: 32, subtitle: preset.subtitle || "none", headerMetaStyle: pageType === "dashboard" ? "plain" : "surface", headerMetaDefaultVersion: 2, headerMetaSeparator: "dot", headerDecoration: "none", headerSolidLinkedToMode: true, pageBackground: "neutral", customPageBackground: preset.light.page, pageTexture: "none", contentWidth: "auto", sectionVisibility: "auto", sectionLeading: preset.sectionLeading || "none", sectionIconStyle: "line-accent", sectionIcons: {}, sectionCopy: preset.sectionCopy || "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider || "none", sectionSurface: preset.sectionSurface || "none", sectionFont: preset.sectionFont || 15, sectionWeight: 700, frame: preset.frame || "none", kpiIcon: preset.kpiIcon || "none", kpiIconWeight: "regular", kpiIconColor: "neutral", kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: 14, cardTitleStyle: "none", cardTitleIcon: "none", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      state.headerAlign = pageType === "report" ? "center" : "left";
       applyState();
     }
 
     document.querySelector("#presetControls").addEventListener("click", (event) => { const name = event.target.dataset.preset; if (name) selectPreset(name); });
-    document.querySelector("#pageTypeControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.pageType = event.target.dataset.value; applyState(); } });
+    document.querySelector("#pageTypeControls").addEventListener("click", (event) => {
+      const nextPageType = event.target.dataset.value;
+      if (!nextPageType || nextPageType === state.pageType) return;
+      if (state.pageType === "dashboard" && nextPageType === "report" && state.headerBackgroundType === "none") {
+        state.headerBackgroundType = "solid";
+        state.headerSolidLinkedToMode = true;
+      }
+      state.headerAlign = nextPageType === "report" ? "center" : "left";
+      state.pageType = nextPageType;
+      applyState();
+    });
     document.querySelector("#languageControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.language = event.target.dataset.value; applyState(); } });
     document.querySelector("#modeControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.mode = event.target.dataset.value; applyState(); } });
+    document.addEventListener("input", (event) => {
+      if (event.target.matches('.range-control input[type="range"]')) syncRangeTrack(event.target);
+    });
     document.querySelector("#spacingControls").addEventListener("click", (event) => { if (event.target.dataset.value) { state.spacing = event.target.dataset.value; applyState(); } });
     accentControl.addEventListener("input", () => { state.accent = accentControl.value; applyState(); });
     pageBackgroundControl.addEventListener("change", () => { state.pageBackground = pageBackgroundControl.value; applyState(); });
@@ -3604,8 +3896,8 @@
     radiusControl.addEventListener("input", () => { state.radius = Number(radiusControl.value); applyState(); });
     cardGapControl.addEventListener("change", () => { state.cardGap = Number(cardGapControl.value); applyState(); });
     cardTitleFontControl.addEventListener("change", () => { state.cardTitleFont = Number(cardTitleFontControl.value); applyState(); });
-    cardTitleIconControl.addEventListener("change", () => { state.cardTitleIcon = cardTitleIconControl.value; applyState(); });
-    cardTitleIconColorControl.addEventListener("change", () => { state.cardTitleIconColor = cardTitleIconColorControl.value; applyState(); });
+    cardSubtitleControl.addEventListener("change", () => { state.cardSubtitle = cardSubtitleControl.value; applyState(); });
+    cardTitleStyleControl.addEventListener("change", () => { state.cardTitleStyle = cardTitleStyleControl.value; applyState(); });
     fontControl.addEventListener("input", () => {
       const nextFont = Number(fontControl.value);
       const delta = nextFont - Number(state.font);
@@ -3634,8 +3926,9 @@
       if (event.target.dataset.value) setSettingsTab(event.target.dataset.value);
     });
     cardChartPaletteControl.addEventListener("change", () => setCardOverride("chartPalette", cardChartPaletteControl.value));
-    cardTitleIconOverrideControl.addEventListener("change", () => setCardOverride("cardTitleIcon", cardTitleIconOverrideControl.value));
-    cardTitleIconColorOverrideControl.addEventListener("change", () => setCardOverride("cardTitleIconColor", cardTitleIconColorOverrideControl.value));
+    cardSubtitleOverrideControl.addEventListener("change", () => setCardOverride("cardSubtitle", cardSubtitleOverrideControl.value));
+    cardSubtitleTextControl.addEventListener("input", () => setCardOverride("cardSubtitleText", cardSubtitleTextControl.value));
+    cardTitleStyleOverrideControl.addEventListener("change", () => setCardTitleStyleOverride(cardTitleStyleOverrideControl.value));
     cardKpiIconOverrideControl.addEventListener("change", () => setCardOverride("kpiIcon", cardKpiIconOverrideControl.value));
     cardKpiWeightControl.addEventListener("change", () => setCardOverride("kpiIconWeight", cardKpiWeightControl.value));
     cardKpiLayoutControl.addEventListener("change", () => setCardOverride("kpiLayout", cardKpiLayoutControl.value));
@@ -3686,9 +3979,7 @@
       }
       if (!selectedCardId || !state.cardOverrides) return;
       delete state.cardOverrides[selectedCardId];
-      applyCardOverrides();
-      updateCardContext();
-      scheduleWorkspaceSave();
+      applyState();
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !sectionIconPickerDialog.hidden) closeSectionIconPicker();
@@ -3849,6 +4140,7 @@
       applyState();
     });
     headerAlignControl.addEventListener("change", () => { state.headerAlign = headerAlignControl.value; applyState(); });
+    headerTitleFontControl.addEventListener("input", () => { state.headerTitleFont = Number(headerTitleFontControl.value); applyState(); });
     subtitleControl.addEventListener("change", () => { state.subtitle = subtitleControl.value; applyState(); });
     headerMetaControl.addEventListener("change", () => { state.headerMetaStyle = headerMetaControl.value; applyState(); });
     headerMetaSeparatorControl.addEventListener("change", () => { state.headerMetaSeparator = headerMetaSeparatorControl.value; applyState(); });
@@ -3905,6 +4197,10 @@
 
     designSaveControl.addEventListener("click", writeWorkspaceState);
     designResetControl.addEventListener("click", resetUnsavedWorkspaceState);
+    designPresetResetControl.addEventListener("click", () => {
+      selectPreset(state.preset);
+      setSaveStatus("已恢复当前默认预设");
+    });
     designDownloadControl.addEventListener("click", downloadCleanReport);
 
     designDrawerClose.addEventListener("click", () => setDesignMode(false));
