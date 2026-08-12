@@ -1,7 +1,7 @@
 ---
 layer: governance
 type: spec
-last_verified: 2026-06-04
+last_verified: 2026-08-06
 ---
 
 # 文档编写规范
@@ -26,13 +26,17 @@ last_verified: 2026-06-04
 | Skill HTML 输出骨架 | `.agents/skills/<skill-name>/assets/templates/*.html` |
 | AI 请求怎么分流 | `docs/ROUTING.md` |
 | 项目当前状态 | `PROJECT.md` |
+| 产品平台阶段与长期路线 | `docs/ROADMAP.md` |
 | 交接 / 接手 | `HANDOFF.md` |
 | 架构决策 | `docs/DECISIONS.md` |
 | 结构性变更 | `docs/CHANGELOG.md` |
 | 错误复盘 | `docs/LESSONS.md` |
 | 环境和启动 | `docs/ENVIRONMENT.md` |
 | 测试验收 | `docs/TESTING.md` |
+| 安全边界 | `docs/SECURITY.md` |
 | 架构职责 | `docs/ARCHITECTURE.md` |
+| AI 生成阶段与状态机 | `docs/architecture/generation-pipeline.md` |
+| AI 生成质量评测与阈值 | `docs/architecture/generation-evaluation.md` |
 
 ---
 
@@ -52,6 +56,9 @@ last_verified: 2026-06-04
 ### PROJECT.md
 回答"项目现在是什么阶段、当前架构、已知问题"。不写交接细节、变更历史。
 
+### docs/ROADMAP.md
+回答"产品平台分几阶段、每阶段做什么、依赖和验收门槛是什么"。不写当前实现流水或单次 UI 调整。
+
 ### HANDOFF.md
 回答"这轮做了什么、风险是什么、下一步干什么"。不写长期路线图、产品介绍。
 
@@ -69,6 +76,9 @@ last_verified: 2026-06-04
 
 ### docs/ARCHITECTURE.md
 回答"模块职责、边界、数据流"。不写运行规则。
+
+### docs/SECURITY.md
+回答"身份、会话、授权、公开访问和敏感数据如何隔离"。不写环境变量教程或产品路线。
 
 ### docs/ENVIRONMENT.md
 回答"环境变量、安装、启动命令"。不写架构分层。

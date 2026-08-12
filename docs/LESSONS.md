@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: log
-last_verified: 2026-08-04
+last_verified: 2026-08-10
 depends_on: [docs/DECISIONS.md]
 ---
 
@@ -27,3 +27,35 @@ depends_on: [docs/DECISIONS.md]
 - 调整：显隐 ID 改绑不被替换的外层容器，单卡图表规则明确高于全局规则
 - 后续约束：组件初始化会替换 DOM 时，状态引用只绑定稳定外层；新增局部 override 必须覆盖“全局 A、单卡 B”的交叉用例
 - 补充约束：局部配置不能只按静态卡片类型开放，还必须确认目标元素在当前页面类型和显隐设置下真实存在且可见
+
+## 2026-08-10
+
+### 复盘 3：大文件机械改写必须在旁路副本完成
+
+- 现象：一次带编码故障的原地 Ruby 改写在匹配执行前截空了未提交预览文件
+- 调整：从 Git 基线和本地 Codex 会话的逐次补丁记录重建候选文件，在临时目录验证后恢复；随后通过契约、Node 59/59 和浏览器 9/9 补齐重放失配
+- 后续约束：对大型 dirty 文件做正则删除或批量改写前，必须先生成可校验的旁路副本；只有副本解析和测试通过后才能替换目标，禁止直接使用会预先截断目标的 `-i` 流程
+
+### 复盘 4：下载测试必须固定浏览器文件能力分支
+
+- 现象：测试等待 Playwright `download` 事件，但浏览器进入 `showSaveFilePicker` 分支，导致用例超时而非产品导出失败
+- 调整：测试中显式将 `showSaveFilePicker` 设为不可用，再验证标准 Blob 下载路径、文件名和真实文件内容
+- 后续约束：涉及可选浏览器 API 的测试必须先固定 capability matrix；文件保存器分支单独做人工或专用自动化，不用一个事件断言同时猜测两个分支
+
+### 复盘 5：持久化对象比较不能依赖 JSON 键顺序
+
+- 现象：同一 Workspace 写入 PostgreSQL JSONB 后键顺序被规范化，undo/restore 使用 `JSON.stringify` 比较时错误报告手工漂移
+- 调整：revision 漂移检查改为结构深比较，并用重排键序的持久化快照增加回归
+- 后续约束：跨 JSON、JSONB 或不同序列化器判断业务对象等价时必须使用语义深比较；字符串比较只用于已有明确 canonical serialization 的哈希或确定性 artifact
+
+### 复盘 5：classic 脚本的重复函数声明会隐藏返回类型冲突
+
+- 现象：内联 classic runtime 中两个 `workspaceComponentById` 分别返回组件和 `{ component, section }`，后声明覆盖前声明，手动图表类型编辑因此走错分支；抽成严格解析文件后才暴露重复标识符
+- 调整：只返回组件的查询重命名为 `workspaceComponentModelById`，bridge 查询保留结构化返回；新增真实手动图表切换、revision 保存和导出断言
+- 后续约束：编辑器 runtime 必须保持可独立严格解析；查询函数名应体现返回形状，不能依赖 classic function hoisting 覆盖行为
+
+### 复盘 6：拖拽失败要先验证真实命中层
+
+- 现象：首次自动拖拽把目标坐标放进右侧设计工具覆盖区，卡片未换位，一度误判为拖动预览拦截落点
+- 调整：在释放前检查 `elementFromPoint` 和目标高亮，确认命中工具栏后改用无遮挡的左侧卡片做纵向拖拽
+- 后续约束：坐标型交互失败时先记录 viewport、目标 rect、实际 hit element 和中间交互状态，再判断产品逻辑；回归用例必须断言落点高亮而不只断言最终顺序

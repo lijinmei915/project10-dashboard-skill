@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dashboard.local/schemas/dashboard-generation.schema.json",
+  "title": "Dashboard Generation Bundle",
+  "description": "Controlled result produced from a natural-language dashboard request before deterministic rendering.",
+  "type": "object",
+  "required": ["version", "request", "plan", "workspace", "commands", "provenance"],
+  "properties": {
+    "version": { "const": 1 },
+    "request": {
+      "type": "object",
+      "required": ["id", "prompt", "language"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "language": { "enum": ["zh", "en"] },
+        "pageType": { "enum": ["auto", "dashboard", "report"] },
+        "audience": { "type": "string", "maxLength": 200 },
+        "scope": {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["workspace", "section", "component"] },
+            "id": { "type": "string", "minLength": 1, "maxLength": 100 }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "const": "component" } }, "required": ["kind"] },
+              "then": { "required": ["id"] }
+            },
+            {
+              "if": { "properties": { "kind": { "const": "section" } }, "required": ["kind"] },
+              "then": { "required": ["id"] }
+            }
+          ],
+          "additionalProperties": false
+        },
+        "dataInputs": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "name"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["description", "uploaded", "api", "sample"] },
+              "name": { "type": "string", "minLength": 1 },
+              "schemaRef": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "plan": {
+      "type": "object",
+      "required": ["pageType", "title", "sections", "assumptions"],
+      "properties": {
+        "pageType": { "enum": ["dashboard", "report"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "goal": { "type": "string", "maxLength": 1000 },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "purpose", "components"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+              "purpose": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "components": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 24,
+                "items": {
+                  "type": "object",
+                  "required": ["id", "type", "purpose"],
+                  "properties": {
+                    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+                    "type": { "enum": ["summary", "kpi", "chart", "table", "list", "text", "group"] },
+                    "purpose": { "type": "string", "minLength": 1, "maxLength": 500 },
+                    "dataInputId": { "type": ["string", "null"] }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "assumptions": { "type": "array", "items": { "type": "string" }, "maxItems": 30 },
+        "warnings": { "type": "array", "items": { "type": "string" }, "maxItems": 30 }
+      },
+      "additionalProperties": false
+    },
+    "workspace": { "$ref": "./dashboard-workspace.schema.json" },
+    "commands": {
+      "type": "object",
+      "required": ["batchId", "source", "operations"],
+      "properties": {
+        "batchId": { "type": "string", "minLength": 1 },
+        "source": { "enum": ["agent", "user", "system"] },
+        "reason": { "type": "string", "maxLength": 1000 },
+        "operations": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "required": ["op", "path"],
+            "properties": {
+              "op": { "enum": ["set", "unset", "insert", "remove", "move", "replace"] },
+              "path": { "type": "string", "pattern": "^/" },
+              "from": { "type": "string", "pattern": "^/" },
+              "value": {},
+              "reason": { "type": "string", "maxLength": 500 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["mode", "components"],
+      "properties": {
+        "mode": { "enum": ["real", "mixed", "sample"] },
+        "components": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["source", "label"],
+            "properties": {
+              "source": { "enum": ["real", "derived", "sample"] },
+              "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "dataInputId": { "type": "string", "minLength": 1 },
+              "formula": { "type": "string", "maxLength": 1000 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

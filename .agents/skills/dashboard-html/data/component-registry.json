@@ -1,0 +1,10 @@
+[
+  { "type": "summary", "name": "摘要", "requiredProps": ["body"], "dataOptional": true, "bindings": [], "fallback": "text" },
+  { "type": "kpi", "name": "指标", "requiredProps": ["value"], "dataOptional": false, "bindings": ["aggregate"], "fallback": "text" },
+  { "type": "chart", "name": "图表", "requiredProps": [], "dataOptional": false, "bindings": ["series"], "fallback": "table" },
+  { "type": "table", "name": "表格", "requiredProps": ["columns", "rows"], "dataOptional": false, "bindings": ["rows"], "fallback": "list" },
+  { "type": "list", "name": "列表", "requiredProps": ["items"], "dataOptional": true, "bindings": ["ranking"], "fallback": "text" },
+  { "type": "text", "name": "文本", "requiredProps": ["body"], "dataOptional": true, "bindings": [], "fallback": "text" },
+  { "type": "filter-bar", "name": "筛选栏", "role": "page-control", "requiredProps": ["controls", "targets"], "dataOptional": true, "fallback": "hidden" },
+  { "type": "view-tabs", "name": "视图切换", "role": "page-control", "requiredProps": ["items", "defaultValue"], "dataOptional": true, "fallback": "first-view" }
+]

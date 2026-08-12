@@ -1,8 +1,8 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-08-06
-depends_on: [README.md, PROJECT.md]
+last_verified: 2026-08-07
+depends_on: []
 ---
 
 # 产品定义
@@ -15,7 +15,14 @@ depends_on: [README.md, PROJECT.md]
 
 - 项目名：`project10-dashboard-skill`
 - 当前定位：`一个可移植的 Dashboard / Report 生成 Skill，以及可选的本地 Studio 增强应用`
+- 目标定位：`AI Dashboard Studio：从数据和业务目标生成可编辑、可保存、可发布的 Dashboard / Report`
 - 当前交付物：`dashboard-html skill、轻量规范资产、starter HTML、workspace 协议与 Agent/Studio 预览服务`
+
+## 核心场景
+
+用户先描述希望生成的 Dashboard / Report 和需要理解的业务问题，可选补充真实数据；Agent 生成结构化首稿，用户继续调整内容、布局和视觉，保存版本后发布链接或导出轻量成品。
+
+产品默认入口是自然语言生成首稿；空白模板和纯手工搭建作为备用入口。第一阶段优先完成“AI 首稿 + 必要精修”闭环，不将产品定义为完整 BI、任意 SQL 或数据开发平台。阶段范围与验收门槛见 `docs/ROADMAP.md`。
 
 ## 目标用户
 

@@ -1,2 +1,17 @@
 .DS_Store
+.env
+.env.*
 node_modules/
+.dashboard-projects/
+.dashboard-data-sources/
+.dashboard-publications/
+.dashboard-publication-access/
+.dashboard-jobs/
+.dashboard-refresh-schedules/
+.dashboard-organizations/
+.dashboard-audit/
+.dashboard-provider-profiles/
+.dashboard-provider-secrets/
+playwright-report/
+test-results/
+dist/studio-web/

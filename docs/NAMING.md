@@ -1,7 +1,7 @@
 ---
 layer: governance
 type: spec
-last_verified: 2026-06-04
+last_verified: 2026-08-06
 depends_on: [docs/DOCUMENTATION.md]
 ---
 
@@ -52,6 +52,7 @@ docs/ 放工程治理。
 | 文件 | 回答的问题 |
 |------|------------|
 | `docs/ARCHITECTURE.md` | 系统结构和模块职责 |
+| `docs/ROADMAP.md` | 产品平台路线、阶段范围和验收门槛 |
 | `docs/ROUTING.md` | AI 请求分流规则 |
 | `docs/ENVIRONMENT.md` | 环境、依赖、启动 |
 | `docs/TESTING.md` | 测试验收 |

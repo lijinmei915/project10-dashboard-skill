@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "request": {
+    "id": "request-sales-overview",
+    "prompt": "生成一份面向销售负责人的季度经营看板，突出收入、商机转化、渠道趋势和重点客户风险。当前没有接入真实数据，先使用明确标记的示例数据。",
+    "language": "zh",
+    "pageType": "dashboard",
+    "audience": "销售负责人",
+    "dataInputs": [{ "id": "sample-sales", "kind": "sample", "name": "季度销售示例数据" }]
+  },
+  "plan": {
+    "pageType": "dashboard",
+    "title": "季度销售经营看板",
+    "goal": "快速识别收入进展、转化趋势与客户风险。",
+    "sections": [
+      {
+        "id": "metrics",
+        "title": "核心指标",
+        "purpose": "扫描关键经营结果",
+        "components": [
+          { "id": "revenue", "type": "kpi", "purpose": "展示季度收入", "dataInputId": "sample-sales" },
+          { "id": "conversion", "type": "kpi", "purpose": "展示商机转化率", "dataInputId": "sample-sales" }
+        ]
+      },
+      {
+        "id": "trends",
+        "title": "趋势与风险",
+        "purpose": "解释渠道变化并提示客户风险",
+        "components": [
+          { "id": "opportunity-trend", "type": "chart", "purpose": "展示渠道商机趋势", "dataInputId": "sample-sales" },
+          { "id": "risk-items", "type": "list", "purpose": "展示重点客户风险", "dataInputId": "sample-sales" }
+        ]
+      }
+    ],
+    "assumptions": ["所有数值均为示例数据，不代表真实经营表现。"],
+    "warnings": ["接入真实数据后需要确认收入和转化率口径。"]
+  },
+  "workspace": {
+    "version": 2,
+    "document": {
+      "title": "季度销售经营看板",
+      "subtitle": "收入、商机转化、渠道趋势与重点客户风险",
+      "sampleDataLabel": "示例数据",
+      "sections": [
+        {
+          "id": "metrics",
+          "title": "核心指标",
+          "subtitle": "示例数据",
+          "components": [
+            { "id": "revenue", "type": "kpi", "title": "季度收入", "subtitle": "较上季度 +8.4%", "dataRef": "sample-sales", "props": { "value": "2,460 万", "trend": "+8.4%" } },
+            { "id": "conversion", "type": "kpi", "title": "商机转化率", "subtitle": "较上季度 +3.6%", "dataRef": "sample-sales", "props": { "value": "32.8%", "trend": "+3.6%" } }
+          ]
+        },
+        {
+          "id": "trends",
+          "title": "趋势与风险",
+          "subtitle": "示例数据",
+          "components": [
+            { "id": "opportunity-trend", "type": "chart", "title": "渠道商机趋势", "subtitle": "最近三个月", "dataRef": "sample-sales", "props": {} },
+            { "id": "risk-items", "type": "list", "title": "重点客户风险", "subtitle": "当前待处理事项", "dataRef": "sample-sales", "props": { "items": [{ "label": "续约风险", "value": 6 }, { "label": "跟进停滞", "value": 4 }, { "label": "回款延期", "value": 3 }] } }
+          ]
+        }
+      ]
+    },
+    "theme": {
+      "preset": "fx-orange",
+      "pageType": "dashboard",
+      "language": "zh",
+      "accent": "#e8590c",
+      "mode": "light",
+      "paletteVersion": "1.2.0",
+      "sectionIcons": {},
+      "sectionSubtitles": { "metrics": "示例数据", "trends": "示例数据" },
+      "cardOverrides": {}
+    },
+    "layout": {
+      "canvasOrder": ["metrics", "opportunity-trend", "risk-items"],
+      "sections": [
+        {
+          "id": "metrics",
+          "grouped": true,
+          "span": 12,
+          "layout": "four",
+          "items": [
+            { "id": "revenue", "span": 6 },
+            { "id": "conversion", "span": 6 }
+          ]
+        },
+        {
+          "id": "trends",
+          "grouped": false,
+          "span": 12,
+          "layout": "split",
+          "items": [
+            { "id": "opportunity-trend", "span": 8 },
+            { "id": "risk-items", "span": 4 }
+          ]
+        }
+      ]
+    },
+    "logo": null,
+    "resources": {
+      "charts": {
+        "opportunity-trend": {
+          "type": "line",
+          "labels": ["1月", "2月", "3月"],
+          "series": [{ "name": "商机数", "values": [42, 57, 64] }],
+          "exportMode": "static"
+        }
+      }
+    }
+  },
+  "commands": {
+    "batchId": "generate-sales-dashboard-v1",
+    "source": "agent",
+    "reason": "根据销售经营目标生成完整首稿",
+    "operations": [{ "op": "replace", "path": "/", "value": {
+      "version": 2,
+      "document": {
+        "title": "季度销售经营看板",
+        "subtitle": "收入、商机转化、渠道趋势与重点客户风险",
+        "sampleDataLabel": "示例数据",
+        "sections": [
+          { "id": "metrics", "title": "核心指标", "subtitle": "示例数据", "components": [
+            { "id": "revenue", "type": "kpi", "title": "季度收入", "subtitle": "较上季度 +8.4%", "dataRef": "sample-sales", "props": { "value": "2,460 万", "trend": "+8.4%" } },
+            { "id": "conversion", "type": "kpi", "title": "商机转化率", "subtitle": "较上季度 +3.6%", "dataRef": "sample-sales", "props": { "value": "32.8%", "trend": "+3.6%" } }
+          ] },
+          { "id": "trends", "title": "趋势与风险", "subtitle": "示例数据", "components": [
+            { "id": "opportunity-trend", "type": "chart", "title": "渠道商机趋势", "subtitle": "最近三个月", "dataRef": "sample-sales", "props": {} },
+            { "id": "risk-items", "type": "list", "title": "重点客户风险", "subtitle": "当前待处理事项", "dataRef": "sample-sales", "props": { "items": [{ "label": "续约风险", "value": 6 }, { "label": "跟进停滞", "value": 4 }, { "label": "回款延期", "value": 3 }] } }
+          ] }
+        ]
+      },
+      "theme": {
+        "preset": "fx-orange",
+        "pageType": "dashboard",
+        "language": "zh",
+        "accent": "#e8590c",
+        "mode": "light",
+        "paletteVersion": "1.2.0",
+        "sectionIcons": {},
+        "sectionSubtitles": { "metrics": "示例数据", "trends": "示例数据" },
+        "cardOverrides": {}
+      },
+      "layout": {
+        "canvasOrder": ["metrics", "opportunity-trend", "risk-items"],
+        "sections": [
+          { "id": "metrics", "grouped": true, "span": 12, "layout": "four", "items": [{ "id": "revenue", "span": 6 }, { "id": "conversion", "span": 6 }] },
+          { "id": "trends", "grouped": false, "span": 12, "layout": "split", "items": [{ "id": "opportunity-trend", "span": 8 }, { "id": "risk-items", "span": 4 }] }
+        ]
+      },
+      "logo": null,
+      "resources": { "charts": { "opportunity-trend": { "type": "line", "labels": ["1月", "2月", "3月"], "series": [{ "name": "商机数", "values": [42, 57, 64] }], "exportMode": "static" } } }
+    }}]
+  },
+  "provenance": {
+    "mode": "sample",
+    "components": {
+      "revenue": { "source": "sample", "label": "示例数据", "dataInputId": "sample-sales" },
+      "conversion": { "source": "sample", "label": "示例数据", "dataInputId": "sample-sales" },
+      "opportunity-trend": { "source": "sample", "label": "示例数据", "dataInputId": "sample-sales" },
+      "risk-items": { "source": "sample", "label": "示例数据", "dataInputId": "sample-sales" }
+    }
+  }
+}

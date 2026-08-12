@@ -4,10 +4,29 @@
   "type": "module",
   "scripts": {
     "start": "node .agents/skills/dashboard-html/scripts/preview-server.mjs",
-    "check": "node --check .agents/skills/dashboard-html/scripts/preview-server.mjs && node .agents/skills/dashboard-html/scripts/check-contract.mjs"
+    "start:studio": "npm run build:studio && DASHBOARD_STUDIO_WEB_ROOT=dist/studio-web node .agents/skills/dashboard-html/scripts/preview-server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "playwright test",
+    "test:package": "node .agents/skills/dashboard-html/scripts/check-package-reproducibility.mjs",
+    "test:studio-build": "node --test test/studio-web-build.test.mjs",
+    "smoke:provider": "node .agents/skills/dashboard-html/scripts/provider-smoke.mjs",
+    "smoke:postgres-connector": "node .agents/skills/dashboard-html/scripts/postgres-connector-smoke.mjs",
+    "eval:generation": "DASHBOARD_AI_PROVIDER=deterministic node .agents/skills/dashboard-html/scripts/generation-evaluator.mjs",
+    "eval:generation:provider": "node .agents/skills/dashboard-html/scripts/generation-evaluator.mjs",
+    "check": "node --check .agents/skills/dashboard-html/scripts/preview-server.mjs && node .agents/skills/dashboard-html/scripts/check-preview-html.mjs && node .agents/skills/dashboard-html/scripts/check-contract.mjs && npm run test:package && npm run eval:generation && npm test",
+    "build:skill": "node .agents/skills/dashboard-html/scripts/build-package.mjs",
+    "build:studio": "node .agents/skills/dashboard-html/scripts/build-studio-web.mjs"
   },
   "dependencies": {
     "@phosphor-icons/core": "2.1.1",
-    "echarts": "^6.1.0"
+    "csv-parse": "^6.1.0",
+    "echarts": "^6.1.0",
+    "pg": "^8.23.0",
+    "playwright": "1.55.1",
+    "read-excel-file": "^8.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "fflate": "^0.8.3"
   }
 }

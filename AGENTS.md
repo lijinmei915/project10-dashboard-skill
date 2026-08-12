@@ -10,7 +10,7 @@
 ---
 layer: governance
 type: spec
-last_verified: 2026-06-04
+last_verified: 2026-08-06
 depends_on: [docs/DOCUMENTATION.md]
 ---
 
@@ -43,8 +43,10 @@ PROJECT.md             -> 当前项目状态和进度
 HANDOFF.md             -> 交接上下文
 docs/ROUTING.md        -> 请求分流和默认路由
 docs/ARCHITECTURE.md   -> 架构和模块职责
+docs/ROADMAP.md        -> 产品平台长期路线和阶段门槛
 docs/ENVIRONMENT.md    -> 环境、依赖、启动
 docs/TESTING.md        -> 测试和验收
+docs/SECURITY.md       -> 身份、授权、公开访问和敏感数据边界
 docs/RUNBOOK.md        -> 常见操作和故障处理
 docs/CHANGELOG.md      -> 结构性变更记录
 docs/DECISIONS.md      -> 关键决策原因

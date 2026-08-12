@@ -1,6 +1,7 @@
 [
   { "type": "line", "name": "折线图", "aliases": ["趋势", "时间序列", "走势", "变化"] },
   { "type": "area", "name": "面积图", "aliases": ["趋势", "累计", "规模", "变化"] },
-  { "type": "bar", "name": "柱状图", "aliases": ["对比", "排名", "分类", "分布"] },
+  { "type": "bar", "name": "柱状图", "aliases": ["对比", "分类", "分布"] },
+  { "type": "horizontal-bar", "name": "条形图", "aliases": ["横向对比", "横向排行", "条形", "排名", "长标签"] },
   { "type": "pie", "name": "环形图", "aliases": ["占比", "构成", "份额", "比例"] }
 ]

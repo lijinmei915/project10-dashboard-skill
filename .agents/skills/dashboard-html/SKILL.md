@@ -6,7 +6,7 @@ description: >
 
 # Dashboard Card Layout Skill
 
-> Package refreshed: 2026-08-06
+> Package refreshed: 2026-08-10
 
 ## What This Skill Preserves
 
@@ -37,6 +37,7 @@ This skill keeps dashboard output:
 - `cardTitleIcon`：普通卡片标题图标样式，可使用 `none / line / soft / solid`；默认 `none`，与 KPI 图标独立。
 - `cardTitleIconColor`：普通卡片标题图标配色，可使用 `neutral / accent`；默认中性色，并允许单卡覆盖。
 - `kpiLayout`：指标卡内容排列，可使用 `stacked / horizontal`；默认上下排列，并允许单张 KPI 卡片覆盖。
+- `chartType`：图表类型，可使用 `line / area / bar / horizontal-bar / pie`，分别对应折线图、面积图、柱状图、条形图和环形图；用户明确指定时必须优先采用，未指定时按趋势、累计、分类对比、排名/长标签、占比等语义选择。
 - `chartPalette`：图表配色方式，可使用 `monochrome / bichrome / categorical`；默认 `monochrome`。单色和双色按主题色相从固定 AntV/G2 色板取最近的一色或两色，彩色使用完整色板。
 - `accent`：任意明确的主题色名称或 CSS 色值，例如 `蓝色`、`墨绿`、`#0f766e`。
 
@@ -45,6 +46,8 @@ This skill keeps dashboard output:
 卡片可使用稳定 `data-item-id` 和 `data-card-type="chart|kpi|generic"` 接受单卡视觉覆盖。全局设置是默认值，卡片自身的 `data-chart-palette / data-card-title-icon / data-kpi-icon / data-icon-color` 优先；没有单卡属性时必须继续继承全局。
 
 对话决定页面的初始主题，不生成页面内主题切换控件。主题色作为 `accent seed` 输入，并按 `references/themes.md` 派生结构色、浅底、对比前景、实色前景、弱结构线和页面 surface 层级；图表按 `chartPalette` 使用独立的固定单色或彩色色板，不跟随主题色，也不改变成功、提醒、错误等状态色。
+
+颜色执行采用“色相固定、色阶动态”：BI 系列、KPI 分类和语义状态必须使用版本化基准色；卡片浅底、交互态、边框和图标容器才可围绕对应基准色动态生成同色相 UI 色阶。完整规则按需读取 `references/color-system.md`。
 
 ## Boundaries
 
@@ -57,11 +60,12 @@ This skill keeps dashboard output:
 
 ## Workflow
 
-1. Reuse `assets/templates/starter.html` for visual tokens, theme logic, and responsive foundations; do not inherit its fixed modules, section order, or placeholder content.
-2. Route Dashboard vs Report through `references/page-types.md`; route visual preset, mode, header style, section style, and accent through `references/themes.md`; read `references/color-system.md` only when assigning chart, KPI, section, semantic, or enterprise colors; route layout choices through `references/topic.md`.
-3. When exchanging editable state with an Agent or Studio, follow `references/runtime.md` and `schemas/dashboard-workspace.schema.json`.
-4. Route output guardrails such as HTML completeness, optional header slots, starter style preservation, and visual baseline through `references/output.md`.
-5. Validate the result with `references/testing.md`.
+1. For natural-language creation, restructuring, or multi-field changes, read `references/generation-protocol.md` and produce `Plan -> Workspace -> Command Batch` before rendering. Validate the bundle against `schemas/dashboard-generation.schema.json`.
+2. Reuse `assets/templates/starter.html` for visual tokens, theme logic, and responsive foundations; do not inherit its fixed modules, section order, or placeholder content.
+3. Route Dashboard vs Report through `references/page-types.md`; route visual preset, mode, header style, section style, and accent through `references/themes.md`; read `references/color-system.md` only when assigning chart, KPI, section, semantic, or enterprise colors; route layout choices through `references/topic.md`.
+4. When exchanging editable state with an Agent or Studio, follow `references/runtime.md` and `schemas/dashboard-workspace.schema.json`. For a local AI adjustment, require a stable component scope, emit only commands for affected fields, preview the field diff, and keep a reversible command batch; never replace the workspace root.
+5. Route output guardrails such as HTML completeness, optional header slots, starter style preservation, and visual baseline through `references/output.md`.
+6. Validate the result with `references/testing.md`.
 
 ## Verification
 

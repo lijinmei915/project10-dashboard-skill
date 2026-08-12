@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-08-05
+last_verified: 2026-08-07
 ---
 
 # Skill 工程规范
@@ -43,3 +43,11 @@ last_verified: 2026-08-05
 - Skill、Studio 和导出器通过 schema 定义的 JSON 协议交换状态，不直接共享页面内部变量。
 - 默认成品只固化所选资源；完整依赖和搜索能力不得进入 standalone HTML。
 - 不同 Agent 平台只增加薄适配层，核心规则和协议不绑定平台工具名。
+
+## 分发完整性
+
+- 轻量通过按需读取 references、排除重型运行库和分离 Studio 实现，不通过删除必要规则实现。
+- 便携包使用显式文件清单构建，不直接压缩整个仓库，也不依赖人工挑选文件。
+- 发布检查必须验证 `SKILL.md`、平台适配、必要 references、starter、色板、schema、小型目录和确定性脚本存在。
+- ZIP 必须在临时目录解包后再次运行契约检查，避免本地仓库存在文件而发布包遗漏。
+- Studio 服务、完整图标/图表库、`node_modules`、用户数据、缓存和调试产物不得进入便携包。

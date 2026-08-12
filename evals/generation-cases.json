@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "thresholds": {
+    "minimumCaseScore": 85,
+    "minimumAverageScore": 90,
+    "requiredPassRate": 1
+  },
+  "cases": [
+    {
+      "id": "sales-dashboard-trend",
+      "mode": "draft",
+      "request": { "prompt": "生成销售经营看板，展示核心指标和月度收入趋势", "language": "zh", "pageType": "dashboard" },
+      "expect": { "pageType": "dashboard", "minimumSections": 3, "minimumComponents": 6, "componentTypes": ["kpi", "chart", "list", "table"], "chartType": "line", "provenance": "sample" }
+    },
+    {
+      "id": "operations-dashboard-controls",
+      "mode": "draft",
+      "request": { "prompt": "生成产品运营看板，按区域筛选，并支持概览和明细视图切换", "language": "zh", "pageType": "dashboard" },
+      "expect": { "pageType": "dashboard", "minimumSections": 3, "minimumComponents": 6, "componentTypes": ["kpi", "chart", "list", "table"], "controlTypes": ["filter-bar", "view-tabs"], "provenance": "sample" }
+    },
+    {
+      "id": "delivery-report",
+      "mode": "draft",
+      "request": { "prompt": "生成项目交付复盘报告，说明里程碑、质量和主要风险", "language": "zh", "pageType": "auto" },
+      "expect": { "pageType": "report", "minimumSections": 3, "minimumComponents": 6, "componentTypes": ["summary", "kpi", "chart", "list", "table"], "provenance": "sample" }
+    },
+    {
+      "id": "channel-share-chart",
+      "mode": "draft",
+      "request": { "prompt": "生成销售渠道构成看板，用环形图展示渠道份额", "language": "zh", "pageType": "dashboard" },
+      "expect": { "pageType": "dashboard", "minimumSections": 3, "minimumComponents": 6, "componentTypes": ["kpi", "chart"], "chartType": "pie", "provenance": "sample" }
+    },
+    {
+      "id": "customer-ranking-chart",
+      "mode": "draft",
+      "request": { "prompt": "生成客户贡献排名看板，用条形图展示长标签客户排行", "language": "zh", "pageType": "dashboard" },
+      "expect": { "pageType": "dashboard", "minimumSections": 3, "minimumComponents": 6, "componentTypes": ["kpi", "chart", "list"], "chartType": "horizontal-bar", "provenance": "sample" }
+    },
+    {
+      "id": "dashboard-with-methodology-note",
+      "mode": "draft",
+      "request": { "prompt": "生成销售经营看板，并加入指标口径说明和备注", "language": "zh", "pageType": "dashboard" },
+      "expect": { "pageType": "dashboard", "minimumSections": 4, "minimumComponents": 9, "componentTypes": ["summary", "kpi", "chart", "list", "table", "text"], "provenance": "sample" }
+    },
+    {
+      "id": "sales-grounded-data",
+      "mode": "draft",
+      "request": { "prompt": "根据上传数据生成月度销售经营看板，展示销售额、订单数、转化率和月度订单趋势", "language": "zh", "pageType": "dashboard" },
+      "dataSource": { "id": "sales-grounding", "name": "月度销售数据", "format": "csv", "fixture": "fixtures/sales-grounding.csv", "portable": true },
+      "expect": {
+        "pageType": "dashboard",
+        "minimumSections": 3,
+        "minimumComponents": 6,
+        "componentTypes": ["kpi", "chart", "list", "table"],
+        "chartType": "line",
+        "provenance": "real",
+        "grounding": { "dataRef": "sales-grounding", "portable": true }
+      }
+    },
+    {
+      "id": "sales-grounded-nonportable",
+      "mode": "draft",
+      "request": { "prompt": "根据受控数据源生成月度销售经营看板，展示销售额、订单数、转化率和月度订单趋势", "language": "zh", "pageType": "dashboard" },
+      "dataSource": { "id": "sales-secure", "name": "受控月度销售数据", "format": "csv", "fixture": "fixtures/sales-grounding.csv", "portable": false },
+      "expect": {
+        "pageType": "dashboard",
+        "minimumSections": 3,
+        "minimumComponents": 6,
+        "componentTypes": ["kpi", "chart", "list", "table"],
+        "chartType": "line",
+        "provenance": "real",
+        "grounding": { "dataRef": "sales-secure", "portable": false }
+      }
+    },
+    {
+      "id": "refine-chart-type",
+      "mode": "refine",
+      "baseCaseId": "sales-dashboard-trend",
+      "target": "first-chart",
+      "request": { "prompt": "改成面积图，标题改为累计收入趋势", "language": "zh", "pageType": "dashboard" },
+      "expect": { "chartType": "area", "targetOnly": true }
+    },
+    {
+      "id": "refine-section-title",
+      "mode": "refine",
+      "baseCaseId": "sales-dashboard-trend",
+      "target": "first-section",
+      "request": { "prompt": "分区标题改为“管理层摘要”", "language": "zh", "pageType": "dashboard" },
+      "expect": { "sectionTitle": "管理层摘要", "targetOnly": true }
+    }
+  ]
+}

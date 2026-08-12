@@ -1,8 +1,8 @@
 ---
 layer: entry
 type: guide
-last_verified: 2026-06-30
-depends_on: [PROJECT.md, AGENTS.md, docs/SKILL_ENGINEERING.md]
+last_verified: 2026-08-10
+depends_on: [PROJECT.md, AGENTS.md, docs/SKILL_ENGINEERING.md, docs/ROADMAP.md]
 ---
 
 # project10-dashboard-skill
@@ -32,6 +32,8 @@ This repository packages a small Codex skill focused on generating or refining d
   Deterministic checks and the optional local Studio preview service.
 - `/docs/SKILL_ENGINEERING.md`
   Higher-level notes about how the skill is structured and maintained.
+- `/docs/ROADMAP.md`
+  Product-platform milestones, scope boundaries, and acceptance gates.
 
 ## Skill Positioning
 
@@ -78,6 +80,7 @@ That folder already includes:
 - `assets/templates/starter.html`
 - `references/*.md`
 - `schemas/dashboard-workspace.schema.json`
+- `schemas/dashboard-generation.schema.json`
 
 The skill works without the local Studio. Start the optional enhanced preview with:
 
@@ -86,7 +89,9 @@ npm install
 npm start
 ```
 
-Studio provides full icon search and future chart resources. Exported HTML remains standalone and does not depend on the Studio service.
+Studio provides full icon search, chart rendering, controlled AI generation, revision history and export. Exported HTML remains standalone and does not depend on the Studio service.
+
+The Studio defaults to its deterministic local provider. To use the server-side OpenAI Responses adapter, explicitly set `DASHBOARD_AI_PROVIDER=openai`, `DASHBOARD_AI_MODEL`, and `OPENAI_API_KEY` before `npm start`. The key never enters the browser, workspace, portable Skill, or exported HTML. Detailed variables and limits are documented in `docs/ENVIRONMENT.md`.
 
 ### Distribution
 
@@ -98,22 +103,36 @@ Latest package download:
 
 - [dashboard-html.zip](https://github.com/lijinmei915/project10-dashboard-skill/releases/download/v0.2.1/dashboard-html.zip)
 - Last package refresh: `2026-07-21`
+- Status: verified downloadable legacy package; it predates the current platform-planning and editor changes
 
-Keep these files:
+`v0.2.1` contains the original minimal `SKILL.md`, platform adapter, `topic/output` references, and starter template. It does not yet contain the newer workspace schema, palette, runtime/testing references, or package contract checks, so it should not be treated as the next complete portable release.
+
+The next portable package contract keeps:
 
 - `SKILL.md`
 - `agents/openai.yaml`
 - `assets/templates/starter.html`
-- `references/topic.md`
-- `references/output.md`
+- `assets/palette.v1.json`
+- required `references/*.md`
+- `schemas/dashboard-workspace.schema.json`
+- `schemas/dashboard-generation.schema.json`
+- small semantic catalogs and deterministic contract checks
 
-No `dist` directory is required.
+The portable package excludes `node_modules`, complete icon/chart runtimes, the Studio service, user data, and local caches. Rules remain complete through on-demand references; lightweight distribution does not mean deleting required behavior.
+
+Build and verify the next portable ZIP with:
+
+```bash
+npm run build:skill
+```
+
+The command copies only `package.manifest.json` entries, unpacks the ZIP, runs its packaged contract check, and writes `dist/dashboard-html-0.3.0-dev.zip`. This is a release candidate only; building it does not publish or tag a release.
 
 This skill is distributed as source files because:
 
-- the portable core has no build step
+- the source directory remains directly usable without compilation
 - there is no compiled runtime artifact
-- the skill directory itself is the final usable form
+- the downloadable ZIP uses a packaging step only to prevent missing or accidental files
 
 ### Usage Rules
 
@@ -182,4 +201,5 @@ Minimal visual base source (no fixed dashboard modules):
 - [`AGENTS.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/AGENTS.md)
 - [`PROJECT.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/PROJECT.md)
 - [`HANDOFF.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/HANDOFF.md)
+- [`docs/ROADMAP.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/docs/ROADMAP.md)
 - [`docs/SKILL_ENGINEERING.md`](/Users/heqiao/Desktop/Claude练习/项目10-dashboard%20skill/docs/SKILL_ENGINEERING.md)
