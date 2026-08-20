@@ -14,6 +14,10 @@ function chat(candidate = fixture) {
   return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(candidate) } }] }), { status: 200 });
 }
 
+function providerResponse(url, models = ["model-one"]) {
+  return url.endsWith("/models") ? new Response(JSON.stringify({ data: models.map((id) => ({ id })) }), { status: 200 }) : chat();
+}
+
 test("persists organization provider profiles separately from credentials", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "dashboard-provider-profiles-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -28,6 +32,7 @@ test("persists organization provider profiles separately from credentials", asyn
   await manager.upsert("org-a", { id: "primary", name: "主模型", apiBase: "https://a.example/v1", model: "a-model", apiKey: "org-a-secret" });
   await manager.upsert("org-b", { id: "primary", name: "主模型", apiBase: "https://b.example/v1", model: "b-model", apiKey: "org-b-secret" });
   assert.equal((await manager.profiles("org-a"))[0].model, "a-model");
+  assert.equal((await manager.profiles("org-a"))[0].apiBase, "https://a.example/v1");
   assert.equal((await manager.profiles("org-b"))[0].model, "b-model");
   assert(!JSON.stringify(await manager.profiles("org-a")).includes("secret"));
 
@@ -77,17 +82,34 @@ test("organization admins create, activate, and delete persisted profiles throug
   const savedBody = await saved.json();
   assert.equal(savedBody.profiles[0].active, true);
   assert(!JSON.stringify(savedBody).includes("http-secret"));
-  assert(!JSON.stringify(savedBody).includes("team.example"));
+  assert.equal(savedBody.profiles[0].apiBase, "https://team.example/v1");
 
   const probed = await fetch(`${origin}/api/ai-providers/models/probe`, { method: "POST", headers, body: JSON.stringify({ profileId: "team" }) });
   assert.deepEqual(await probed.json(), { models: ["model-one"] });
 
   const listed = await fetch(`${origin}/api/ai-providers`).then((response) => response.json());
   assert.equal(listed.profiles[0].id, "team");
+  assert.equal(listed.profiles[0].apiBase, "https://team.example/v1");
   assert.equal(listed.profiles[0].credentialConfigured, true);
   assert.deepEqual(await fetch(`${origin}/api/ai-providers/models?profileId=team`).then((response) => response.json()), { models: ["model-one"] });
+
+  const disabled = await fetch(`${origin}/api/ai-providers/deactivate`, { method: "POST", headers });
+  assert.equal(disabled.status, 200);
+  assert.equal((await disabled.json()).profiles[0].active, false);
 
   const removed = await fetch(`${origin}/api/ai-providers/team`, { method: "DELETE", headers });
   assert.equal(removed.status, 200);
   assert.equal((await removed.json()).profiles[0].id, "deterministic-local");
+});
+
+test("connection testing distinguishes an unavailable model from an invalid key", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "dashboard-provider-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const repository = createProviderProfileRepository({ configurationDirectory: path.join(root, "config"), secretDirectory: path.join(root, "secrets") });
+  const manager = createOrganizationProviderManager({ repository, fallbackProvider: createProviderFromEnv({}), fetchImpl: async (url) => providerResponse(url, ["valid-model"]) });
+  await manager.upsert("org-a", { id: "team", name: "团队模型", apiBase: "https://team.example/v1", model: "missing-model", apiKey: "valid-key" });
+  await assert.rejects(() => manager.testConnection("org-a", "team"), (error) => error.code === "provider_model_unavailable" && error.httpStatus === 422);
+
+  const rejected = createOrganizationProviderManager({ repository, fallbackProvider: createProviderFromEnv({}), fetchImpl: async () => new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 }) });
+  await assert.rejects(() => rejected.testConnection("org-a", "team"), (error) => error.code === "provider_upstream" && error.httpStatus === 502);
 });

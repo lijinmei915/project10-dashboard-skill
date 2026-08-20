@@ -1,7 +1,20 @@
 [
-  { "type": "line", "name": "折线图", "aliases": ["趋势", "时间序列", "走势", "变化"] },
+  { "type": "line", "name": "折线图", "semantic": "ordered-category-trend", "dataShape": "ordered-categories+one-or-more-series", "aliases": ["折线图", "曲线图", "趋势", "走势", "变化"] },
+  { "type": "time-series", "name": "时序图", "semantic": "timestamp-indexed-trend", "dataShape": "timestamps+one-or-more-series+optional-thresholds", "aliases": ["时序图", "时间序列图", "时间轴趋势", "监控趋势", "阈值趋势"] },
   { "type": "area", "name": "面积图", "aliases": ["趋势", "累计", "规模", "变化"] },
-  { "type": "bar", "name": "柱状图", "aliases": ["对比", "分类", "分布"] },
-  { "type": "horizontal-bar", "name": "条形图", "aliases": ["横向对比", "横向排行", "条形", "排名", "长标签"] },
-  { "type": "pie", "name": "环形图", "aliases": ["占比", "构成", "份额", "比例"] }
+  { "type": "bar", "name": "基础柱图", "semantic": "single-series-category-comparison", "dataShape": "categories+single-series", "aliases": ["基础柱图", "柱状图", "柱形图", "单系列", "分类对比"] },
+  { "type": "grouped-bar", "name": "分组柱图", "semantic": "multi-series-side-by-side-comparison", "dataShape": "categories+multiple-series", "aliases": ["分组柱图", "多层柱图", "并列柱图", "簇状柱图", "多系列对比"] },
+  { "type": "stacked-bar", "name": "堆叠柱图", "semantic": "multi-series-total-and-composition", "dataShape": "categories+multiple-series", "aliases": ["堆叠柱图", "累计柱图", "总量与构成"] },
+  { "type": "percent-stacked-bar", "name": "百分比堆叠柱图", "semantic": "normalized-composition-comparison", "dataShape": "categories+multiple-series", "aliases": ["百分比堆叠柱图", "百分百堆叠柱图", "100%堆叠柱图", "占比堆叠"] },
+  { "type": "histogram", "name": "直方图", "semantic": "continuous-value-frequency-distribution", "dataShape": "single-series-raw-samples", "aliases": ["直方图", "频数分布", "频率分布", "区间分布", "分箱"] },
+  { "type": "horizontal-bar", "name": "基础条图", "semantic": "single-series-horizontal-category-comparison", "dataShape": "categories+single-series", "aliases": ["基础条图", "横向条形图", "横向柱状图", "长标签对比"] },
+  { "type": "grouped-horizontal-bar", "name": "分组条图", "semantic": "multi-series-horizontal-side-by-side-comparison", "dataShape": "categories+multiple-series", "aliases": ["分组条图", "多层条图", "并列条图", "多系列横向对比"] },
+  { "type": "stacked-horizontal-bar", "name": "堆叠条图", "semantic": "horizontal-total-and-composition", "dataShape": "categories+multiple-series", "aliases": ["堆叠条图", "堆积条图", "横向堆叠"] },
+  { "type": "percent-stacked-horizontal-bar", "name": "百分比堆叠条图", "semantic": "horizontal-normalized-composition-comparison", "dataShape": "categories+multiple-series", "aliases": ["百分比堆叠条图", "百分百堆叠条图", "100%堆叠条图"] },
+  { "type": "diverging-bar", "name": "双向条图", "semantic": "opposing-values-around-zero-baseline", "dataShape": "categories+two-series", "aliases": ["双向条图", "双向条形图", "正负条图", "人口金字塔"] },
+  { "type": "ranking-bar", "name": "排名图", "semantic": "descending-ranked-category-comparison", "dataShape": "categories+single-series", "aliases": ["排名图", "排行图", "榜单", "Top N", "名次"] },
+  { "type": "gantt", "name": "甘特图", "semantic": "task-duration-on-time-axis", "dataShape": "tasks+start-series+duration-series", "aliases": ["甘特图", "项目排期", "任务排期", "时间进度", "里程碑计划"] },
+  { "type": "sector-pie", "name": "饼图", "semantic": "part-to-whole-solid-sectors", "dataShape": "categories+single-nonnegative-series", "aliases": ["饼图", "实心饼图", "扇形占比"] },
+  { "type": "pie", "name": "环图", "semantic": "part-to-whole-donut", "dataShape": "categories+single-nonnegative-series", "aliases": ["环图", "环形图", "圆环图", "甜甜圈图"] },
+  { "type": "rose", "name": "玫瑰图", "semantic": "part-to-whole-radius-comparison", "dataShape": "categories+single-nonnegative-series", "aliases": ["玫瑰图", "南丁格尔玫瑰图", "极区图", "半径饼图"] }
 ]

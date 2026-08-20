@@ -51,6 +51,7 @@ const iconRoot = path.join(rootDir, "node_modules/@phosphor-icons/core/assets");
 const aliasesPath = path.resolve(scriptDir, "../data/icon-aliases.zh.json");
 const chartCatalogPath = path.resolve(scriptDir, "../data/chart-catalog.json");
 const componentRegistryPath = path.resolve(scriptDir, "../data/component-registry.json");
+const designStandardsPath = path.resolve(scriptDir, "../data/design-standards.json");
 const port = Number(process.env.PORT || 8765);
 const host = process.env.HOST || "127.0.0.1";
 const fallbackProvider = createProviderFromEnv();
@@ -58,7 +59,13 @@ const defaultProviderProfileRepository = createProviderProfileRepository({
   configurationDirectory: process.env.DASHBOARD_PROVIDER_PROFILES_DIR || path.join(rootDir, ".dashboard-provider-profiles"),
   secretDirectory: process.env.DASHBOARD_PROVIDER_SECRETS_DIR || path.join(rootDir, ".dashboard-provider-secrets")
 });
-const defaultProvider = createOrganizationProviderManager({ repository: defaultProviderProfileRepository, fallbackProvider, timeoutMs: Number(process.env.DASHBOARD_AI_TIMEOUT_MS) || 45_000 });
+const defaultProvider = createOrganizationProviderManager({
+  repository: defaultProviderProfileRepository,
+  fallbackProvider,
+  timeoutMs: Number(process.env.DASHBOARD_AI_TIMEOUT_MS) || 300_000,
+  firstByteTimeoutMs: Number(process.env.DASHBOARD_AI_FIRST_BYTE_TIMEOUT_MS) || 120_000,
+  idleTimeoutMs: Number(process.env.DASHBOARD_AI_IDLE_TIMEOUT_MS) || 60_000
+});
 const defaultProjectRepository = createProjectRepository({ directory: process.env.DASHBOARD_PROJECTS_DIR || path.join(rootDir, ".dashboard-projects") });
 const defaultDataSourceRepository = createDataSourceRepository({ directory: process.env.DASHBOARD_DATA_SOURCES_DIR || path.join(rootDir, ".dashboard-data-sources") });
 const defaultPublicationRepository = createPublicationRepository({ directory: process.env.DASHBOARD_PUBLICATIONS_DIR || path.join(rootDir, ".dashboard-publications") });
@@ -99,6 +106,7 @@ const defaultQueryCache = createSemanticQueryCache({
   maxEntries: Math.max(10, Number(process.env.DASHBOARD_QUERY_CACHE_MAX_ENTRIES) || 100)
 });
 const defaultDataAccessPolicyService = createDataAccessPolicyService({ policies: dataAccessPoliciesFromEnv() });
+const providerScope = (actor) => actor?.id === "local-admin" ? "local" : actor?.id || actor?.actorId || actor?.organizationId;
 function jsonEnvironment(name) {
   try { return JSON.parse(process.env[name] || "{}"); } catch { return {}; }
 }
@@ -126,6 +134,7 @@ const mimeTypes = new Map([
 const aliases = JSON.parse(await readFile(aliasesPath, "utf8"));
 const chartCatalog = JSON.parse(await readFile(chartCatalogPath, "utf8"));
 const componentRegistry = JSON.parse(await readFile(componentRegistryPath, "utf8"));
+const designStandards = JSON.parse(await readFile(designStandardsPath, "utf8"));
 const regularFiles = await readdir(path.join(iconRoot, "regular"));
 const iconNames = regularFiles
   .filter((file) => file.endsWith(".svg"))
@@ -184,6 +193,39 @@ function sendJson(response, statusCode, payload, headers = {}) {
   response.end(JSON.stringify(payload));
 }
 
+async function sendGenerationEventStream(request, response, generationJobService, jobId, actor) {
+  const requestedCursor = request.headers["last-event-id"] || new URL(request.url, "http://localhost").searchParams.get("after") || 0;
+  let cursor = Math.max(0, Number(requestedCursor) || 0);
+  const initial = await generationJobService.events(jobId, actor, { after: cursor });
+  if (!initial) return sendJson(response, 404, { error: "Generation job not found" });
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-store",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  response.write("retry: 1000\n\n");
+  let closed = false;
+  let lastHeartbeat = Date.now();
+  request.once("close", () => { closed = true; });
+  let snapshot = initial;
+  while (!closed) {
+    for (const event of snapshot.events) {
+      cursor = event.id;
+      response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+    }
+    if (snapshot.terminal) break;
+    if (Date.now() - lastHeartbeat >= 15_000) {
+      response.write(`event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`);
+      lastHeartbeat = Date.now();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    snapshot = await generationJobService.events(jobId, actor, { after: cursor });
+    if (!snapshot) break;
+  }
+  if (!closed) response.end();
+}
+
 function sendArtifact(response, artifact, { disposition = "attachment", cacheControl = "private, no-cache", headers = {} } = {}) {
   response.writeHead(200, {
     "Content-Type": artifact.mediaType,
@@ -238,17 +280,38 @@ function normalizeChartRequest(input) {
     mode: input.mode === "dark" ? "dark" : "light",
     width: Math.max(240, Math.min(1600, Number(input.width) || 720)),
     height: Math.max(180, Math.min(1000, Number(input.height) || 360)),
-    palette: Array.isArray(input.palette) ? input.palette.slice(0, 12).filter((color) => /^#[0-9a-f]{6}$/i.test(color)) : []
+    palette: Array.isArray(input.palette) ? input.palette.slice(0, 12).filter((color) => /^#[0-9a-f]{6}$/i.test(color)) : [],
+    thresholds: Array.isArray(input.thresholds) ? input.thresholds.slice(0, 6).map(Number).filter(Number.isFinite) : []
   };
 }
 
-function chartOption({ type, labels, series, palette, mode, width }) {
+function chartOption({ type, labels, series, palette, mode, width, thresholds = [] }) {
   const colors = palette.length ? palette : ["#5b8ff9", "#45b8d8", "#43c59e", "#96bf45", "#f3a83b", "#f06b72", "#de72b4", "#9270e8"];
   const textStyle = { color: mode === "dark" ? "#aeb8c6" : "#71717a", fontFamily: "sans-serif", fontSize: 12 };
   const axisColor = mode === "dark" ? "#46505f" : "#d4d4d8";
   const gridColor = mode === "dark" ? "#303947" : "#e4e4e7";
-  const horizontal = type === "horizontal-bar";
-  if (type === "pie") {
+  const horizontalTypes = new Set(["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"]);
+  const horizontal = horizontalTypes.has(type);
+  const stacked = ["stacked-bar", "percent-stacked-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar"].includes(type);
+  const normalized = type === "percent-stacked-bar" || type === "percent-stacked-horizontal-bar";
+  if (type === "histogram") {
+    const samples = series[0].values.filter(Number.isFinite);
+    const minimum = Math.min(...samples, 0);
+    const maximum = Math.max(...samples, 1);
+    const binCount = Math.max(4, Math.min(12, Math.ceil(Math.sqrt(samples.length))));
+    const binWidth = (maximum - minimum || 1) / binCount;
+    const bins = Array.from({ length: binCount }, (_, index) => ({ start: minimum + index * binWidth, end: minimum + (index + 1) * binWidth, count: 0 }));
+    samples.forEach((value) => bins[Math.min(binCount - 1, Math.max(0, Math.floor((value - minimum) / binWidth)))].count += 1);
+    labels = bins.map(({ start, end }) => `${start.toFixed(1)}-${end.toFixed(1)}`);
+    series = [{ name: series[0].name, values: bins.map(({ count }) => count) }];
+  }
+  if (type === "ranking-bar") {
+    const order = labels.map((label, index) => ({ label, value: Number(series[0]?.values[index]) || 0 })).sort((left, right) => left.value - right.value);
+    labels = order.map(({ label }) => label);
+    series = [{ ...series[0], values: order.map(({ value }) => value) }];
+  }
+  if (type === "diverging-bar") series = series.slice(0, 2).map((item, index) => ({ ...item, values: item.values.map((value) => index === 0 ? -Math.abs(value) : Math.abs(value)) }));
+  if (["pie", "sector-pie", "rose"].includes(type)) {
     const values = series[0].values;
     const compact = width < 420;
     return {
@@ -259,7 +322,8 @@ function chartOption({ type, labels, series, palette, mode, width }) {
       legend: compact ? { show: true, bottom: 0, left: "center", width: "92%", itemWidth: 8, itemHeight: 8, textStyle } : { show: false },
       series: [{
         type: "pie",
-        radius: compact ? ["34%", "56%"] : ["48%", "72%"],
+        radius: type === "sector-pie" ? (compact ? "56%" : "72%") : type === "rose" ? (compact ? ["18%", "56%"] : ["20%", "72%"]) : compact ? ["34%", "56%"] : ["48%", "72%"],
+        roseType: type === "rose" ? "radius" : undefined,
         center: compact ? ["50%", "42%"] : ["50%", "50%"],
         label: compact ? { show: false } : { color: textStyle.color, formatter: "{b}  {d}%" },
         labelLine: { show: !compact },
@@ -274,19 +338,27 @@ function chartOption({ type, labels, series, palette, mode, width }) {
     tooltip: { show: false },
     legend: { show: series.length > 1, top: 0, textStyle },
     grid: horizontal ? { left: width < 420 ? 78 : 110, right: width < 420 ? 14 : 24, top: series.length > 1 ? 42 : 18, bottom: 20 } : { left: width < 420 ? 42 : 48, right: width < 420 ? 12 : 20, top: series.length > 1 ? 42 : 20, bottom: 34 },
-    xAxis: horizontal ? { type: "value", splitLine: { lineStyle: { color: gridColor } }, axisLabel: textStyle } : { type: "category", data: labels, axisLine: { lineStyle: { color: axisColor } }, axisTick: { show: false }, axisLabel: { ...textStyle, hideOverlap: true } },
-    yAxis: horizontal ? { type: "category", data: labels, axisLine: { lineStyle: { color: axisColor } }, axisTick: { show: false }, axisLabel: { ...textStyle, width: width < 420 ? 62 : 92, overflow: "truncate" } } : { type: "value", splitLine: { lineStyle: { color: gridColor } }, axisLabel: textStyle },
+    xAxis: horizontal ? { type: "value", max: normalized ? 100 : undefined, splitLine: { lineStyle: { color: gridColor } }, axisLabel: normalized ? { ...textStyle, formatter: "{value}%" } : type === "diverging-bar" ? { ...textStyle, formatter: (value) => Math.abs(value) } : textStyle } : type === "time-series" ? { type: "time", axisLine: { lineStyle: { color: axisColor } }, axisLabel: { ...textStyle, hideOverlap: true } } : { type: "category", data: labels, axisLine: { lineStyle: { color: axisColor } }, axisTick: { show: false }, axisLabel: { ...textStyle, hideOverlap: true } },
+    yAxis: horizontal ? { type: "category", data: labels, axisLine: { lineStyle: { color: axisColor } }, axisTick: { show: false }, axisLabel: { ...textStyle, width: width < 420 ? 62 : 92, overflow: "truncate" } } : { type: "value", max: normalized ? 100 : undefined, splitLine: { lineStyle: { color: gridColor } }, axisLabel: normalized ? { ...textStyle, formatter: "{value}%" } : textStyle },
     series: series.map(({ name, values }) => ({
       name,
-      type: type === "bar" || horizontal ? "bar" : "line",
-      data: values,
+      type: type === "bar" || type === "grouped-bar" || stacked || type === "histogram" || horizontal ? "bar" : "line",
+      stack: stacked || type === "diverging-bar" || type === "gantt" ? "total" : undefined,
+      data: type === "time-series" ? values.map((value, index) => [labels[index], value]) : normalized ? values.map((value, index) => {
+        const total = series.reduce((sum, item) => sum + (Number(item.values[index]) || 0), 0);
+        return total ? Number(value) / total * 100 : 0;
+      }) : values,
       smooth: type === "area",
       symbol: "circle",
       symbolSize: 6,
       lineStyle: { width: 2 },
       areaStyle: type === "area" ? { opacity: 0.18 } : undefined,
-      barMaxWidth: horizontal ? 24 : 32,
-      itemStyle: type === "bar" ? { borderRadius: [4, 4, 0, 0] } : horizontal ? { borderRadius: [0, 4, 4, 0] } : undefined
+      barGap: type === "histogram" ? "0%" : undefined,
+      barCategoryGap: type === "histogram" ? "0%" : undefined,
+      barMaxWidth: horizontal ? 24 : type === "histogram" ? 56 : 32,
+      itemStyle: type === "gantt" && name === series[0]?.name ? { color: "transparent" } : type === "ranking-bar" ? { borderRadius: [0, 4, 4, 0] } : type === "bar" || type === "grouped-bar" || type === "histogram" ? { borderRadius: type === "histogram" ? 0 : [4, 4, 0, 0] } : horizontal ? { borderRadius: [0, 4, 4, 0] } : undefined,
+      label: type === "ranking-bar" ? { show: true, position: "insideLeft", formatter: ({ dataIndex }) => `${labels.length - dataIndex}` } : undefined
+      ,markLine: type === "time-series" && thresholds.length ? { silent: true, symbol: "none", lineStyle: { type: "dashed" }, data: thresholds.map((yAxis) => ({ yAxis })) } : undefined
     }))
   };
 }
@@ -326,7 +398,7 @@ async function serveFile(response, filePath, cacheControl = null) {
 async function serveStatic(response, pathname, studioWebRoot = null) {
   if (studioWebRoot && (pathname === "/" || pathname.startsWith("/studio/"))) {
     const decoded = decodeURIComponent(pathname);
-    const requested = pathname === "/" ? "/index.html" : decoded;
+    const requested = pathname === "/" ? "/index.html" : pathname === "/studio/resources" ? "/studio/resources.html" : decoded;
     const candidate = path.resolve(studioWebRoot, `.${requested}`);
     if (!candidate.startsWith(`${studioWebRoot}${path.sep}`)) return sendJson(response, 403, { error: "Forbidden" });
     try {
@@ -338,7 +410,7 @@ async function serveStatic(response, pathname, studioWebRoot = null) {
     }
   }
   const studioShellRoute = pathname === "/studio/projects" || /^\/studio\/projects\/[^/]+$/.test(pathname) || pathname === "/studio/organizations/current" || /^\/studio\/publications\/[^/]+$/.test(pathname);
-  const requested = pathname === "/" || studioShellRoute ? "/.dashboard-preset-preview.html" : pathname;
+  const requested = pathname === "/studio/resources" ? "/.studio-resources.html" : pathname === "/" || studioShellRoute ? "/.dashboard-preset-preview.html" : pathname;
   const filePath = path.resolve(rootDir, `.${decodeURIComponent(requested)}`);
   if (!filePath.startsWith(`${rootDir}${path.sep}`) && filePath !== rootDir) return sendJson(response, 403, { error: "Forbidden" });
   return serveFile(response, filePath);
@@ -459,8 +531,8 @@ export async function handlePreviewRequest(request, response, { provider = defau
       return sendJson(response, 200, { metrics: await generationJobService.metrics(actor, { since: url.searchParams.get("since") }) });
     }
     if (url.pathname === "/api/ai-providers" && request.method === "GET") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
-      const profiles = typeof provider.profiles === "function" ? await provider.profiles(actor.organizationId) : [{
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
+      const profiles = typeof provider.profiles === "function" ? await provider.profiles(providerScope(actor)) : [{
         id: provider.profileId || provider.id,
         name: provider.id === "deterministic-local" ? "本地演示模式" : provider.id,
         provider: provider.id,
@@ -471,39 +543,45 @@ export async function handlePreviewRequest(request, response, { provider = defau
       return sendJson(response, 200, { profiles, managed: typeof provider.activate === "function" });
     }
     if (url.pathname === "/api/ai-providers/activate" && request.method === "POST") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
       if (typeof provider.activate !== "function") return sendJson(response, 409, { error: "Provider profiles are not managed by Studio" });
       const profileId = (await readJsonBody(request)).profileId;
-      const profiles = await (provider.organizations ? provider.activate(actor.organizationId, profileId) : provider.activate(profileId));
+      const profiles = await (provider.organizations ? provider.activate(providerScope(actor), profileId) : provider.activate(profileId));
+      return sendJson(response, 200, { profiles });
+    }
+    if (url.pathname === "/api/ai-providers/deactivate" && request.method === "POST") {
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
+      if (typeof provider.deactivate !== "function") return sendJson(response, 409, { error: "Provider profiles are not managed by Studio" });
+      const profiles = await (provider.organizations ? provider.deactivate(providerScope(actor)) : provider.deactivate());
       return sendJson(response, 200, { profiles });
     }
     if (url.pathname === "/api/ai-providers" && request.method === "PUT") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
       if (typeof provider.upsert !== "function") return sendJson(response, 409, { error: "Provider profiles are not managed by Studio" });
-      return sendJson(response, 200, { profiles: await provider.upsert(actor.organizationId, await readJsonBody(request)) });
+      return sendJson(response, 200, { profiles: await provider.upsert(providerScope(actor), await readJsonBody(request)) });
     }
     const providerProfileRoute = url.pathname.match(/^\/api\/ai-providers\/([^/]+)$/);
     if (providerProfileRoute && request.method === "DELETE") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
       if (typeof provider.remove !== "function") return sendJson(response, 409, { error: "Provider profiles are not managed by Studio" });
-      return sendJson(response, 200, { profiles: await provider.remove(actor.organizationId, decodeURIComponent(providerProfileRoute[1])) });
+      return sendJson(response, 200, { profiles: await provider.remove(providerScope(actor), decodeURIComponent(providerProfileRoute[1])) });
     }
     if (url.pathname === "/api/ai-providers/test" && request.method === "POST") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
       if (typeof provider.testConnection !== "function") return sendJson(response, 409, { error: "Connection testing is unavailable for this provider" });
       const profileId = (await readJsonBody(request)).profileId;
-      return sendJson(response, 200, { result: await (provider.organizations ? provider.testConnection(actor.organizationId, profileId) : provider.testConnection(profileId)) });
+      return sendJson(response, 200, { result: await (provider.organizations ? provider.testConnection(providerScope(actor), profileId) : provider.testConnection(profileId)) });
     }
     if (url.pathname === "/api/ai-providers/models" && request.method === "GET") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
       if (typeof provider.discoverModels !== "function") return sendJson(response, 409, { error: "Model discovery is unavailable for this provider" });
       const profileId = url.searchParams.get("profileId") || undefined;
-      return sendJson(response, 200, { models: await (provider.organizations ? provider.discoverModels(actor.organizationId, profileId) : provider.discoverModels(profileId)) });
+      return sendJson(response, 200, { models: await (provider.organizations ? provider.discoverModels(providerScope(actor), profileId) : provider.discoverModels(profileId)) });
     }
     if (url.pathname === "/api/ai-providers/models/probe" && request.method === "POST") {
-      if (actor.organizationRole !== "admin") throw new AuthError("Organization admin role is required", 403, "organization-admin-required");
+      if (!providerScope(actor)) throw new AuthError("Login is required", 401, "login-required");
       if (typeof provider.probeModels !== "function") return sendJson(response, 409, { error: "Model discovery is unavailable for this provider" });
-      return sendJson(response, 200, { models: await provider.probeModels(actor.organizationId, await readJsonBody(request)) });
+      return sendJson(response, 200, { models: await provider.probeModels(providerScope(actor), await readJsonBody(request)) });
     }
     if (url.pathname === "/api/auth/actors" && request.method === "GET") return sendJson(response, 200, { actors: await authService.directory(actor) });
     if (url.pathname === "/api/organizations/current" && request.method === "GET") {
@@ -584,6 +662,9 @@ export async function handlePreviewRequest(request, response, { provider = defau
         charts: chartCatalog
       });
     }
+    if (url.pathname === "/api/design/standards" && request.method === "GET") {
+      return sendJson(response, 200, designStandards);
+    }
     if (url.pathname === "/api/charts/render" && request.method === "POST") {
       return sendJson(response, 200, { svg: renderChartSvg(await readJsonBody(request)) });
     }
@@ -605,6 +686,10 @@ export async function handlePreviewRequest(request, response, { provider = defau
     if (generationJobFeedback && request.method === "POST") {
       const feedback = await generationJobService.feedback(decodeURIComponent(generationJobFeedback[1]), actor, await readJsonBody(request));
       return feedback ? sendJson(response, 200, { feedback }) : sendJson(response, 404, { error: "Generation job not found" });
+    }
+    const generationJobEvents = url.pathname.match(/^\/api\/generation\/jobs\/([^/]+)\/events$/);
+    if (generationJobEvents && request.method === "GET") {
+      return sendGenerationEventStream(request, response, generationJobService, decodeURIComponent(generationJobEvents[1]), actor);
     }
     const generationJobRead = url.pathname.match(/^\/api\/generation\/jobs\/([^/]+)$/);
     if (generationJobRead && request.method === "GET") {
@@ -1054,7 +1139,7 @@ export async function handlePreviewRequest(request, response, { provider = defau
   } catch (error) {
     sendJson(response, errorStatus(error), {
       error: error.message || "Internal server error",
-      ...(error instanceof AuthError ? { code: error.code } : {}),
+      ...((error instanceof AuthError || error instanceof ProviderError) && error.code ? { code: error.code } : {}),
       ...(error instanceof ContractError && error.issues.length ? { issues: error.issues } : {})
     });
   }
@@ -1065,7 +1150,12 @@ export function createPreviewServer({ provider = defaultProvider, projectReposit
   const leaseDurationMs = Math.max(5_000, Number(process.env.DASHBOARD_REFRESH_LEASE_MS) || 30_000);
   const activeDataConnector = dataConnector || { refresh(source, options) { return source.kind === "postgres" ? postgresConnector.refresh(source, options) : restConnector.refresh(source, options); } };
   const activeJobService = jobService || createRefreshJobService({ jobRepository, dataSourceRepository, restConnector: activeDataConnector, queryCache, baseDelayMs: Number(process.env.DASHBOARD_REFRESH_RETRY_BASE_MS) || 1_000, leaseDurationMs });
-  const activeGenerationJobService = generationJobService || createGenerationJobService({ jobRepository, provider, resolveData: (request, actor) => resolveGenerationData(request, dataSourceRepository, actor, dataAccessPolicyService) });
+  const activeGenerationJobService = generationJobService || createGenerationJobService({
+    jobRepository,
+    provider,
+    resolveData: (request, actor) => resolveGenerationData(request, dataSourceRepository, actor, dataAccessPolicyService),
+    maximumDurationMs: Number(process.env.DASHBOARD_AI_TIMEOUT_MS) || 300_000
+  });
   const activeRefreshScheduleService = refreshScheduleService || createRefreshScheduleService({ scheduleRepository: refreshScheduleRepository, dataSourceRepository, jobService: activeJobService, leaseDurationMs });
   const activeAuditRepository = auditRepository || (projectRepository === defaultProjectRepository ? defaultAuditRepository : createAuditRepository({ directory: path.join(path.dirname(projectRepository.directory), "audit") }));
   const baseAuditOutbox = projectRepository === defaultProjectRepository && activeAuditRepository === defaultAuditRepository ? defaultAuditOutbox : createAuditOutboxDispatcher({ projectRepository, auditRepository: activeAuditRepository });

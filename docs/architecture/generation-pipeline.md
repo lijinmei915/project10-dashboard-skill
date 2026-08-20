@@ -85,6 +85,7 @@ intake -> normalized -> planning -> generating -> validating
 - 新增或复制的组件必须使用独立稳定 ID。摘要卡暂不允许复制，分区最后一张卡不得删除，卡片跨度只使用 `3 / 4 / 6 / 8 / 12` 受控档位。
 - Studio 依据 candidate workspace 协调真实画布 DOM。模板只决定受控组件的初始结构；DOM 不得反向成为内容或布局真相。
 - 隔离预览同时保留 baseline 与 candidate。接受前原 workspace 不变；取消直接丢弃 candidate。
+- Studio 中的项目中心只承载 Intake；Generation Job 创建成功后关闭模态浮层，画布生成浮条接管运行状态和 Review 操作。浮条复用同一 Composer 状态机，不持有第二份 candidate 或 baseline。
 
 ## 反向命令与撤销
 
@@ -141,5 +142,6 @@ Provider 不负责：
 - 局部精修找不到目标、无法解析受控操作或命令越界时保留当前 workspace，并返回可行动错误。
 - 结构命令找不到关联布局、触发受保护卡片规则或无法生成无损反向命令时保留当前 workspace，并返回可行动错误。
 - 示例数据必须在 document 和 provenance 中同时可见。
+- Provider chunk 只在服务端内存中累积；完整候选通过校验后，客户端一次应用原子隔离 Workspace，再按分区渐进揭示。渐进效果不构造或持久化部分 Workspace。
 - Generation Job 终态持久化最小 telemetry：排队、执行、总耗时和修复次数，不复制 prompt、workspace、候选或 DataContext。`GET /api/generation/metrics` 只允许组织管理员读取默认 24 小时、最多 30 天的状态计数、成功/失败/修复率、p50/p95 与失败码聚合；不返回 Job 或用户身份。
 - 候选评审保留 Job ID 直到用户接受或取消预览。版本提交成功后写入一次 `accepted`（可关联 revision ID），取消预览后写入 `dismissed`；反馈只允许任务发起人提交，重试幂等、冲突不可改写，不采集自由文本。组织指标只增加 accepted/dismissed/unrated 和候选可用率。

@@ -48,6 +48,9 @@ test("generation jobs persist lifecycle while hiding internal input from summari
   const completed = await waitFor(() => service.get(created.id, actor), ({ status }) => status === "succeeded");
   assert.equal(completed.run.status, "preview-ready");
   assert.equal(completed.input, undefined);
+  const eventSnapshot = await service.events(created.id, actor);
+  assert.deepEqual(eventSnapshot.events.map(({ type }) => type), ["job.queued", "job.started", "generation.generating", "preview.ready"]);
+  assert.equal(eventSnapshot.terminal, true);
   const stored = await jobRepository.get(created.id);
   assert.equal(stored.input.request.prompt, request.prompt);
   assert.equal(JSON.stringify(stored).includes("dataContexts"), false);
@@ -155,9 +158,27 @@ test("canceling a running generation job fences a late provider result", async (
   assert.equal(final.run, undefined);
 });
 
+test("limits the complete generation job including provider repair", async (t) => {
+  const jobRepository = await fixture(t);
+  const provider = {
+    id: "never-ending-provider",
+    kind: "remote",
+    configured: true,
+    generateCandidate: ({ signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+    }),
+    repairCandidate: async ({ candidate }) => candidate
+  };
+  const service = createGenerationJobService({ jobRepository, provider, resolveData: async (candidate) => ({ request: candidate, dataContexts: [] }), maximumDurationMs: 1_000 });
+  await service.create({ id: "generation-deadline", mode: "draft", request, baseWorkspace: baseline, actor });
+  const completed = await waitFor(() => service.get("generation-deadline", actor), ({ status }) => status === "failed", 2_000);
+  assert.equal(completed.error.code, "provider_timeout");
+  assert.equal(completed.error.httpStatus, 504);
+});
+
 test("generation job HTTP API creates and polls an isolated preview", async (t) => {
   const jobRepository = await fixture(t);
-  const server = startPreviewServer({ listenPort: 0, silent: true, jobRepository });
+  const server = startPreviewServer({ listenPort: 0, silent: true, jobRepository, provider: createProviderFromEnv({}) });
   await new Promise((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const endpoint = `http://127.0.0.1:${server.address().port}`;
@@ -176,6 +197,13 @@ test("generation job HTTP API creates and polls an isolated preview", async (t) 
   assert.equal(completed.run.status, "preview-ready");
   assert.equal(completed.input, undefined);
   assert.deepEqual(Object.keys(completed.telemetry).sort(), ["executionMs", "queueMs", "repairAttempts", "totalMs"]);
+  const eventResponse = await fetch(`${endpoint}/api/generation/jobs/${created.id}/events`, { headers: { "Last-Event-ID": "2" } });
+  assert.equal(eventResponse.status, 200);
+  assert.match(eventResponse.headers.get("content-type"), /^text\/event-stream/);
+  const eventStream = await eventResponse.text();
+  assert.match(eventStream, /event: generation\.generating/);
+  assert.match(eventStream, /event: preview\.ready/);
+  assert.doesNotMatch(eventStream, /event: job\.queued/);
   const feedbackResponse = await fetch(`${endpoint}/api/generation/jobs/${created.id}/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

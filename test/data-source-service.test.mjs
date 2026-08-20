@@ -10,6 +10,7 @@ import { createProjectRepository } from "../.agents/skills/dashboard-html/script
 import { createJobRepository } from "../.agents/skills/dashboard-html/scripts/studio-job-repository.mjs";
 import { createRefreshScheduleRepository } from "../.agents/skills/dashboard-html/scripts/studio-refresh-schedule-repository.mjs";
 import { startPreviewServer } from "../.agents/skills/dashboard-html/scripts/preview-server.mjs";
+import { createProviderFromEnv } from "../.agents/skills/dashboard-html/scripts/provider-gateway.mjs";
 import { createXlsxFixture } from "./fixtures/xlsx-fixture.mjs";
 
 const csv = `月份,区域,收入,转化率,备注\n2026-01,华东,"1,200",0.31,"重点, 跟进"\n2026-02,华南,1500,0.35,\n2026-03,华东,1800,0.39,稳定`;
@@ -28,6 +29,30 @@ test("parses quoted CSV, infers fields, profiles quality, and creates a bounded 
   assert.equal(context.context.querySnapshots.totals.rows[0][0], 4500);
   assert.equal(context.portableDataset.records.length, 3);
   assert(!JSON.stringify(context).includes("credential"));
+});
+
+test("imports the first valid HTML table without executing embedded content", () => {
+  const html = `<!doctype html><html><body><script>throw new Error("must not run")</script><table><tr><th>月份</th><th>收入</th></tr><tr><td>2026-01</td><td><b>1,200</b><script>ignored()</script></td></tr><tr><td>2026-02</td><td>1800</td></tr></table></body></html>`;
+  const source = parseDataSource({ id: "sales-html", name: "HTML 销售表", format: "html", content: html, now: "2026-08-18T00:00:00.000Z" });
+  assert.equal(source.rowCount, 2);
+  assert.equal(source.contentKind, "table");
+  assert.deepEqual(source.fields.map(({ label }) => label), ["月份", "收入"]);
+  assert.equal(source.records[0][source.fields[1].id], 1200);
+  assert(!JSON.stringify(source.records).includes("ignored"));
+});
+
+test("imports a generic HTML page as semantic content for restyling", () => {
+  const html = `<!doctype html><html><head><title>销售经营简报</title><style>.card{color:red}</style></head><body><script>steal()</script><main><h1>销售经营简报</h1><section><h2>核心指标</h2><p>本月收入 1,200 万元，目标完成率 92%。</p><ul><li>华东区域增长最快</li><li>关注回款风险</li></ul></section></main></body></html>`;
+  const source = parseDataSource({ id: "sales-page", name: "销售经营简报", format: "html", content: html, now: "2026-08-18T00:00:00.000Z" });
+  assert.equal(source.contentKind, "page");
+  assert(source.rowCount >= 4);
+  assert.deepEqual(source.fields.map(({ label }) => label), ["内容类型", "分区", "内容"]);
+  const serialized = JSON.stringify(source.records);
+  assert(serialized.includes("本月收入"));
+  assert(!serialized.includes("steal"));
+  assert(!serialized.includes("color:red"));
+  const context = createDataContext(source);
+  assert.equal(context.context.contentKind, "page");
 });
 
 test("rejects invalid JSON rows and oversized inputs", () => {
@@ -109,7 +134,8 @@ test("persists imported data and generates a portable bound workspace through th
   const projectRepository = createProjectRepository({ directory: path.join(directory, "projects") });
   const jobRepository = createJobRepository({ directory: path.join(directory, "jobs") });
   const refreshScheduleRepository = createRefreshScheduleRepository({ directory: path.join(directory, "schedules") });
-  const server = startPreviewServer({ listenPort: 0, silent: true, dataSourceRepository, projectRepository, jobRepository, refreshScheduleRepository });
+  const provider = createProviderFromEnv({ DASHBOARD_AI_PROVIDER: "deterministic" });
+  const server = startPreviewServer({ listenPort: 0, silent: true, provider, dataSourceRepository, projectRepository, jobRepository, refreshScheduleRepository });
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const address = server.address();

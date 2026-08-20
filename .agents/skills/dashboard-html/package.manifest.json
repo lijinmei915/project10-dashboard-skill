@@ -9,6 +9,7 @@
     "assets/templates/starter.html",
     "data/chart-catalog.json",
     "data/component-registry.json",
+    "data/design-standards.json",
     "data/icon-aliases.zh.json",
     "package.manifest.json",
     "references/color-system.md",

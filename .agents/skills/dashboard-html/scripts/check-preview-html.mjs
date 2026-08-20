@@ -42,10 +42,12 @@ const workspaceLayoutControllerPath = path.resolve(scriptDir, "../../../../studi
 const workspaceLayoutController = await readFile(workspaceLayoutControllerPath, "utf8");
 const workspaceStructureSynchronizerPath = path.resolve(scriptDir, "../../../../studio/workspace-structure-synchronizer.mjs");
 const workspaceStructureSynchronizer = await readFile(workspaceStructureSynchronizerPath, "utf8");
+const resourceApplicationProtocolPath = path.resolve(scriptDir, "../../../../studio/resource-application-protocol.mjs");
+const resourceApplicationProtocol = await readFile(resourceApplicationProtocolPath, "utf8");
 const html = `${markup}\n${editorRuntime}\n${workspaceRenderer}\n${workspaceControlRenderer}\n${workspaceChartAdapter}\n${workspaceSession}\n${workspaceStateCore}\n${workspaceLayoutInteraction}\n${workspaceLayoutController}\n${workspaceStructureSynchronizer}`;
 
 if (scripts.length) throw new Error("Preview must not contain inline runtime scripts");
-if (!markup.includes('<script type="module" src="/studio/editor-runtime.js"></script>')) throw new Error("Preview must load the Studio editor runtime as an ES module");
+if (!/<script type="module" src="\/studio\/editor-runtime\.js(?:\?v=[^"]+)?"><\/script>/.test(markup)) throw new Error("Preview must load the Studio editor runtime as an ES module");
 if (!editorRuntime.includes('import { composeWorkspaceSnapshot, normalizeWorkspaceSnapshot, workspaceSlices } from "/studio/workspace-state-core.mjs";')) throw new Error("Studio editor runtime must use the workspace state core");
 if (!workspaceCoreClient.includes('export { diffWorkspaces, migrateWorkspace, validateWorkspace } from "../.agents/skills/dashboard-html/scripts/workspace-core.mjs";')) throw new Error("Studio workspace core client must reuse the shared portable core");
 if (!workspaceStateCore.includes('import { migrateWorkspace, validateWorkspace } from "./workspace-core-client.mjs";')) throw new Error("Workspace state core must use the Studio core client boundary");
@@ -70,10 +72,12 @@ if (!html.includes('<script type="module" src="/studio/data-source-center.mjs"><
 if (!html.includes('<script type="module" src="/studio/ai-composer-center.mjs"></script>')) throw new Error("Preview must load the Studio AI Composer Center module");
 if (!html.includes('<script type="module" src="/studio/export-center.mjs"></script>')) throw new Error("Preview must load the Studio Export Center module");
 if (!html.includes("window.DashboardStudioBridge = Object.freeze")) throw new Error("Preview must expose the narrow Studio workspace bridge");
+if (!editorRuntime.includes('from "/studio/resource-application-protocol.mjs";') || !editorRuntime.includes("validateChartApplication(event.data")) throw new Error("Studio must validate resource applications through the shared protocol");
+if (!resourceApplicationProtocol.includes('kind: "apply-chart"') || !resourceApplicationProtocol.includes("selectedTarget.id !== message.targetId")) throw new Error("Resource application protocol must bind chart actions to the current target");
 if (html.includes("function openProjectDialog()") || html.includes("function renderProjects(projects)")) throw new Error("Project Center implementation must not remain in the preview runtime");
 if (!projectCenter.includes('import { createStudioApiClient } from "/studio/studio-api-client.mjs";') || !projectCenter.includes("const { request } = createStudioApiClient();")) throw new Error("Project Center must use the shared Studio API client");
 if (!projectCenter.includes("openOrganization, currentProjectId: () => bridge.getCurrentProject()?.id || null") || !studioRouter.includes("projectIdFromPath") || !studioRouter.includes('window.location.pathname === "/studio/organizations/current"')) throw new Error("Studio Router must use the narrow Project Center route boundary");
-if (!projectCenter.includes("function beginAiProject()") || !projectCenter.includes("bridge.beginAiProject()") || !projectCenter.includes("DashboardAiComposerCenter?.setOpen(true")) throw new Error("Project Center must start a new AI project through the narrow bridge");
+if (!projectCenter.includes("function beginAiProject()") || !projectCenter.includes("bridge.beginAiProject()") || !projectCenter.includes("DashboardAiComposerCenter?.setEmbedded(ui.projectComposerView") || !projectCenter.includes('addEventListener("dashboard-generation-job-started", closeProjectDialog)')) throw new Error("Project Center must embed AI input through the narrow bridge and close after Job creation");
 if (!publicationCenter.includes('import { createStudioApiClient } from "/studio/studio-api-client.mjs";') || !publicationCenter.includes("const { request } = createStudioApiClient();")) throw new Error("Publication Center must use the shared Studio API client");
 if (!publicationCenter.includes("async function openPublication(publicationId)") || !publicationCenter.includes("window.DashboardPublicationCenter = Object.freeze({ openDialog, openPublication })") || !studioRouter.includes("publicationIdFromPath") || !studioRouter.includes("dashboard-publication-center-ready")) throw new Error("Studio publication routes must delegate through the Publication Center boundary");
 if (!dataSourceCenter.includes('import { createStudioApiClient } from "/studio/studio-api-client.mjs";') || !dataSourceCenter.includes("errorMessage: (payload) => payload.issues?.[0]?.message || payload.error || \"请求失败\"")) throw new Error("Data Source Center must use the shared Studio API client with its validation message policy");
@@ -137,7 +141,7 @@ for (const requiredId of ["aiScope", "aiScopeName", "aiRefineTemplates", "aiChar
 for (const contract of ["function syncAiComposerScope()", "getAiTransactionContext()", "applyAiPreview(workspace", "applyAiCommit(payload)", "applyAiUndo(payload)", "beginAiProject() {"]) {
   if (!html.includes(contract)) throw new Error(`Preview AI transaction bridge is missing: ${contract}`);
 }
-for (const contract of ['import { diffWorkspaces } from "/studio/workspace-core-client.mjs";', "function renderReview(run)", "async function requestCandidate()", "async function cancelActiveGeneration()", "async function pollGenerationJob(jobId, token)", "async function resumeGenerationJob()", "async function acceptCandidate()", "async function undoAcceptedChange()", "function compareRevision(revisionId)", "async function loadChartCatalog()", "function renderChartRefinementTemplates(charts)", 'fetch("/api/components/catalog"', 'fetch("/api/generation/jobs"', 'fetch("/api/generation/undo"']) {
+for (const contract of ['import { diffWorkspaces } from "/studio/workspace-core-client.mjs";', "function renderReview(run)", "async function requestCandidate()", "async function cancelActiveGeneration()", "function streamGenerationJob(jobId, token)", 'new EventSource(`/api/generation/jobs/${encodeURIComponent(jobId)}/events`)', "async function resumeGenerationJob()", "async function acceptCandidate()", "async function undoAcceptedChange()", "function compareRevision(revisionId)", "async function loadChartCatalog()", "function renderChartRefinementTemplates(charts)", 'fetch("/api/components/catalog"', 'fetch("/api/generation/jobs"', 'fetch("/api/generation/undo"']) {
   if (!aiComposerCenter.includes(contract)) throw new Error(`Studio AI transaction orchestration is missing: ${contract}`);
 }
 for (const forbidden of ["function renderAiReview(run)", "function requestAiDraft()", "function acceptAiDraft()", "function undoAcceptedAiChange()", 'fetch(isRefinement ? "/api/generation/refine"', 'fetch("/api/generation/undo"']) {
@@ -149,7 +153,7 @@ for (const requiredId of ["cardChartTypeField", "cardChartTypeControl", "cardCha
 for (const contract of ["function createPortableChartSvg(", "function renderWorkspaceCharts(", "function requestChartSvg(", 'fetcher("/api/charts/render"']) {
   if (!html.includes(contract)) throw new Error(`Preview chart runtime contract is missing: ${contract}`);
 }
-for (const [value, label] of [["line", "折线图"], ["area", "面积图"], ["bar", "柱状图"], ["horizontal-bar", "条形图"], ["pie", "环形图"]]) {
+for (const [value, label] of [["line", "折线图"], ["time-series", "时序图"], ["area", "面积图"], ["bar", "基础柱图"], ["grouped-bar", "分组柱图"], ["stacked-bar", "堆叠柱图"], ["percent-stacked-bar", "百分比堆叠柱图"], ["histogram", "直方图"], ["horizontal-bar", "基础条图"], ["grouped-horizontal-bar", "分组条图"], ["stacked-horizontal-bar", "堆叠条图"], ["percent-stacked-horizontal-bar", "百分比堆叠条图"], ["diverging-bar", "双向条图"], ["ranking-bar", "排名图"], ["gantt", "甘特图"], ["sector-pie", "饼图"], ["pie", "环图"], ["rose", "玫瑰图"]]) {
   if (!html.includes(`<option value="${value}">${label}</option>`)) {
     throw new Error(`Chart card controls are missing the controlled option: ${value}/${label}`);
   }
@@ -169,7 +173,7 @@ if (html.includes('>保存自定义</button>') || html.includes('window.prompt("
 if (!exportCenter.includes("await bridge.prepareRevision()") || !exportCenter.includes('/api/projects/${encodeURIComponent(project.id)}')) throw new Error("Standalone export must save and request an immutable project revision");
 if (!aiComposerCenter.includes('fetch("/api/generation/health"')) throw new Error("AI composer must check generation service availability");
 if (!aiComposerCenter.includes("AI 生成服务未启动")) throw new Error("AI composer must show an actionable service error");
-if ([...html.matchAll(/data-prompt-template=/g)].length < 4) throw new Error("AI composer must provide multiple editable prompt templates");
+if (!html.includes('id="aiPromptInput"') || !html.includes('id="aiDraftTemplates"')) throw new Error("AI composer must keep an editable prompt and optional template mount point");
 if (!html.includes("数据来源：${documentModel.sampleDataLabel}")) throw new Error("Sample provenance must render once in the header metadata");
 if (!html.includes("sectionModel.subtitle === documentModel.sampleDataLabel")) throw new Error("Sample provenance must not repeat in section headings");
 if (!html.includes("function syncInheritedOptionLabels()")) throw new Error("Inherited local options must expose their resolved global or group value");
@@ -191,8 +195,9 @@ if (!html.includes('<span>卡片间距</span><select class="control-select" id="
 }
 for (const contract of [
   'const pagePresetDefaults = {',
-  '"fx-orange": {\n          accent: "#ff7a2f"',
+  '"fx-orange": {\n          accent: "#ff8000"',
   'radius: 10,\n          cardGap: 12,\n          cardTitleFont: 16,\n          cardSubtitle: "none"',
+  'chartPalette: "categorical"',
   'const preset = { ...basePreset, ...(pagePresetDefaults[pageType]?.[name] || {}) }',
   'cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below"'
 ]) {

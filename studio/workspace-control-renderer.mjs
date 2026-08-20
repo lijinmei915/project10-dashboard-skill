@@ -77,6 +77,7 @@ export function createWorkspaceControlRenderer({ document: documentRef, dashboar
       const container = dashboard.querySelector("#dashboardControls");
       if (!container) return;
       container.replaceChildren();
+      dashboard.querySelectorAll(".dashboard-card-header-controls").forEach((slot) => slot.remove());
       controls.forEach((control) => {
         if (control.type === "filter-bar") {
           const bar = documentRef.createElement("div");
@@ -95,7 +96,14 @@ export function createWorkspaceControlRenderer({ document: documentRef, dashboar
             label.append(caption, select);
             bar.append(label);
           });
-          container.append(bar);
+          const placement = control.props.placement;
+          const targetCard = placement?.kind === "component-header" ? dashboard.querySelector(`[data-item-id="${escape(placement.targetId)}"]`) : null;
+          if (targetCard) {
+            bar.classList.add("dashboard-filter-bar--component-header");
+            let slot = targetCard.querySelector(":scope > .dashboard-card-header-controls");
+            if (!slot) { slot = documentRef.createElement("div"); slot.className = "dashboard-card-header-controls"; targetCard.prepend(slot); }
+            slot.append(bar);
+          } else container.append(bar);
         } else if (control.type === "view-tabs") {
           const tabs = documentRef.createElement("div");
           tabs.className = "dashboard-view-tabs";

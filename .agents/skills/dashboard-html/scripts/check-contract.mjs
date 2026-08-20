@@ -31,6 +31,7 @@ const schema = JSON.parse(await readFile(path.join(skillDir, "schemas/dashboard-
 const generationSchema = JSON.parse(await readFile(path.join(skillDir, "schemas/dashboard-generation.schema.json"), "utf8"));
 const chartCatalog = JSON.parse(await readFile(path.join(skillDir, "data/chart-catalog.json"), "utf8"));
 const componentRegistry = JSON.parse(await readFile(path.join(skillDir, "data/component-registry.json"), "utf8"));
+const designStandards = JSON.parse(await readFile(path.join(skillDir, "data/design-standards.json"), "utf8"));
 const { COMPONENT_RULES, CHART_TYPES } = await import("./workspace-core.mjs");
 const palette = JSON.parse(await readFile(path.join(skillDir, "assets/palette.v1.json"), "utf8"));
 const colorSystem = await readFile(path.join(skillDir, "references/color-system.md"), "utf8");
@@ -81,6 +82,16 @@ for (const [type, binding] of [["kpi", "aggregate"], ["chart", "series"], ["tabl
 }
 for (const type of ["filter-bar", "view-tabs"]) if (componentRegistry.find((component) => component.type === type)?.role !== "page-control") throw new Error(`${type} must be a page control`);
 if (palette.version !== "1.2.0") throw new Error("Palette version must be 1.2.0");
+if (designStandards.version !== "1.0.0") throw new Error("Design standards version must be 1.0.0");
+for (const source of ["references/themes.md", "references/color-system.md", "assets/palette.v1.json"]) {
+  if (!designStandards.sources?.includes(source)) throw new Error(`Design standards must declare ${source} as a source`);
+}
+for (const group of ["color", "type", "space", "shape", "accessibility"]) {
+  if (!designStandards.groups?.find(({ id, items }) => id === group && items?.length)) throw new Error(`Design standards are missing ${group}`);
+}
+if (designStandards.groups.find(({ id }) => id === "color")?.items?.find(({ sample }) => sample === "categorical")?.token !== "--chart-1…8") {
+  throw new Error("Design standards categorical token differs from the palette contract");
+}
 const paletteVersionRule = schema.properties?.theme?.properties?.paletteVersion;
 const acceptedPaletteVersions = paletteVersionRule?.enum ?? (paletteVersionRule?.const ? [paletteVersionRule.const] : []);
 if (!acceptedPaletteVersions.includes(palette.version)) throw new Error(`Workspace schema does not accept palette ${palette.version}`);

@@ -21,6 +21,7 @@ depends_on: [PROJECT.md]
 
 ## 当前状态
 
+- HTML 导入现支持表格与通用页面自动分流：表格进入结构化 Dataset，报告/Dashboard 提取标题、分区、正文和列表，并在生成时统一按当前 Workspace、主题和组件规范重建。通用 HTML 可不填写提示词直接生成；原脚本与样式不会执行或进入成品。
 - Dashboard 独立 Provider 已完成第三阶段：组织管理员可新增、编辑、删除、切换、发现模型和测试连接；组织级档案与凭证分仓持久化，Generation Job 按 organizationId 解析 Provider，最后一个档案删除后回退本地演示。OmniDesk 仅作公开格式迁移兼容。19 项 Provider 定向测试、完整 177 项 Node 基线和 Playwright 18/18 通过。当前 file 凭证仓储仅适合单实例；下一阶段是共享 Profile Repository、Secret Manager/KMS 端口、密钥轮换和治理审计。
 - 已完成可选组织级 Publication 审批：环境变量指定的组织创建 `pending` 发布，外部 share/embed 在批准前隐藏为 404；组织管理员批准后原链接生效。定向 Node 回归覆盖策略解析、状态转换、跨组织拒绝和 token 外链边界
 - Publication 的创建、提交审批、批准和撤回现通过对象内 audit outbox 投递最小项目审计事件。审计故障不回滚业务，恢复后可从审计读取路径完成重投；file/PostgreSQL 适配器均隐藏内部 outbox，事件不含 token、URL、HTML 或 records
@@ -41,6 +42,16 @@ depends_on: [PROJECT.md]
 
 ## 本次已完成
 
+- 当前 Dashboard 视觉配置已固化为“标准看板”预设，并同步到 Studio、standalone starter、Skill 规范和设计资源目录。浏览器实际恢复预设后确认 `#ff8000 / 14px 正文 / 10px 圆角 / 16px 卡片标题 / 多色图表 / 12px 间距 / 标准密度`，当前项目已保存为版本 `revision-user-1787225111993`。
+
+- 资源中心 M2 已接入：Studio 选中 Workspace 图表卡片后，视觉设置旁入口携带临时目标上下文；资源页可发送受控图表应用意图，Studio 只接受会话一致、目标仍被选中且图表 ID 受控的操作。普通访问继续只读。
+- 资源中心 M3 第一部分已完成：组件 Tab 直接展示 `/api/components/catalog` 的 6 类组件与 2 类页面控件；图标 Tab 直接使用 Phosphor 搜索与资源端点，支持四种粗细并可应用到当前卡片标题。桌面实测 8 个组件、48 个图标、搜索与卡片应用通过；本轮浏览器 viewport override 未作用于现有标签，M3 移动端仍需新标签补充真实证据。分组图标协议已实现，但当前 Dashboard 预设隐藏分组标题，需在可见分组标题预设中补 UI 验收。
+- M4 已建立共享设计规范目录：`data/design-standards.json` 以现有 themes、color-system、palette 为来源，服务端通过 `/api/design/standards` 暴露，资源中心规范 Tab 可视化颜色、字号、间距、形状和可访问性门槛。合同检查固定版本、来源和五类结构。
+- M5 已增加可见能力状态与自动门禁：浏览器实测图表 18、组件 v1/8 类、Phosphor 可用、设计规范 v1.0.0/5 类均为 ready；定向 Node 测试 5/5 通过。分组图标 UI 验收仍受窄屏设计抽屉覆盖画布限制，需要先提供移动端“画布/设置”切换或桌面宽度浏览上下文；协议与服务端图标复验已完成。
+- 窄屏 Studio 已增加“查看画布 / 返回设置”切换并实测：设置抽屉隐藏后画布约 381px 宽、返回按钮可见，设计模式不退出。当前 Browser 自动化无法滚动命中抽屉内隐藏的原生分组控件，因此“开启分组标题后选择分组并应用图标”的最后一段 UI 证据仍待补；不要将其表述为已验收。
+- 上述分组图标证据已在独立桌面宽度标签补齐：切换 Report 后“趋势与来源”分组标题可见并被选中，资源入口携带 `target=trends&targetType=section`；资源中心搜索并应用 `trend-up` 后，分组标题 SVG 非空、选区保留、Studio 进入待保存状态。验收后已放弃修改并恢复 Dashboard 原状态。资源中心长期目标 M1-M5 至此完成。
+
+- Provider 管理已从 `studio/project-center.mjs` 拆为独立原生组件 `studio/provider-connection-settings.mjs`，职责对齐 OmniDesk 的 React 组件，但不引入 React/Tauri：连接摘要、档案切换、新增/删除、模型探测、连接测试和保存启用统一由组件管理；项目中心只负责打开 AI 设置。Provider 定向测试 19/19、项目中心 Playwright 流程通过。
 - 建立 Studio UI 组件分层第一阶段：新增平台侧 `studio/ui-kit.mjs`，并将 Button/Input/Select/Tabs/Dialog/Checkbox/Badge/Table 的语义契约放入轻量 Skill；尚未替换项目中心业务 DOM，下一步按组件逐步迁移并补回归。
 - 已有项目 Tab 增加搜索、状态、排序和归属筛选；状态筛选按需请求归档数据，其他筛选在本地即时更新，空结果有明确提示。当前本机没有项目数据，真实排序行需在创建项目后回归。
 - AI 设置已并入项目中心 Tab：点击“AI 设置”直接在同一弹窗内容区展示 Provider 管理，不再出现第二层弹窗或额外遮罩。
@@ -342,6 +353,13 @@ depends_on: [PROJECT.md]
 
 ## 风险与待确认
 
+- AI 首稿流式画布长目标已完成并验收：Job 创建后关闭项目中心，画布浮条提供运行/停止/接受/放弃和刷新恢复；Generation Job 以可恢复 SSE 事件替代 250ms 轮询；Provider 使用默认 120 秒首包、60 秒流空闲和 5 分钟整体时长；完整 Workspace 校验后按分区渐进呈现。确定性浏览器捕获到 1/4 分区显示、3/4 待呈现及最终 4/4 完整状态，桌面与窄屏无新增横向溢出；完整 `npm run check` 为 189 passed / 6 PostgreSQL skips，Generation eval 10/10。
+- 当前真实 `gpt-5.6-sol` 连接可持续运行并越过旧 45 秒限制，但一次复杂首稿在 5 分钟整体上限内未产出可用终态；应用会停止并保持原画布。该模型/网关的生成质量与时延仍需单独调优，不应继续放宽产品级硬上限。
+
+- Studio Provider 已支持停用连接并回退本地演示；重新开启前会真实校验连接。测试会先验证模型列表，再验证最小聊天请求，并区分模型不存在与 Key/权限失败；错误响应不包含密钥或上游正文
+- Provider 编辑现会回显已保存的 API 地址，并在任一表单字段变化后显示“有未保存修改”；API Key 仍只保存在服务端且永不回显。服务层回归覆盖地址跨读取持久化与密钥隔离
+- Provider 第一版已切换为个人设置语义：本地 `local-admin` 保留旧连接作用域，正式用户按自身用户 ID 隔离 AI 连接；项目中心隐藏组织读取，入口显示“我的 AI 设置”。正式登录页仍沿用现有 token 会话，后续可单独产品化视觉
+
 - 受控 REST 和持久化 Refresh Job 已落地：服务端主机白名单、credentialRef、禁重定向、指数退避、活跃任务冲突和重启恢复均有合同测试
 - 当前凭证通过环境 JSON 注入，适合单机原型；企业阶段需接 Secret Manager/KMS、凭证轮换、网络出口策略和审计，不能把环境 JSON 当最终凭证平台
 - Job 当前只处理 REST Dataset 刷新；固定间隔计划、取消和管理面板已完成，优先级、并发配额和分布式执行留到企业阶段
@@ -374,3 +392,21 @@ depends_on: [PROJECT.md]
 | `PROJECT.md` | 项目全局状态（本文件只记当前轮次） |
 | `docs/ROADMAP.md` | 产品平台阶段、范围和验收门槛 |
 | `AGENTS.md` | AI 行为规则 |
+## 2026-08-13 图表能力扩展
+
+- 已将柱图扩展为基础柱图、分组柱图、堆叠柱图、百分比堆叠柱图，并新增直方图。
+- 唯一语义与数据形状见 `.agents/skills/dashboard-html/references/charts.md`。
+- 多系列 workspace 使用 `props.series: [{ name, values }]`；直方图使用首个系列的原始样本自动分箱。
+- 条图家族和甘特图已接入同一协议：甘特图使用“开始 + 工期”两系列，排名图由渲染端降序并显示名次；当前目录共 15 种图表。
+- 线图/饼图家族新增时序图、实心饼图和玫瑰图；`pie` 保持环图兼容，当前受控目录共 18 种图表。
+## 2026-08-13 资源中心长目标
+
+- M1 已实现 `/studio/resources` 独立资源页，包含图表和规范双 Tab，图表数量由 `/api/charts/catalog` 动态决定并调用 `/api/charts/render` 生成真实预览。
+- 视觉设置标题旁已增加资源中心入口；M2 计划通过受控 Workspace 修改将资源应用到当前画布，不直接跨页操作 DOM。
+- 完整阶段与验收见 `docs/architecture/resource-center.md`。
+
+## 2026-08-13 图表筛选与图例交互
+
+- 图表标题下拉已复用 `filter-bar` 协议，`placement.kind = component-header` 控制位置，`targets` 继续控制数据联动范围。
+- 多系列图表图例已改为真实 DOM 按钮，状态保存在 `interactions.chartSeriesVisibility`，Studio 与 standalone 均支持点击显隐。
+- 用户可直接说：“这个图表右上角加区域筛选，只控制当前图表”或“显示图例，点击可隐藏对应数据”。

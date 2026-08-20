@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { parse as parseCsv } from "csv-parse/sync";
 import readExcelFile from "read-excel-file/node";
+import { parse as parseHtml } from "parse5";
 import { ContractError } from "./workspace-core.mjs";
 
 export const DATA_SOURCE_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, rows: 10_000, columns: 100, previewRows: 20, portableRows: 500, sampleRows: 12 });
@@ -35,6 +36,68 @@ function parseCsvContent(content) {
   } catch (error) {
     fail(`CSV 内容无法解析：${error.message}`);
   }
+}
+
+function htmlElements(node, tagName, result = []) {
+  if (node?.tagName === tagName) result.push(node);
+  for (const child of node?.childNodes || []) htmlElements(child, tagName, result);
+  return result;
+}
+
+function htmlText(node) {
+  if (node?.nodeName === "#text") return node.value || "";
+  if (["script", "style", "template", "noscript", "svg", "canvas", "iframe"].includes(node?.tagName)) return "";
+  return (node?.childNodes || []).map(htmlText).join("");
+}
+
+function parseHtmlContent(content) {
+  let document;
+  try { document = parseHtml(content); } catch { fail("HTML 内容无法解析"); }
+  const table = htmlElements(document, "table").find((candidate) => htmlElements(candidate, "tr").length > 1);
+  if (table) {
+    const rows = htmlElements(table, "tr").map((row) => {
+      const directCells = (row.childNodes || []).filter(({ tagName }) => tagName === "th" || tagName === "td");
+      return directCells.map((cell) => htmlText(cell).replace(/\s+/g, " ").trim());
+    }).filter((row) => row.length);
+    if (rows.length >= 2) {
+      const width = Math.max(...rows.map((row) => row.length));
+      const used = new Map();
+      const labels = Array.from({ length: width }, (_, index) => {
+        const base = rows[0][index] || `列 ${index + 1}`;
+        const count = (used.get(base) || 0) + 1;
+        used.set(base, count);
+        return count === 1 ? base : `${base} ${count}`;
+      });
+      return { contentKind: "table", rawRecords: rows.slice(1).map((row) => Object.fromEntries(labels.map((label, index) => [label, row[index] || null]))) };
+    }
+  }
+
+  const records = [];
+  const seen = new Set();
+  let section = htmlElements(document, "title").map(htmlText).join(" ").replace(/\s+/g, " ").trim().slice(0, 240) || "页面内容";
+  const add = (type, text) => {
+    const content = text.replace(/\s+/g, " ").trim().slice(0, 1200);
+    if (!content || seen.has(`${type}:${content}`)) return;
+    seen.add(`${type}:${content}`);
+    records.push({ 内容类型: type, 分区: section, 内容: content });
+  };
+  const walk = (node) => {
+    if (["script", "style", "template", "noscript", "svg", "canvas", "iframe", "form"].includes(node?.tagName)) return;
+    if (["h1", "h2", "h3", "h4"].includes(node?.tagName)) {
+      const heading = htmlText(node).replace(/\s+/g, " ").trim();
+      if (heading) { section = heading.slice(0, 240); add("标题", heading); }
+      return;
+    }
+    if (["p", "li", "dt", "dd", "figcaption", "blockquote"].includes(node?.tagName)) {
+      add(node.tagName === "li" ? "列表项" : "正文", htmlText(node));
+      return;
+    }
+    for (const child of node?.childNodes || []) walk(child);
+  };
+  walk(document);
+  if (!records.length) add("正文", htmlText(htmlElements(document, "body")[0] || document));
+  if (!records.length) fail("HTML 页面没有可分析的可见内容", "/content", "required");
+  return { contentKind: "page", rawRecords: records.slice(0, 500) };
 }
 
 function excelScalar(value) {
@@ -304,7 +367,7 @@ export function executeDataSourceQuery(source, input = {}) {
   };
 }
 
-function buildDataSource({ id, name, format, content, rawRecords, portable, now, fingerprintInput, sheetName, availableSheets }) {
+function buildDataSource({ id, name, format, content, contentKind, rawRecords, portable, now, fingerprintInput, sheetName, availableSheets }) {
   if (!String(name || "").trim()) fail("数据源名称不能为空", "/name", "required");
   if (!rawRecords.length) fail("数据源至少需要一行数据");
   if (rawRecords.length > DATA_SOURCE_LIMITS.rows) fail(`数据源不能超过 ${DATA_SOURCE_LIMITS.rows} 行`, "/content", "limit");
@@ -329,6 +392,7 @@ function buildDataSource({ id, name, format, content, rawRecords, portable, now,
     name: String(name).trim().slice(0, 120),
     kind: "uploaded",
     format,
+    ...(contentKind ? { contentKind } : {}),
     ...(sheetName ? { sheetName, availableSheets } : {}),
     portable: Boolean(portable),
     createdAt: now,
@@ -345,11 +409,11 @@ function buildDataSource({ id, name, format, content, rawRecords, portable, now,
 }
 
 export function parseDataSource({ id, name, format, content, portable = false, now = new Date().toISOString() } = {}) {
-  if (!new Set(["csv", "json"]).has(format)) fail("仅支持 CSV 或 JSON", "/format", "enum");
+  if (!new Set(["csv", "json", "html"]).has(format)) fail("仅支持 CSV、JSON 或 HTML", "/format", "enum");
   if (typeof content !== "string") fail("数据内容必须是文本");
   if (Buffer.byteLength(content) > DATA_SOURCE_LIMITS.bytes) fail("数据文件不能超过 2 MB", "/content", "limit");
-  const rawRecords = format === "csv" ? parseCsvContent(content) : parseJson(content);
-  return buildDataSource({ id, name, format, content, rawRecords, portable, now, fingerprintInput: content });
+  const parsed = format === "html" ? parseHtmlContent(content) : { rawRecords: format === "csv" ? parseCsvContent(content) : parseJson(content) };
+  return buildDataSource({ id, name, format, content, ...parsed, portable, now, fingerprintInput: content });
 }
 
 export async function parseUploadedDataSource(input = {}) {
@@ -403,6 +467,7 @@ export function markDataSourceRefreshFailed(source, error, { now = new Date().to
 export function summarizeDataSource(source, { includePreview = false } = {}) {
   return {
     id: source.id, name: source.name, kind: source.kind, format: source.format, portable: source.portable,
+    ...(source.contentKind ? { contentKind: source.contentKind } : {}),
     ...(source.sheetName ? { sheetName: source.sheetName, availableSheets: structuredClone(source.availableSheets) } : {}),
     createdAt: source.createdAt, updatedAt: source.updatedAt, fingerprint: source.fingerprint,
     ...(source.refresh ? { refresh: structuredClone(source.refresh) } : {}),
@@ -422,7 +487,7 @@ export function createDataContext(source) {
   } : {};
   return {
     input: { id: source.id, kind: source.kind, name: source.name, schemaRef: `data-source:${source.id}` },
-    context: { datasetId: source.id, name: source.name, rowCount: source.rowCount, fields: source.fields.map(({ id, label, type, nullable, samples }) => ({ id, label, type, nullable, samples })), semanticModel: structuredClone(model), querySnapshots, sampleRecords },
+    context: { datasetId: source.id, name: source.name, ...(source.contentKind ? { contentKind: source.contentKind } : {}), rowCount: source.rowCount, fields: source.fields.map(({ id, label, type, nullable, samples }) => ({ id, label, type, nullable, samples })), semanticModel: structuredClone(model), querySnapshots, sampleRecords },
     portableDataset: source.portable ? { portable: true, records: structuredClone(source.records.slice(0, DATA_SOURCE_LIMITS.portableRows)) } : null
   };
 }

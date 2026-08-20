@@ -28,12 +28,16 @@ Prompt
 ## 页面级交互
 
 - 用户明确要求筛选、按年份/月份/区域/行业查看时，使用 `document.controls[].type = filter-bar`；控件必须声明字段、选项、默认值和目标 ID。
+- 用户说“这个图表 / 当前图表 / 图表右上角”时，筛选目标只包含该图表，并用 `placement.kind = component-header` 放进图表标题区；说“当前分组”时只引用该 Section；说“整页联动”时才引用全页目标。
 - 用户明确要求视图、Tab 或分区切换时，使用 `view-tabs`；每个 Tab 必须引用存在的 Section ID。
 - 当前筛选值和活动视图写入 `workspace.interactions`，不得写入卡片正文或临时 DOM。
 - 需要筛选联动的 KPI、图表、表格和列表使用 `dataRef + binding` 分别声明 `aggregate / series / rows / ranking`；筛选字段和绑定字段必须存在于目标 dataset。
 - 未明确要求交互时不生成控件。能力不足时隐藏筛选栏、显示默认首个视图，不能留下无反应控件。
 
 ## 图表语义
+
+- 多系列图表默认显示图例。图例用于说明系列颜色，`interactive` 默认开启；点击只改变 `interactions.chartSeriesVisibility` 并隐藏或恢复该系列，不改变筛选条件和源数据。
+- 用户可说“显示图例，点击可隐藏数据”“图例放上面，手机放底部”或“不要图例，图形上直接显示名称和数值”。图例按钮必须有文字和 `aria-pressed`，不得只依赖颜色表达状态。
 
 - 当前受控图表类型只包含 `line / area / bar / horizontal-bar / pie`；工作区写入 `component.props.chartType`，不得把任意 ECharts option 写入 `props`。
 - 用户明确说折线图、面积图、柱状图或环形图时必须优先采用对应类型。

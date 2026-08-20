@@ -16,10 +16,10 @@ export const generationStages = Object.freeze([
 const transitions = Object.freeze({
   intake: new Set(["normalized", "failed", "cancelled"]),
   normalized: new Set(["planning", "failed", "cancelled"]),
-  planning: new Set(["generating", "failed", "cancelled"]),
+  planning: new Set(["generating", "repairing", "failed", "cancelled"]),
   generating: new Set(["validating", "failed", "cancelled"]),
   validating: new Set(["repairing", "preview-ready", "failed", "cancelled"]),
-  repairing: new Set(["validating", "failed", "cancelled"]),
+  repairing: new Set(["generating", "validating", "failed", "cancelled"]),
   "preview-ready": new Set(["committed", "generating", "cancelled"]),
   committed: new Set(),
   failed: new Set(),
@@ -95,7 +95,7 @@ export function startPlanning(run, options) {
 }
 
 export function acceptPlan(run, plan, options = {}) {
-  if (run.status !== "planning") throw new ContractError("Plan can only be accepted during planning");
+  if (!new Set(["planning", "repairing"]).has(run.status)) throw new ContractError("Plan can only be accepted during planning or repair");
   if (!isObject(plan) || !Array.isArray(plan.sections) || !plan.sections.length) throw new ContractError("Plan is invalid", [{ path: "/plan/sections", code: "required", message: "Plan requires sections" }]);
   const next = transitionGenerationRun(run, "generating", { ...options, details: { sectionCount: plan.sections.length } });
   next.plan = structuredClone(plan);

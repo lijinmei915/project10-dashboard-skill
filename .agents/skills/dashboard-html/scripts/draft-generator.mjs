@@ -50,14 +50,35 @@ const domainProfiles = [
 ];
 
 const explicitChartTypeRules = [
-  ["pie", /环形图|饼图|donut|pie\s*chart/i],
+  ["time-series", /时序图|时间序列图|time\s*series/i],
+  ["rose", /玫瑰图|南丁格尔玫瑰图|rose\s*chart/i],
+  ["sector-pie", /实心饼图|饼图|pie\s*chart/i],
+  ["percent-stacked-horizontal-bar", /百分比堆叠条图|百分百堆叠条图|100%\s*堆叠条图/i],
+  ["stacked-horizontal-bar", /堆叠条图|堆积条图|stacked\s*horizontal\s*bar/i],
+  ["grouped-horizontal-bar", /分组条图|多层条图|并列条图|grouped\s*horizontal\s*bar/i],
+  ["diverging-bar", /双向条图|双向条形图|人口金字塔|diverging\s*bar/i],
+  ["ranking-bar", /排名图|排行图|榜单图|ranking\s*bar/i],
+  ["gantt", /甘特图|gantt/i],
+  ["percent-stacked-bar", /百分比堆叠柱图|百分百堆叠柱图|100%\s*堆叠|percent(?:age)?\s*stacked/i],
+  ["stacked-bar", /堆叠柱图|堆积柱图|stacked\s*bar/i],
+  ["grouped-bar", /分组柱图|多层柱图|并列柱图|簇状柱图|grouped\s*bar/i],
+  ["histogram", /直方图|histogram/i],
+  ["pie", /环图|环形图|圆环图|甜甜圈图|donut/i],
   ["area", /面积图|area\s*chart/i],
-  ["horizontal-bar", /横向条形图|横向柱状图|条形图|horizontal\s*bar/i],
+  ["horizontal-bar", /基础条图|横向条形图|横向柱状图|条形图|horizontal\s*bar/i],
   ["bar", /柱状图|柱形图|bar\s*chart/i],
   ["line", /折线图|曲线图|line\s*chart/i]
 ];
 
 const semanticChartTypeRules = [
+  ["time-series", /时间轴|监控趋势|阈值趋势|按时间戳/],
+  ["gantt", /项目排期|任务排期|时间进度|里程碑计划/],
+  ["diverging-bar", /正负对比|两侧对比|人口结构/],
+  ["ranking-bar", /排行|排名|Top\s*\d+|榜单/],
+  ["percent-stacked-bar", /各分类.*占比|内部占比|构成比例对比/],
+  ["stacked-bar", /总量.*构成|构成.*总量|累计构成/],
+  ["grouped-bar", /多系列对比|同类.*对比|分组对比/],
+  ["histogram", /频数分布|频率分布|区间分布|连续数值分布/],
   ["pie", /占比|构成|份额/],
   ["horizontal-bar", /排行|排名|横向对比|长标签/],
   ["bar", /分类对比|分布/],
@@ -405,7 +426,9 @@ function inferPageType(prompt, requested) {
 
 function buildPageControls(prompt, sections, dataContext = null) {
   const controls = [];
-  const targets = sections.flatMap((section) => [section.id, ...section.components.map(({ id }) => id)]);
+  const chart = sections.flatMap(({ components }) => components).find(({ type }) => type === "chart");
+  const chartOnly = /当前图表|这个图表|图表右上角|图表上方/.test(prompt) && chart;
+  const targets = chartOnly ? [chart.id] : sections.flatMap((section) => [section.id, ...section.components.map(({ id }) => id)]);
   const filterDefinitions = [];
   if (/年份|年度|按年/.test(prompt)) filterDefinitions.push({ id: "year", label: "年份", field: "year", options: [{ value: "", label: "全部年份" }, { value: "2026", label: "2026 年" }, { value: "2025", label: "2025 年" }], defaultValue: "" });
   if (/月份|月度|按月/.test(prompt)) filterDefinitions.push({ id: "month", label: "月份", field: "month", options: [{ value: "", label: "全部月份" }, { value: "current", label: "本月" }, { value: "previous", label: "上月" }], defaultValue: "" });
@@ -425,7 +448,7 @@ function buildPageControls(prompt, sections, dataContext = null) {
       options: [{ value: "", label: `全部${filter.label}` }, ...field.samples.filter((value) => value !== null).map((value) => ({ value: String(value), label: String(value) }))]
     };
   }).filter(Boolean);
-  if (resolvedFilters.length) controls.push({ id: "dashboard-filters", type: "filter-bar", props: { controls: resolvedFilters.map((filter) => ({ ...filter, control: "select" })), targets, surface: "card" } });
+  if (resolvedFilters.length) controls.push({ id: "dashboard-filters", type: "filter-bar", props: { controls: resolvedFilters.map((filter) => ({ ...filter, control: "select" })), targets, surface: chartOnly ? "plain" : "card", ...(chartOnly ? { placement: { kind: "component-header", targetId: chart.id } } : {}) } });
   if (/视图|tab|切换/i.test(prompt)) {
     const splitIndex = Math.max(1, Math.ceil(sections.length / 2));
     controls.push({
@@ -486,7 +509,7 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
   const tableFields = importedContext?.context.fields.slice(0, 4) ?? [];
   const chartType = inferChartType(request.prompt);
   const asksForTimeSeries = /最近|趋势|走势|时间|周|月|季度|年度/.test(request.prompt);
-  const usesCompositionCategories = ["pie", "horizontal-bar"].includes(chartType)
+  const usesCompositionCategories = ["pie", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"].includes(chartType)
     || (!asksForTimeSeries && /渠道|来源|分类|排行|排名|对比|分布/.test(request.prompt));
   const chartCategoryField = importedContext ? chartCategoryFieldFromData : usesCompositionCategories ? "sourceName" : "periodLabel";
   const chartTitle = chartType === "pie" ? profile.rankingTitle.replace(/\s*Top\s*5/i, "构成") : usesCompositionCategories ? profile.rankingTitle : profile.trendTitle;
@@ -518,6 +541,15 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
   const seriesValueIndex = snapshotColumnIndex(seriesColumns, chartMetric.id, 1);
   const seriesValues = seriesRows.map((row) => Number(row[seriesValueIndex]) || 0);
   const seriesLabels = seriesRows.map((row) => String(row[seriesCategoryIndex] ?? ""));
+  const multiSeriesChart = ["grouped-bar", "stacked-bar", "percent-stacked-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar"].includes(chartType);
+  const sampleChartLabels = ["华东", "华南", "华北", "西部"];
+  const sampleChartSeries = multiSeriesChart ? [
+    { name: "本期", values: [42, 36, 31, 24] },
+    { name: "上期", values: [34, 29, 27, 21] },
+    { name: "目标", values: [18, 22, 16, 20] }
+  ] : chartType === "diverging-bar" ? [{ name: "减少", values: [24, 18, 30, 15] }, { name: "增加", values: [31, 28, 22, 35] }]
+    : chartType === "gantt" ? [{ name: "开始", values: [0, 2, 5, 7] }, { name: "工期", values: [3, 4, 3, 5] }]
+      : chartType === "histogram" ? [{ name: "样本", values: [12, 18, 21, 22, 24, 25, 27, 29, 31, 35, 36, 42, 48, 53] }] : null;
   const groundedRankingItems = seriesRows.map((row) => ({
     label: String(row[seriesCategoryIndex] ?? ""),
     value: Number(row[seriesValueIndex]) || 0
@@ -544,7 +576,7 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
         title: "趋势与来源",
         subtitle: sampleDataLabel || "最近周期",
         components: [
-          { id: "opportunity-trend", type: "chart", title: chartTitle, subtitle: chartSubtitle, dataRef, ...(bindData ? { binding: { kind: "series", categoryField: chartCategoryField, valueField: chartValueField, operation: chartMetric.aggregation } } : {}), props: { chartType, labels: importedContext ? seriesLabels : [], values: importedContext ? seriesValues : [] } },
+          { id: "opportunity-trend", type: "chart", title: chartTitle, subtitle: chartSubtitle, dataRef, ...(bindData ? { binding: { kind: "series", categoryField: chartCategoryField, valueField: chartValueField, operation: chartMetric.aggregation } } : {}), props: { chartType, labels: importedContext ? seriesLabels : sampleChartLabels, values: importedContext ? seriesValues : sampleChartSeries?.[0]?.values || [], ...(sampleChartSeries ? { series: sampleChartSeries } : {}) } },
           { id: "source-ranking", type: "list", title: profile.rankingTitle, subtitle: "本周期贡献占比", dataRef, ...(bindData ? { binding: { kind: "ranking", labelField: chartCategoryField, valueField: chartValueField, operation: chartMetric.aggregation, limit: 5 } } : {}), props: { items: importedContext && seriesRows.length ? groundedRankingItems.slice(0, 5) : profile.rankingItems.map((label, index) => ({ label, value: [92, 78, 66, 57, 44][index] })) } }
         ]
       },
@@ -607,7 +639,7 @@ export function createDeterministicDraft(input, baseWorkspace, { dataContexts = 
     return [cardId, next];
   }).filter(([, override]) => Object.keys(override).length));
   const generatedChart = document.sections.flatMap(({ components }) => components).find(({ type }) => type === "chart");
-  if (generatedChart?.props.chartType === "pie" && !cardOverrides[generatedChart.id]?.chartPalette) {
+  if (["pie", "sector-pie", "rose"].includes(generatedChart?.props.chartType) && !cardOverrides[generatedChart.id]?.chartPalette) {
     cardOverrides[generatedChart.id] = { ...(cardOverrides[generatedChart.id] ?? {}), chartPalette: "categorical" };
   }
   const workspace = {

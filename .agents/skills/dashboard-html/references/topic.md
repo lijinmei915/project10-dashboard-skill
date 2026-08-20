@@ -16,9 +16,9 @@
 | Page background | `#f5f7fa` |
 | Card background | `#ffffff` |
 | Card shadow | `0 2px 10px rgba(15,23,42,0.04)` |
-| Card radius / padding | `14px` / `20px` |
+| Card radius / padding | `10px` / `20px` |
 | Dense card padding | `16px` |
-| Accent / soft | `#ff7a2f` / `rgba(255,122,47,0.12)` |
+| Accent / soft | `#ff8000` / `rgba(255,128,0,0.12)` |
 
 ## 主题
 

@@ -1,5 +1,6 @@
 import { createStudioApiClient } from "/studio/studio-api-client.mjs";
 import { createButton, createSelect } from "/studio/ui-kit.mjs";
+import { createProviderConnectionSettings } from "/studio/provider-connection-settings.mjs";
 
 const $ = (selector) => document.querySelector(selector);
 const bridge = window.DashboardStudioBridge;
@@ -10,17 +11,15 @@ const ui = {
   authControl: $("#studioAuthControl"),
   control: $("#studioProjectControl"), label: $("#studioProjectLabel"),
   projectDialog: $("#projectDialog"), projectClose: $("#projectDialogClose"), projectCancel: $("#projectDialogCancel"), showArchived: $("#projectShowArchived"), projectStatus: $("#projectStatus"), projectList: $("#projectList"), projectListCount: $("#projectListCount"), projectSearch: $("#projectSearch"), projectStatusFilter: $("#projectStatusFilter"), projectSort: $("#projectSort"), projectOwnership: $("#projectOwnership"), projectListView: $("#projectListView"), projectListTab: $("#projectListTab"), projectComposerView: $("#projectComposerView"), projectSettingsView: $("#projectSettingsView"), newAiProject: $("#projectNewAi"), projectAiEdit: $("#projectAiEditTab"),
-  organizationControl: $("#organizationControl"), organizationDialog: $("#organizationDialog"), organizationClose: $("#organizationDialogClose"), organizationCancel: $("#organizationDialogCancel"), organizationName: $("#organizationName"), organizationMemberList: $("#organizationMemberList"), organizationStatus: $("#organizationStatus"), organizationSave: $("#organizationSave"), organizationAudit: $("#organizationAudit"), organizationMetricsGrid: $("#organizationMetricsGrid"), organizationMetricsStatus: $("#organizationMetricsStatus"), organizationMetricsFailures: $("#organizationMetricsFailures"), organizationReadinessGrid: $("#organizationReadinessGrid"), organizationReadinessStatus: $("#organizationReadinessStatus"), organizationProviderSelect: $("#organizationProviderSelect"), organizationProviderStatus: $("#organizationProviderStatus"), organizationProviderModels: $("#organizationProviderModels"), organizationProviderTest: $("#organizationProviderTest"), organizationProviderAdd: $("#organizationProviderAdd"), organizationProviderEdit: $("#organizationProviderEdit"), organizationProviderDelete: $("#organizationProviderDelete"), organizationProviderModelList: $("#organizationProviderModelList"), organizationProviderCards: $("#organizationProviderCards"), organizationProviderCurrentName: $("#organizationProviderCurrentName"), organizationProviderCurrentModel: $("#organizationProviderCurrentModel"), organizationProviderHealth: $("#organizationProviderHealth"),
-  providerDialog: $("#providerProfileDialog"), providerClose: $("#providerProfileDialogClose"), providerCancel: $("#providerProfileCancel"), providerForm: $("#providerProfileForm"), providerTitle: $("#providerProfileDialogTitle"), providerId: $("#providerProfileId"), providerName: $("#providerProfileName"), providerApiBase: $("#providerProfileApiBase"), providerModel: $("#providerProfileModel"), providerCustomModel: $("#providerProfileCustomModel"), providerCustomModelField: $("#providerProfileCustomModelField"), providerLoadModels: $("#providerProfileLoadModels"), providerApiKey: $("#providerProfileApiKey"), providerStatus: $("#providerProfileStatus"),
+  organizationControl: $("#organizationControl"), organizationDialog: $("#organizationDialog"), organizationClose: $("#organizationDialogClose"), organizationCancel: $("#organizationDialogCancel"), organizationName: $("#organizationName"), organizationMemberList: $("#organizationMemberList"), organizationStatus: $("#organizationStatus"), organizationSave: $("#organizationSave"), organizationAudit: $("#organizationAudit"), organizationMetricsGrid: $("#organizationMetricsGrid"), organizationMetricsStatus: $("#organizationMetricsStatus"), organizationMetricsFailures: $("#organizationMetricsFailures"), organizationReadinessGrid: $("#organizationReadinessGrid"), organizationReadinessStatus: $("#organizationReadinessStatus"),
   memberDialog: $("#memberDialog"), memberClose: $("#memberDialogClose"), memberCancel: $("#memberDialogCancel"), memberProjectName: $("#memberProjectName"), memberList: $("#memberList"), memberStatus: $("#memberStatus"), memberSave: $("#memberSave"),
   auditDialog: $("#auditDialog"), auditClose: $("#auditDialogClose"), auditCancel: $("#auditDialogCancel"), auditProjectName: $("#auditProjectName"), auditList: $("#auditList"), auditStatus: $("#auditStatus")
 };
 
 let managedMemberProject = null;
 let managedOrganization = null;
-let managedProviderProfiles = [];
-let providerProfilesEditable = false;
 const { request } = createStudioApiClient();
+const providerSettings = createProviderConnectionSettings({ root: ui.organizationDialog, request });
 
 function mountProjectFilterSelect(select) {
   if (!select || select.closest(".project-filter-select")) return;
@@ -70,6 +69,8 @@ function mountProjectFilterSelect(select) {
 
 const providerManagerBody = ui.organizationDialog.querySelector(".provider-manager-body");
 if (providerManagerBody && ui.projectSettingsView) ui.projectSettingsView.append(providerManagerBody);
+const providerWorkspaceFooter = ui.organizationDialog.querySelector("#providerWorkspaceFooter") || providerManagerBody?.querySelector("#providerWorkspaceFooter");
+if (providerWorkspaceFooter && ui.projectSettingsView) ui.projectSettingsView.append(providerWorkspaceFooter);
 
 function syncControl() {
   const project = bridge.getCurrentProject();
@@ -356,162 +357,6 @@ async function loadPlatformReadiness() {
   }
 }
 
-function renderProviderProfiles(profiles, managed) {
-  managedProviderProfiles = profiles;
-  providerProfilesEditable = managed;
-  ui.organizationProviderSelect.replaceChildren(...profiles.map((profile) => new Option(
-    `${profile.name} · ${profile.model || "无模型"}${profile.credentialConfigured ? "" : " · 未配置密钥"}`,
-    profile.id,
-    profile.active,
-    profile.active
-  )));
-  const active = profiles.find(({ active }) => active) || profiles[0];
-  ui.organizationProviderStatus.textContent = active ? `${active.credentialConfigured ? "已连接" : "未配置"} · ${active.model || "无模型"}` : "暂无连接";
-  ui.organizationProviderCurrentName.textContent = active?.name || "暂无连接";
-  ui.organizationProviderCurrentModel.textContent = active?.model || "无模型";
-  ui.organizationProviderHealth.textContent = active?.credentialConfigured ? "OK" : "未配置";
-  ui.organizationProviderHealth.style.display = active?.builtIn ? "none" : "inline-flex";
-  ui.organizationProviderCards.replaceChildren(...profiles.filter(({ builtIn }) => !builtIn).map((profile) => {
-    const card = document.createElement("div"); card.className = "provider-connection-card"; card.dataset.active = String(Boolean(profile.active));
-    const main = createButton("", { className: "provider-connection-main", variant: "ghost", ariaLabel: `配置连接 ${profile.name}` });
-    const name = document.createElement("strong"); name.textContent = profile.name;
-    const model = document.createElement("span"); model.textContent = profile.model || "无模型";
-    main.append(name, model);
-    main.addEventListener("click", async () => {
-      if (!profile.active) { ui.organizationProviderSelect.value = profile.id; await activateProvider(); }
-      openProviderDialog(managedProviderProfiles.find(({ id }) => id === profile.id) || profile);
-    });
-    const edit = createButton("✎", { className: "provider-connection-edit", variant: "ghost", ariaLabel: `编辑连接 ${profile.name}` });
-    edit.addEventListener("click", () => openProviderDialog(profile));
-    card.append(main, edit); return card;
-  }), (() => { const add = createButton("+", { className: "provider-connections-add", variant: "outline", ariaLabel: "新增连接" }); add.addEventListener("click", () => openProviderDialog()); return add; })());
-  ui.organizationProviderSelect.disabled = !managed || profiles.length < 2;
-  ui.organizationProviderModels.disabled = !managed || !active?.credentialConfigured || active?.builtIn;
-  ui.organizationProviderTest.disabled = !managed || !active?.credentialConfigured || active?.builtIn;
-  ui.organizationProviderAdd.disabled = !managed;
-  ui.organizationProviderEdit.disabled = !managed || !active || active.builtIn;
-  ui.organizationProviderDelete.disabled = !managed || !active || active.builtIn;
-  ui.organizationProviderModelList.textContent = managed ? "切换后，新的 AI 生成任务立即使用该连接" : "当前连接由服务启动配置管理";
-}
-
-function closeProviderDialog() {
-  ui.providerDialog.hidden = true;
-  ui.providerForm.reset();
-  ui.providerId.value = "";
-}
-
-function setProviderModelOptions(models = [], selected = "") {
-  const options = [...new Set(models.filter(Boolean))];
-  ui.providerModel.replaceChildren(...options.map((model) => new Option(model, model)), new Option("自定义", "__custom"));
-  if (selected && options.includes(selected)) ui.providerModel.value = selected;
-  else if (selected) { ui.providerModel.value = "__custom"; ui.providerCustomModel.value = selected; }
-  else ui.providerModel.value = options[0] || "__custom";
-  ui.providerCustomModelField.hidden = ui.providerModel.value !== "__custom";
-  ui.providerCustomModel.required = ui.providerModel.value === "__custom";
-}
-
-function openProviderDialog(profile = null, { focus = true } = {}) {
-  if (!providerProfilesEditable) return;
-  ui.providerDialog.hidden = false;
-  ui.providerTitle.textContent = profile ? `基础设置 · ${profile.name}` : "新增连接";
-  ui.providerId.value = profile?.id || `provider-${Date.now()}`;
-  ui.providerName.value = profile?.name || "";
-  ui.providerApiBase.value = "";
-  ui.providerApiBase.required = !profile;
-  ui.providerApiBase.placeholder = profile ? "留空保持原 API 地址" : "https://gateway.example/v1";
-  setProviderModelOptions(profile?.model ? [profile.model] : [], profile?.model || "");
-  ui.providerApiKey.value = "";
-  ui.providerApiKey.required = !profile;
-  ui.organizationProviderDelete.hidden = !profile || Boolean(profile.builtIn);
-  ui.providerStatus.textContent = profile ? "地址和密钥留空时保持原配置" : "密钥保存后不会回显";
-  if (focus) ui.providerName.focus({ preventScroll: true });
-}
-
-async function probeProviderModels() {
-  ui.providerLoadModels.disabled = true;
-  ui.providerStatus.textContent = "正在获取可用模型...";
-  const payload = { profileId: ui.providerId.value };
-  if (ui.providerApiBase.value.trim()) payload.apiBase = ui.providerApiBase.value.trim();
-  if (ui.providerApiKey.value.trim()) payload.apiKey = ui.providerApiKey.value.trim();
-  try {
-    const { models = [] } = await request("/api/ai-providers/models/probe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const current = ui.providerModel.value === "__custom" ? ui.providerCustomModel.value.trim() : ui.providerModel.value;
-    setProviderModelOptions(models, models.includes(current) ? current : "");
-    ui.providerStatus.textContent = models.length ? `已获取 ${models.length} 个模型` : "接口没有返回模型，可选择自定义";
-  } catch (error) {
-    setProviderModelOptions([], ui.providerCustomModel.value.trim());
-    ui.providerStatus.textContent = `${error.message}；可选择自定义模型`;
-  } finally { ui.providerLoadModels.disabled = false; }
-}
-
-async function saveProviderProfile(event) {
-  event.preventDefault();
-  const model = ui.providerModel.value === "__custom" ? ui.providerCustomModel.value.trim() : ui.providerModel.value;
-  const payload = { id: ui.providerId.value, name: ui.providerName.value.trim(), model };
-  if (ui.providerApiBase.value.trim()) payload.apiBase = ui.providerApiBase.value.trim();
-  if (ui.providerApiKey.value.trim()) payload.apiKey = ui.providerApiKey.value.trim();
-  ui.providerStatus.textContent = "正在保存连接...";
-  try {
-    let { profiles } = await request("/api/ai-providers", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!profiles.find(({ id }) => id === payload.id)?.active) ({ profiles } = await request("/api/ai-providers/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: payload.id }) }));
-    renderProviderProfiles(profiles, true);
-    openProviderDialog(profiles.find(({ id }) => id === payload.id));
-    ui.providerStatus.textContent = "连接已保存并启用";
-    ui.organizationProviderStatus.textContent = "连接已保存并启用";
-  } catch (error) { ui.providerStatus.textContent = error.message; }
-}
-
-async function deleteProviderProfile() {
-  const profile = managedProviderProfiles.find(({ id }) => id === ui.providerId.value) || managedProviderProfiles.find(({ id }) => id === ui.organizationProviderSelect.value);
-  if (!profile || profile.builtIn || !window.confirm(`删除“${profile.name}”？保存的连接密钥也会一并删除。`)) return;
-  ui.organizationProviderStatus.textContent = "正在删除连接...";
-  try {
-    const { profiles } = await request(`/api/ai-providers/${encodeURIComponent(profile.id)}`, { method: "DELETE" });
-    renderProviderProfiles(profiles, true);
-    closeProviderDialog();
-    ui.organizationProviderStatus.textContent = profiles[0]?.builtIn ? "已删除，当前使用本地演示模式" : "连接已删除";
-  } catch (error) { ui.organizationProviderStatus.textContent = error.message; }
-}
-
-async function loadProviderProfiles() {
-  ui.organizationProviderStatus.textContent = "正在读取连接...";
-  const { profiles = [], managed = false } = await request("/api/ai-providers", { cache: "no-store" });
-  renderProviderProfiles(profiles, managed);
-}
-
-async function activateProvider() {
-  ui.organizationProviderSelect.disabled = true;
-  ui.organizationProviderStatus.textContent = "正在切换连接...";
-  try {
-    const { profiles } = await request("/api/ai-providers/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: ui.organizationProviderSelect.value }) });
-    renderProviderProfiles(profiles, true);
-    ui.organizationProviderStatus.textContent = "已切换，后续生成立即生效";
-  } catch (error) {
-    ui.organizationProviderStatus.textContent = error.message;
-    await loadProviderProfiles().catch(() => {});
-  }
-}
-
-async function testProviderConnection() {
-  ui.organizationProviderTest.disabled = true;
-  ui.organizationProviderStatus.textContent = "正在测试连接...";
-  try {
-    const { result } = await request("/api/ai-providers/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: ui.organizationProviderSelect.value }) });
-    ui.organizationProviderStatus.textContent = result.success ? `连接正常 · ${result.model}` : "连接失败";
-  } catch (error) { ui.organizationProviderStatus.textContent = error.message; }
-  finally { ui.organizationProviderTest.disabled = false; }
-}
-
-async function loadProviderModels() {
-  ui.organizationProviderModels.disabled = true;
-  ui.organizationProviderModelList.textContent = "正在读取可用模型...";
-  try {
-    const { models = [] } = await request(`/api/ai-providers/models?profileId=${encodeURIComponent(ui.organizationProviderSelect.value)}`, { cache: "no-store" });
-    ui.organizationProviderModelList.textContent = models.length ? `可用模型：${models.slice(0, 12).join("、")}${models.length > 12 ? ` 等 ${models.length} 个` : ""}` : "接口没有返回可用模型";
-  } catch (error) { ui.organizationProviderModelList.textContent = error.message; }
-  finally { ui.organizationProviderModels.disabled = false; }
-}
-
 async function loadOrganization() {
   const { organization } = await request("/api/organizations/current", { cache: "no-store" });
   ui.organizationControl.hidden = organization.currentMember?.role !== "admin";
@@ -531,13 +376,10 @@ async function openOrganization() {
   if (managerBody) managerBody.scrollTop = 0;
   ui.organizationStatus.textContent = "正在读取 AI 连接...";
   try {
-    managedOrganization = await loadOrganization();
-    if (!managedOrganization.members) throw new Error("当前身份没有组织管理权限");
-    await loadProviderProfiles();
-    const activeProfile = managedProviderProfiles.find(({ active, builtIn }) => active && !builtIn);
-    if (activeProfile) openProviderDialog(activeProfile, { focus: false });
+    await providerSettings.load();
+    providerSettings.openActive({ focus: false });
     if (managerBody) managerBody.scrollTop = 0;
-    ui.organizationStatus.textContent = "连接配置仅对当前服务生效";
+    ui.organizationStatus.textContent = "连接配置仅对当前账号生效";
   } catch (error) { ui.organizationStatus.textContent = error.message; }
 }
 
@@ -610,11 +452,11 @@ async function openProjectDialog() {
   ui.projectDialog.hidden = false; ui.projectStatus.textContent = "正在读取项目...";
   ui.newAiProject.hidden = bridge.getActorRole() === "viewer";
   ui.projectAiEdit.hidden = bridge.getActorRole() === "viewer" || !bridge.getCurrentProject();
-  try { await Promise.all([loadProjects(), loadOrganization()]); } catch (error) { ui.projectStatus.textContent = error.message; }
+  try { await loadProjects(); } catch (error) { ui.projectStatus.textContent = error.message; }
 }
 
 ui.control.addEventListener("click", openProjectDialog);
-ui.authControl.addEventListener("click", () => { closeProjectDialog(); closeOrganizationDialog(); closeMemberDialog(); closeAuditDialog(); closeProviderDialog(); });
+ui.authControl.addEventListener("click", () => { closeProjectDialog(); closeOrganizationDialog(); closeMemberDialog(); closeAuditDialog(); providerSettings.close(); });
 ui.projectClose.addEventListener("click", closeProjectDialog); ui.projectCancel.addEventListener("click", closeProjectDialog);
 ui.projectDialog.addEventListener("click", (event) => { if (event.target === ui.projectDialog) closeProjectDialog(); });
 [ui.projectStatusFilter].forEach((control) => control.addEventListener("change", () => loadProjects().catch((error) => { ui.projectStatus.textContent = error.message; })));
@@ -623,23 +465,9 @@ ui.newAiProject.addEventListener("click", beginAiProject);
 ui.projectListTab.addEventListener("click", showProjectList);
 ui.projectAiEdit.addEventListener("click", editCurrentProjectWithAi);
 window.addEventListener("dashboard-ai-composer-embedded-close", showProjectList);
+window.addEventListener("dashboard-generation-job-started", closeProjectDialog);
 ui.organizationControl.addEventListener("click", openOrganization); ui.organizationClose.addEventListener("click", closeOrganizationDialog); ui.organizationCancel.addEventListener("click", closeOrganizationDialog); ui.organizationSave.addEventListener("click", saveOrganization);
 ui.organizationAudit.addEventListener("click", () => openOrganizationAudit().catch((error) => { ui.organizationStatus.textContent = error.message; }));
-ui.organizationProviderSelect.addEventListener("change", activateProvider);
-ui.organizationProviderTest.addEventListener("click", testProviderConnection);
-ui.organizationProviderModels.addEventListener("click", loadProviderModels);
-ui.organizationProviderAdd.addEventListener("click", () => openProviderDialog());
-ui.organizationProviderEdit.addEventListener("click", () => openProviderDialog(managedProviderProfiles.find(({ id }) => id === ui.organizationProviderSelect.value)));
-ui.organizationProviderDelete.addEventListener("click", deleteProviderProfile);
-ui.providerForm.addEventListener("submit", saveProviderProfile);
-ui.providerLoadModels.addEventListener("click", probeProviderModels);
-ui.providerModel.addEventListener("change", () => {
-  ui.providerCustomModelField.hidden = ui.providerModel.value !== "__custom";
-  ui.providerCustomModel.required = ui.providerModel.value === "__custom";
-  if (!ui.providerCustomModelField.hidden) ui.providerCustomModel.focus();
-});
-ui.providerClose.addEventListener("click", closeProviderDialog); ui.providerCancel.addEventListener("click", closeProviderDialog);
-ui.providerDialog.addEventListener("click", (event) => { if (event.target === ui.providerDialog) closeProviderDialog(); });
 ui.organizationDialog.addEventListener("click", (event) => { if (event.target === ui.organizationDialog) closeOrganizationDialog(); });
 ui.memberClose.addEventListener("click", closeMemberDialog); ui.memberCancel.addEventListener("click", closeMemberDialog); ui.memberSave.addEventListener("click", saveMembers);
 ui.memberDialog.addEventListener("click", (event) => { if (event.target === ui.memberDialog) closeMemberDialog(); });

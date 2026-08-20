@@ -35,6 +35,36 @@ function chatCompletionResponse(candidate, status = 200, usage = null) {
   }), { status, headers: { "Content-Type": "application/json" } });
 }
 
+function sseResponse(events, { status = 200 } = {}) {
+  const body = events.map((event) => `data: ${event === "[DONE]" ? event : JSON.stringify(event)}\n\n`).join("");
+  return new Response(body, { status, headers: { "Content-Type": "text/event-stream" } });
+}
+
+function delayedStreamResponse({ chunks = [], initialDelayMs = 0, delayMs = 0, keepOpen = false, signal = null } = {}) {
+  const encoder = new TextEncoder();
+  let timer;
+  const body = new ReadableStream({
+    start(controller) {
+      let index = 0;
+      const push = () => {
+        if (index < chunks.length) {
+          controller.enqueue(encoder.encode(chunks[index++]));
+          timer = setTimeout(push, delayMs);
+        } else if (!keepOpen) {
+          controller.close();
+        }
+      };
+      timer = setTimeout(push, initialDelayMs);
+      signal?.addEventListener("abort", () => {
+        clearTimeout(timer);
+        controller.error(Object.assign(new Error("aborted"), { name: "AbortError" }));
+      }, { once: true });
+    },
+    cancel() { clearTimeout(timer); }
+  });
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
+
 test("keeps deterministic generation behind the provider gateway", async () => {
   const provider = createProviderFromEnv({});
   const run = await runGenerationWithProvider(provider, {
@@ -99,6 +129,7 @@ test("sends a schema-guided OpenAI Responses request and trusts the normalized r
   assert.equal(calls[0].options.headers.Authorization, "Bearer test-secret-key");
   assert.equal(calls[0].body.model, "explicit-test-model");
   assert.equal(calls[0].body.store, false);
+  assert.equal(calls[0].body.stream, true);
   assert.equal(calls[0].body.text.format.type, "json_schema");
   assert.equal(calls[0].body.text.format.strict, false);
   assert.equal(calls[0].body.text.format.schema.properties.workspace.type, "object");
@@ -136,7 +167,10 @@ test("uses the active Dashboard profile with an OpenAI-compatible chat completio
   assert.equal(calls[0].options.headers.Authorization, "Bearer profile-test-secret");
   assert.equal(calls[0].body.model, "team-model");
   assert.equal(calls[0].body.response_format.type, "json_object");
+  assert.equal(calls[0].body.stream, true);
+  assert.deepEqual(calls[0].body.stream_options, { include_usage: true });
   assert.equal(calls[0].body.messages[0].role, "system");
+  assert(calls[0].body.messages[0].content.includes('"workspace"'));
   assert.equal(calls[0].body.messages[1].role, "user");
   assert(!calls[0].body.messages[1].content.includes("profile-test-secret"));
   assert.deepEqual(run.usage, { requests: 1, inputTokens: 90, outputTokens: 60, totalTokens: 150 });
@@ -198,6 +232,119 @@ test("repairs invalid OpenAI-compatible output through the same chat endpoint", 
   assert.equal(run.status, "preview-ready");
   assert.equal(run.repairAttempts, 1);
   assert.deepEqual(run.usage, { requests: 2, inputTokens: 40, outputTokens: 20, totalTokens: 60 });
+});
+
+test("assembles OpenAI-compatible streamed JSON and final usage", async () => {
+  const text = JSON.stringify(fixture);
+  const provider = createOpenAICompatibleProvider({
+    apiKey: "compatible-key",
+    model: "compatible-model",
+    apiBase: "http://127.0.0.1:9999/v1",
+    fetchImpl: async () => sseResponse([
+      { choices: [{ delta: { content: text.slice(0, 400) } }] },
+      { choices: [{ delta: { content: text.slice(400) } }] },
+      { choices: [], usage: { prompt_tokens: 42, completion_tokens: 18, total_tokens: 60 } },
+      "[DONE]"
+    ])
+  });
+  const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId: "run-compatible-stream" });
+  assert.equal(run.status, "preview-ready");
+  assert.deepEqual(run.usage, { requests: 1, inputTokens: 42, outputTokens: 18, totalTokens: 60 });
+});
+
+test("assembles OpenAI Responses streamed JSON and completed usage", async () => {
+  const text = JSON.stringify(fixture);
+  const provider = createOpenAIProvider({
+    apiKey: "test-key",
+    model: "responses-model",
+    endpoint: "http://127.0.0.1:9999/v1/responses",
+    fetchImpl: async () => sseResponse([
+      { type: "response.output_text.delta", delta: text.slice(0, 300) },
+      { type: "response.output_text.delta", delta: text.slice(300) },
+      { type: "response.completed", response: { usage: { input_tokens: 31, output_tokens: 29, total_tokens: 60 } } },
+      "[DONE]"
+    ])
+  });
+  const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId: "run-responses-stream" });
+  assert.equal(run.status, "preview-ready");
+  assert.deepEqual(run.usage, { requests: 1, inputTokens: 31, outputTokens: 29, totalTokens: 60 });
+});
+
+test("fails a provider request that produces no first byte", async () => {
+  const provider = createOpenAIProvider({
+    apiKey: "test-key",
+    model: "responses-model",
+    endpoint: "http://127.0.0.1:9999/v1/responses",
+    firstByteTimeoutMs: 20,
+    fetchImpl: async (_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+    })
+  });
+  const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId: "run-first-byte-timeout" });
+  assert.equal(run.error.code, "provider_timeout");
+});
+
+test("fails a provider stream that becomes idle after one chunk", async () => {
+  const provider = createOpenAICompatibleProvider({
+    apiKey: "test-key",
+    model: "compatible-model",
+    apiBase: "http://127.0.0.1:9999/v1",
+    idleTimeoutMs: 20,
+    fetchImpl: async (_url, { signal }) => delayedStreamResponse({
+      chunks: ['data: {"choices":[{"delta":{"content":"{"}}]}\n\n'],
+      keepOpen: true,
+      signal
+    })
+  });
+  const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId: "run-idle-timeout" });
+  assert.equal(run.error.code, "provider_timeout");
+});
+
+test("does not apply the idle timeout before the first body chunk", async () => {
+  const text = JSON.stringify(fixture);
+  const provider = createOpenAICompatibleProvider({
+    apiKey: "test-key",
+    model: "compatible-model",
+    apiBase: "http://127.0.0.1:9999/v1",
+    firstByteTimeoutMs: 100,
+    idleTimeoutMs: 20,
+    fetchImpl: async (_url, { signal }) => delayedStreamResponse({
+      chunks: [`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`, "data: [DONE]\n\n"],
+      initialDelayMs: 40,
+      signal
+    })
+  });
+  const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId: "run-delayed-first-chunk" });
+  assert.equal(run.status, "preview-ready");
+});
+
+test("enforces maximum duration even while stream chunks continue", async () => {
+  const provider = createOpenAICompatibleProvider({
+    apiKey: "test-key",
+    model: "compatible-model",
+    apiBase: "http://127.0.0.1:9999/v1",
+    timeoutMs: 1_000,
+    idleTimeoutMs: 200,
+    fetchImpl: async (_url, { signal }) => delayedStreamResponse({
+      chunks: Array.from({ length: 100 }, () => ': heartbeat\n\n'),
+      delayMs: 20,
+      keepOpen: true,
+      signal
+    })
+  });
+  const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId: "run-max-timeout" });
+  assert.equal(run.error.code, "provider_timeout");
+});
+
+test("rejects invalid and oversized provider streams", async () => {
+  for (const [runId, response] of [
+    ["run-invalid-stream", new Response("data: not-json\n\n", { headers: { "Content-Type": "text/event-stream" } })],
+    ["run-oversized-stream", new Response(`data: ${"x".repeat(2 * 1024 * 1024 + 1)}\n\n`, { headers: { "Content-Type": "text/event-stream" } })]
+  ]) {
+    const provider = createOpenAIProvider({ apiKey: "test-key", model: "responses-model", endpoint: "http://127.0.0.1:9999/v1/responses", fetchImpl: async () => response });
+    const run = await runGenerationWithProvider(provider, { request: fixture.request, baseWorkspace: baseline, runId });
+    assert.equal(run.error.code, "provider_protocol");
+  }
 });
 
 test("managed profiles switch generation, discover models, and test connections", async () => {

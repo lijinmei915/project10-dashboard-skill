@@ -4,7 +4,7 @@ const PALETTE_VERSIONS = new Set(["1.0.0", "1.2.0"]);
 const PAGE_TYPES = new Set(["dashboard", "report"]);
 const LANGUAGES = new Set(["zh", "en"]);
 const MODES = new Set(["light", "dark"]);
-export const CHART_TYPES = new Set(["line", "area", "bar", "horizontal-bar", "pie"]);
+export const CHART_TYPES = new Set(["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"]);
 const COMMANDS = new Set(["set", "unset", "insert", "remove", "move", "replace"]);
 export const COMPONENT_RULES = Object.freeze({
   summary: ["body"],
@@ -71,6 +71,12 @@ function validatePageControls(document, sectionIds, componentIds, issues) {
       else for (const target of control.props.targets) {
         if (!sectionIds.has(target) && !componentIds.has(target)) issue(issues, `${base}/props/targets`, "reference", `Filter target ${target} does not exist`);
       }
+      if (control.props.placement !== undefined) {
+        const placement = control.props.placement;
+        if (!isObject(placement) || placement.kind !== "component-header" || typeof placement.targetId !== "string") issue(issues, `${base}/props/placement`, "shape", "Filter placement requires component-header and targetId");
+        else if (!componentIds.has(placement.targetId)) issue(issues, `${base}/props/placement/targetId`, "reference", "Filter placement target must be an existing component");
+        else if (!control.props.targets.includes(placement.targetId)) issue(issues, `${base}/props/placement/targetId`, "reference", "Filter placement target must also be a filter target");
+      }
     } else {
       const items = control.props.items;
       if (!Array.isArray(items) || items.length < 2) issue(issues, `${base}/props/items`, "required", "View tabs require at least two items");
@@ -125,7 +131,7 @@ function validateWorkspaceShape(workspace) {
             if (component.props[requiredProp] === undefined) issue(issues, `${componentBase}/props/${requiredProp}`, "required", `${component.type} requires ${requiredProp}`);
           }
           if (component.type === "chart" && component.props.chartType !== undefined && !CHART_TYPES.has(component.props.chartType)) {
-            issue(issues, `${componentBase}/props/chartType`, "enum", "Chart type must be line, area, bar, horizontal-bar, or pie");
+            issue(issues, `${componentBase}/props/chartType`, "enum", `Unsupported chart type: ${component.props.chartType}`);
           }
           if (documentComponentIds.has(component.id)) issue(issues, `${componentBase}/id`, "unique", "Document component ids must be unique");
           documentComponentIds.add(component.id);
@@ -240,6 +246,13 @@ function validateWorkspaceShape(workspace) {
       if (workspace.interactions.activeView !== undefined) {
         const viewIds = new Set((document?.controls ?? []).filter(({ type }) => type === "view-tabs").flatMap(({ props }) => (props?.items ?? []).map(({ id }) => id)));
         if (!viewIds.has(workspace.interactions.activeView)) issue(issues, "/interactions/activeView", "reference", "Active view does not exist");
+      }
+      const visibility = workspace.interactions.chartSeriesVisibility;
+      if (visibility !== undefined && !isObject(visibility)) issue(issues, "/interactions/chartSeriesVisibility", "type", "Chart series visibility must be an object");
+      else for (const [componentId, series] of Object.entries(visibility ?? {})) {
+        const component = documentComponents.find(({ component }) => component.id === componentId)?.component;
+        if (!component || component.type !== "chart") issue(issues, `/interactions/chartSeriesVisibility/${componentId}`, "reference", "Series visibility target must be an existing chart");
+        else if (!isObject(series) || Object.values(series).some((value) => typeof value !== "boolean")) issue(issues, `/interactions/chartSeriesVisibility/${componentId}`, "type", "Series visibility values must be boolean");
       }
     }
   }

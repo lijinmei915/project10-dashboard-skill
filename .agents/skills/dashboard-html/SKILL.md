@@ -33,12 +33,13 @@ This skill keeps dashboard output:
 - `sectionStyle`：分组标题处理方式；未指定时使用 `plain`。
 - `contentWidth`：`auto`、`fluid` 或 `readable`；`auto` 下 Dashboard 全宽、Report 使用阅读宽度。
 - `sectionVisibility`：`auto`、`visible` 或 `hidden`；`auto` 下 Dashboard 可省略分组标题、Report 显示章节标题。
-- `cardTitleSize`：卡片标题字号；默认 `14px`，可使用 `12 / 14 / 16 / 18 / 20px`。
+- `cardTitleSize`：卡片标题字号；标准看板默认 `16px`，可使用 `12 / 14 / 16 / 18 / 20px`。
 - `cardTitleIcon`：普通卡片标题图标样式，可使用 `none / line / soft / solid`；默认 `none`，与 KPI 图标独立。
 - `cardTitleIconColor`：普通卡片标题图标配色，可使用 `neutral / accent`；默认中性色，并允许单卡覆盖。
 - `kpiLayout`：指标卡内容排列，可使用 `stacked / horizontal`；默认上下排列，并允许单张 KPI 卡片覆盖。
-- `chartType`：图表类型，可使用 `line / area / bar / horizontal-bar / pie`，分别对应折线图、面积图、柱状图、条形图和环形图；用户明确指定时必须优先采用，未指定时按趋势、累计、分类对比、排名/长标签、占比等语义选择。
-- `chartPalette`：图表配色方式，可使用 `monochrome / bichrome / categorical`；默认 `monochrome`。单色和双色按主题色相从固定 AntV/G2 色板取最近的一色或两色，彩色使用完整色板。
+- `chartType`：使用稳定机器 ID。当前支持折线、面积、柱图家族、条图家族、直方图、排名图、甘特图和环形图；完整 ID、唯一业务语义与数据形状见 `references/charts.md`，用户明确指定时必须优先采用。
+- `chartPalette`：图表配色方式，可使用 `monochrome / bichrome / categorical`；标准看板默认 `categorical`。单色和双色按主题色相从固定 AntV/G2 色板取最近的一色或两色，彩色使用完整色板。
+- 图表交互：筛选可放在页面、分组或单个图表标题区；多系列图表默认显示可点击图例，点击仅临时隐藏/显示系列并保存当前状态。
 - `accent`：任意明确的主题色名称或 CSS 色值，例如 `蓝色`、`墨绿`、`#0f766e`。
 
 `pageType` 只决定默认编排策略，规则见 `references/page-types.md`。主题预设和头部/分组样式只改变视觉表达，不固定内容、模块数量、布局原语或 section 顺序，详细选项见 `references/themes.md`。用户没有指定时直接路由，不先弹选择表单。

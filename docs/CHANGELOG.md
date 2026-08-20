@@ -11,7 +11,24 @@ depends_on: [PROJECT.md, HANDOFF.md]
 > 什么时候更新：发生结构性调整时。
 > 不要写什么：纯文案小修、一次性讨论过程、未落地设想。
 
+## 2026-08-20
+
+- 将当前 Dashboard 视觉配置固化为 `fx-orange / 标准看板` 基线：`#ff8000` 主题色、14px 正文、10px 卡片圆角、16px 卡片标题、12px 卡片间距、轻阴影、标准密度和多色图表。
+- Studio 运行时、standalone starter、Skill 主题/输出规范和设计资源目录使用同一组默认值；入口模块增加版本参数，避免浏览器继续命中旧运行时缓存。
+
 ## 2026-08-12
+
+- HTML 导入新增自动分类：有效表格继续生成数据集，无表格的报告或 Dashboard 提取为页面内容上下文；摘要即时显示内容块、业务场景和推荐组件，允许不补提示词直接按当前主题与组件规范生成。原 CSS、脚本、iframe、SVG 和 Canvas 不进入生成上下文。
+- 新建项目移除固定业务类型选择，改为根据需求和数据自动识别开放业务场景；右侧摘要新增“识别场景”，不明确时保持待识别且不阻止生成。
+- 新建项目移除显式组件选择，组件目录继续作为 AI 内部能力；用户只需接入可选数据并描述目标，右侧摘要实时展示推荐组件。
+- 数据导入新增 HTML 表格格式，服务端使用标准解析器仅读取首个有效表格并忽略脚本/样式；新建项目的数据入口图标统一改用 Phosphor 图标库。
+- 图表交互补齐：`filter-bar` 支持放入指定图表标题区并保持目标范围；多系列图表新增可点击、可持久化、可导出的无障碍图例，AI 可识别“当前图表 / 当前分组 / 整页联动”等自然语言范围。
+- 资源中心进入 M2：选中图表卡片后可从独立资源页应用受控图表类型；新增会话、目标和目录三重校验，普通浏览模式保持只读。
+- 资源中心进入 M3：新增 6 类内容组件、2 类页面控件的真实结构目录，以及 Phosphor 图标搜索、细线/常规/粗线/填充预览；选中卡片后可通过同一受控协议应用标题图标，Studio 在写入前复验图标资源。
+- 资源中心进入 M4：新增版本化 `design-standards.json` 与 `/api/design/standards`，把颜色、字号、间距、形状和可访问性规则做成可视规范；该摘要显式追溯 Skill themes、color-system 和 palette，合同检查防止三端语义漂移。
+- 资源中心进入 M5：顶部增加四类能力状态与版本/数量摘要，目录失败独立降级；新增资源中心合同测试，自动核对共享 API、18 图表、8 类组件和五类设计规范，并禁止硬编码目录数量。
+- 窄屏 Studio 新增“查看画布 / 返回设置”双向切换：设计模式与当前选区保持不变，用户可暂时收起全屏设置抽屉，在画布选择卡片或分组后返回局部设置；桌面模式不显示该控件。
+- 资源中心 M1-M5 完成最终验收：桌面端分组图标受控应用通过，目标 ID、会话、资源存在性、可见 SVG、选区和待保存状态均有浏览器证据；验收修改已恢复。最终门禁确认独立页面 200、18 图表、6 类组件、2 类控件、5 类设计规范及 Studio/AI 共享目录一致。
 
 - 项目中心弹窗、Tab、搜索/筛选表单和底部操作区按 shadcn 对话框与表单规范重新规整；保持原生 HTML 和现有业务逻辑，不把 React/Radix 运行时带入 Studio 或 Skill。
 - Studio 项目中心开始使用独立 UI 原语层：动态项目操作、Provider 连接操作和成员权限下拉统一接入 `studio/ui-kit.mjs`，保留原业务类名与事件契约。
@@ -20,6 +37,7 @@ depends_on: [PROJECT.md, HANDOFF.md]
 
 ## 2026-08-11
 
+- Provider 设置从项目中心业务脚本中抽离为可复用的原生组件 `studio/provider-connection-settings.mjs`；组件复用当前 Studio API 和 UI primitive，保持 OmniDesk Provider 组件的职责划分，但不增加 React、Tauri 或 Skill 成品依赖。
 - 建立平台 UI 组件与轻量 Skill 的分层契约：Studio 增加 `studio/ui-kit.mjs` 基础 DOM primitive；Skill 仅增加 `studio-component-contract.md` 语义、可访问性和导出边界，不携带完整 shadcn/Radix 源码或运行依赖。
 - 已有项目增加第一版管理控件：项目名称搜索、进行中/全部/已归档状态筛选、最近更新/名称排序和“我可编辑”归属筛选；列表继续只展示服务端真实字段，不新增虚构统计。
 - AI 设置改为项目中心内部 Tab 内容，不再打开独立遮罩弹窗；Provider 管理器复用原有节点直接挂入 Tab，加载、编辑、模型读取和保存逻辑不变。
@@ -32,7 +50,7 @@ depends_on: [PROJECT.md, HANDOFF.md]
 - 项目中心与 AI 首稿生成融合为同一“项目工作台”：正式页面只保留左下角“项目 / AI”统一入口，`已有项目 / 新建项目 / AI 编辑 / AI 设置` 在单一弹窗内切换；新建与编辑视图复用并嵌入原 AI Composer，不复制生成逻辑。空项目仍不持久化，接受首稿后才创建项目。Playwright Provider 存储同步隔离到测试目录，避免读取本机真实连接。
 - AI 设置参考 OmniDesk 收敛为单层 Provider 管理器：顶部展示当前连接与测试状态，中部使用卡片切换已保存连接，底部内嵌地址、Key、模型读取和保存启用表单；新增/编辑不再打开第二层弹窗。暂时隐藏的组织成员、运行指标、平台状态和组织审计不再随弹窗加载，底层服务能力保持不变。
 - Provider 编辑表单对齐 OmniDesk 的模型选择流程：地址与 Key 就绪后可在保存前探测 `/models`，从下拉框选择真实模型 ID；不支持模型目录的兼容服务仍可使用“自定义模型”。新增的组织管理员探测端点支持新连接临时凭证和编辑连接既有凭证，响应只返回模型 ID，不回显地址或密钥。
-- Provider 管理升级为组织级持久化 CRUD：管理员可新增、编辑、删除连接，当前档案跨重启保存；Generation Job 按固化 organizationId 动态解析模型，双组织回归证明 endpoint 与密钥不串用。公开档案与凭证拆入独立 `0600` file store，浏览器不回显地址或密钥；最后一个档案删除后自动回到本地演示模式。Node 基线增至 177 项，Playwright 18/18 继续通过。
+- Provider 管理升级为持久化 CRUD：用户可新增、编辑、删除连接，当前档案跨重启保存；API 地址作为非敏感连接配置在编辑时回显，API Key 继续独立保存且永不回显。Generation Job 按固化 organizationId 动态解析模型，双组织回归证明地址与密钥不串用；最后一个档案删除后自动回到本地演示模式。
 - 组织设置新增 AI Provider 管理区：管理员可查看脱敏多档案、即时切换当前连接、发现模型和测试连接；普通成员 API 访问返回 403，浏览器不接收 endpoint、密钥引用或密钥。动态切换直接影响后续 Generation Job，重启仍回到部署配置。移动端无横向溢出，退出登录同步关闭管理弹窗，完整 Playwright 18/18 通过。
 - Provider Gateway 新增 Dashboard 原生多档案与 OpenAI-compatible Chat Completions 适配：`activeProfileId` 选择当前模型档案，支持标准 `/chat/completions`、JSON 输出、一次 repair 和 prompt/completion token 归一化；同时接受 OmniDesk 公开档案结构用于迁移，但不读取其 secret 文件或形成运行依赖。新增 4 组安全与协议回归。
 - OpenAI Responses Gateway 现在将上游 usage 归一化为 input/output/total token 计数并按首稿与单次 repair 累加至隔离 Generation Run；`smoke:provider` 输出该受控统计以支持真实部署验收，不计算价格，也不写入 Workspace、Revision、成品或普通浏览器状态。Mock 回归覆盖单次与 repair 累加。
@@ -373,3 +391,28 @@ depends_on: [PROJECT.md, HANDOFF.md]
 - 建立 `dashboard-html` 的 `SKILL.md`、`references/`、`assets/templates/` 结构
 - 调整 starter 模板为轻量、响应式、通用占位的 dashboard 骨架
 - 补齐治理文档最小集合，消除主文档中的断链引用
+- Provider 管理新增停用接口与开启前校验：关闭连接保留配置并回退本地演示；连接测试新增模型可用性检查、稳定错误码和前端诊断提示，模型不匹配时自动载入可选模型
+- AI 设置改为个人作用域：本地免登录兼容旧连接，登录用户按自身 ID 隔离连接；项目中心不再加载组织信息，入口和说明改为“我的 AI 设置”
+## 2026-08-13 - 柱图家族与唯一图表语义
+
+- 图表目录新增 `grouped-bar`、`stacked-bar`、`percent-stacked-bar`、`histogram`，保留原有 `bar` 兼容语义。
+- workspace、Studio、ECharts SSR、便携导出与 AI 中文路由统一使用稳定图表 ID。
+- 新增图表语义和数据形状规范，单色多系列图使用同色深浅区分。
+- 条图家族新增分组、堆叠、百分比堆叠、双向和排名语义，并增加甘特图；受控图表目录扩展至 15 种。
+- 线图和饼图家族新增 `time-series`、`sector-pie`、`rose`，保留 `pie` 作为环图兼容 ID；受控图表目录扩展至 18 种。
+## 2026-08-13 - Studio 资源中心 M1
+
+- 新增独立 `/studio/resources` HTML 页面，从公开目录和图表渲染 API 动态展示全部受控图表。
+- 视觉设置标题旁增加资源中心入口；新标签页打开以保留当前编辑状态。
+- 新增资源中心架构规划，后续阶段覆盖应用到画布、组件、图标、规范和质量治理。
+## 2026-08-18 画布生成模式
+
+- 项目中心在 Generation Job 创建成功后自动关闭，不再遮挡首稿预览。
+- 主画布新增生成浮条，支持停止、接受、放弃和失败后返回设置。
+- 修复首稿摘要读取未定义图表名称映射导致的预览失败。
+- Generation Job HTTP 测试显式注入确定性 Provider，不再受本机已保存远程模型配置影响。
+- Generation Job 新增可恢复 SSE 事件流，前端移除 250ms 高频轮询；事件只包含受控阶段、序号、时间和安全错误码，终态再读取一次经校验的完整预览。
+- OpenAI Responses 与 OpenAI-compatible Provider 改为流式读取，固定 45 秒超时拆为默认 120 秒首包、60 秒流空闲和 5 分钟最大任务时长；完整 JSON 校验前不写入 Workspace。真实复杂推理模型验收发现 60 秒首包不足，已按证据调整。
+- 完整候选通过 Workspace 校验后在画布按分区渐进呈现，减少动态效果模式直接完整显示；原子 Workspace 不随动画拆分。
+- Provider 首次候选在计划或 Bundle 结构校验失败时也可自动 repair 一次；Generation Job 对首次生成与 repair 施加共享的 5 分钟整体硬上限，并保留受控 HTTP 错误分类。
+- 完整门禁通过：Generation eval 10/10、Node 189 passed / 6 PostgreSQL skips、Skill 包 31 文件且 SHA-256 可复现。

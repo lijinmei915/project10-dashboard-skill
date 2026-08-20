@@ -21,6 +21,7 @@ function sha256(bytes) {
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(studioOutput, { recursive: true });
 await copyFile(path.join(repoRoot, ".dashboard-preset-preview.html"), path.join(outputRoot, "index.html"));
+await copyFile(path.join(repoRoot, ".studio-resources.html"), path.join(outputRoot, "studio", "resources.html"));
 
 for (const name of sourceModules) {
   const sourcePath = path.join(studioSource, name);
@@ -40,7 +41,7 @@ for (const name of sourceModules) {
 
 await copyFile(coreSource, path.join(studioOutput, "workspace-core-runtime.mjs"));
 
-const files = ["index.html", ...sourceModules.map((name) => `studio/${name}`), "studio/workspace-core-runtime.mjs"].sort();
+const files = ["index.html", "studio/resources.html", ...sourceModules.map((name) => `studio/${name}`), "studio/workspace-core-runtime.mjs"].sort();
 const assets = {};
 for (const relativePath of files) {
   const bytes = await readFile(path.join(outputRoot, relativePath));

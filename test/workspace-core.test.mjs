@@ -12,6 +12,7 @@ import { appendProjectRevision, createProject, projectRevisionSummary, restorePr
 import { startPreviewServer } from "../.agents/skills/dashboard-html/scripts/preview-server.mjs";
 import { createProjectRepository } from "../.agents/skills/dashboard-html/scripts/studio-project-repository.mjs";
 import { renderStandaloneWorkspace } from "../.agents/skills/dashboard-html/scripts/revision-exporter.mjs";
+import { createProviderFromEnv } from "../.agents/skills/dashboard-html/scripts/provider-gateway.mjs";
 
 const fixture = JSON.parse(await readFile(new URL("./fixtures/sales-dashboard-generation.json", import.meta.url), "utf8"));
 const baseline = {
@@ -180,10 +181,23 @@ test("generates a registered text component when the prompt requests explanatory
 test("maps explicit and semantic chart requests to the controlled catalog", () => {
   const cases = [
     ["用折线图展示最近 12 个月销售额", "line"],
+    ["用时序图展示服务器监控趋势和阈值", "time-series"],
     ["用面积图展示累计收入变化", "area"],
     ["用柱状图对比不同渠道收入", "bar"],
-    ["用条形图展示客户贡献排名", "horizontal-bar"],
-    ["用环形图展示渠道销售额占比", "pie"]
+    ["用分组柱图比较各区域今年和去年收入", "grouped-bar"],
+    ["用堆叠柱图展示各渠道总量与构成", "stacked-bar"],
+    ["用百分比堆叠柱图比较各区域品类占比", "percent-stacked-bar"],
+    ["用直方图展示订单金额分布", "histogram"],
+    ["用基础条图展示各产品收入", "horizontal-bar"],
+    ["用分组条图比较各部门今年和去年成本", "grouped-horizontal-bar"],
+    ["用堆叠条图展示各团队工作量构成", "stacked-horizontal-bar"],
+    ["用百分比堆叠条图比较各渠道品类占比", "percent-stacked-horizontal-bar"],
+    ["用双向条图比较各年龄段男女用户", "diverging-bar"],
+    ["用排名图展示客户贡献 Top 10", "ranking-bar"],
+    ["用甘特图展示项目排期", "gantt"],
+    ["用饼图展示渠道销售额占比", "sector-pie"],
+    ["用环图展示渠道销售额占比", "pie"],
+    ["用玫瑰图展示品类规模", "rose"]
   ];
   cases.forEach(([prompt, expected], index) => {
     assert.equal(inferChartType(prompt), expected);
@@ -193,7 +207,7 @@ test("maps explicit and semantic chart requests to the controlled catalog", () =
     if (expected === "pie") assert.equal(run.preview.workspace.theme.cardOverrides[chart.id].chartPalette, "categorical");
   });
   assert.equal(inferChartType("展示客户留存走势"), "line");
-  assert.equal(inferChartType("展示客户贡献排行"), "horizontal-bar");
+  assert.equal(inferChartType("展示客户贡献排行"), "ranking-bar");
   assert.equal(inferChartType("展示渠道贡献构成"), "pie");
 });
 
@@ -453,6 +467,30 @@ test("generates interaction controls only when natural language asks for them", 
   assert.equal(simple.preview.workspace.interactions, undefined);
 });
 
+test("places an explicitly chart-scoped filter in the chart header", () => {
+  const run = createDeterministicDraft({
+    id: "request-chart-filter",
+    prompt: "生成销售看板，这个图表右上角增加区域筛选，只控制当前图表",
+    language: "zh",
+    pageType: "dashboard",
+    dataInputs: []
+  }, baseline, { runId: "run-chart-filter", now: "2026-08-08T00:00:00.000Z" });
+  const filter = run.preview.workspace.document.controls.find(({ type }) => type === "filter-bar");
+  assert.deepEqual(filter.props.targets, ["opportunity-trend"]);
+  assert.deepEqual(filter.props.placement, { kind: "component-header", targetId: "opportunity-trend" });
+  assert.equal(validateWorkspace(run.preview.workspace).valid, true);
+});
+
+test("validates persisted chart legend visibility state", () => {
+  const workspace = structuredClone(fixture.workspace);
+  workspace.interactions = { filters: {}, chartSeriesVisibility: { "opportunity-trend": { 收入: false } } };
+  assert.equal(validateWorkspace(workspace).valid, true);
+  workspace.interactions.chartSeriesVisibility.unknown = { 收入: true };
+  const result = validateWorkspace(workspace);
+  assert.equal(result.valid, false);
+  assert(result.issues.some(({ path }) => path === "/interactions/chartSeriesVisibility/unknown"));
+});
+
 test("one filter state deterministically updates KPI, chart, table, and rankings", () => {
   const run = createDeterministicDraft({
     id: "request-linked-data",
@@ -610,7 +648,7 @@ test("persists interaction state and portable datasets through project revisions
 test("serves draft, structural refine, history restore, commit, and undo over HTTP", async (t) => {
   const projectDirectory = await mkdtemp(path.join(tmpdir(), "dashboard-project-http-"));
   const projectRepository = createProjectRepository({ directory: projectDirectory });
-  const server = startPreviewServer({ listenPort: 0, silent: true, projectRepository });
+  const server = startPreviewServer({ listenPort: 0, silent: true, projectRepository, provider: createProviderFromEnv({}) });
   await new Promise((resolve, reject) => {
     server.once("listening", resolve);
     server.once("error", reject);
@@ -626,8 +664,8 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
   assert.equal(healthResponse.status, 200);
   assert.deepEqual(await healthResponse.json(), {
     status: "ok",
-    provider: "organization-profiles",
-    mode: "remote",
+    provider: "deterministic-local",
+    mode: "deterministic",
     configured: true,
     generationVersion: 1,
     workspaceVersion: 2
@@ -635,7 +673,7 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
 
   const chartCatalogResponse = await fetch(`${endpoint}/api/charts/catalog?q=${encodeURIComponent("占比")}`);
   assert.equal(chartCatalogResponse.status, 200);
-  assert.deepEqual((await chartCatalogResponse.json()).charts.map(({ type }) => type), ["pie"]);
+  assert.deepEqual((await chartCatalogResponse.json()).charts.map(({ type }) => type), ["percent-stacked-bar", "sector-pie"]);
 
   const capabilityResponse = await fetch(`${endpoint}/api/components/catalog`);
   assert.equal(capabilityResponse.status, 200);
@@ -643,17 +681,17 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
   assert.equal(capabilities.version, 1);
   assert.deepEqual(capabilities.components.map(({ type }) => type), ["summary", "kpi", "chart", "table", "list", "text"]);
   assert.deepEqual(capabilities.controls.map(({ type }) => type), ["filter-bar", "view-tabs"]);
-  assert.deepEqual(capabilities.charts.map(({ type }) => type), ["line", "area", "bar", "horizontal-bar", "pie"]);
+  assert.deepEqual(capabilities.charts.map(({ type }) => type), ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"]);
 
-  const horizontalCatalogResponse = await fetch(`${endpoint}/api/charts/catalog?q=${encodeURIComponent("横向排行")}`);
+  const horizontalCatalogResponse = await fetch(`${endpoint}/api/charts/catalog?q=${encodeURIComponent("排行图")}`);
   assert.equal(horizontalCatalogResponse.status, 200);
-  assert.deepEqual((await horizontalCatalogResponse.json()).charts.map(({ type }) => type), ["horizontal-bar"]);
+  assert((await horizontalCatalogResponse.json()).charts.some(({ type }) => type === "ranking-bar"));
 
-  for (const type of ["line", "area", "bar", "horizontal-bar", "pie"]) {
+  for (const type of ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"]) {
     const chartResponse = await fetch(`${endpoint}/api/charts/render`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, labels: ["一月", "二月", "三月"], series: [{ name: "收入", values: [18, 26, 31] }], mode: "dark", width: 480, height: 240 })
+      body: JSON.stringify({ type, labels: type === "time-series" ? ["2026-01-01", "2026-02-01", "2026-03-01"] : ["一月", "二月", "三月"], series: type === "histogram" ? [{ name: "订单金额", values: [18, 26, 31, 22, 19, 35, 28] }] : [{ name: "今年", values: [18, 26, 31] }, { name: "去年", values: [14, 21, 25] }], thresholds: type === "time-series" ? [20, 30] : [], mode: "dark", width: 480, height: 240 })
     });
     assert.equal(chartResponse.status, 200);
     assert.match((await chartResponse.json()).svg, /^<svg[^>]+>/);

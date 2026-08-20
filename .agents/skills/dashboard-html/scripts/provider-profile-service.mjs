@@ -31,6 +31,7 @@ function publicProfiles(document, secrets) {
     id: profile.id,
     name: profile.name,
     provider: profile.provider,
+    apiBase: profile.apiBase,
     model: profile.model,
     active: profile.id === document.activeProfileId,
     credentialConfigured: Boolean(secrets?.[profile.id])
@@ -54,7 +55,7 @@ export function createProviderProfileRepository({ configurationDirectory, secret
   });
 }
 
-export function createOrganizationProviderManager({ repository, fallbackProvider, fetchImpl = globalThis.fetch, timeoutMs = 45_000 } = {}) {
+export function createOrganizationProviderManager({ repository, fallbackProvider, fetchImpl = globalThis.fetch, timeoutMs = 300_000, firstByteTimeoutMs = 120_000, idleTimeoutMs = 60_000 } = {}) {
   if (!repository || !fallbackProvider || typeof fetchImpl !== "function") throw new Error("Organization provider manager dependencies are required");
   const locks = new Map();
   const serialize = (organizationId, operation) => {
@@ -68,7 +69,7 @@ export function createOrganizationProviderManager({ repository, fallbackProvider
     const state = await read(organizationId);
     const profile = state.configuration?.profiles?.find(({ id }) => id === state.configuration.activeProfileId);
     if (!profile) return fallbackProvider;
-    return createOpenAICompatibleProvider({ apiKey: state.secrets[profile.id], model: profile.model, apiBase: profile.apiBase, timeoutMs, fetchImpl, profileId: profile.id });
+    return createOpenAICompatibleProvider({ apiKey: state.secrets[profile.id], model: profile.model, apiBase: profile.apiBase, timeoutMs, firstByteTimeoutMs, idleTimeoutMs, fetchImpl, profileId: profile.id });
   };
   const profileFor = async (organizationId, profileId) => {
     const state = await read(organizationId);
@@ -123,6 +124,15 @@ export function createOrganizationProviderManager({ repository, fallbackProvider
         return publicProfiles(configuration, state.secrets);
       });
     },
+    deactivate(organizationId) {
+      return serialize(safeId(organizationId, "organization id"), async () => {
+        const state = await read(organizationId);
+        if (!state.configuration?.profiles?.length) return [{ id: fallbackProvider.id, name: "本地演示模式", provider: fallbackProvider.id, model: fallbackProvider.model || null, active: true, credentialConfigured: true, builtIn: true }];
+        const configuration = { ...state.configuration, activeProfileId: null };
+        await repository.write(organizationId, configuration, state.secrets);
+        return publicProfiles(configuration, state.secrets);
+      });
+    },
     remove(organizationId, profileId) {
       return serialize(safeId(organizationId, "organization id"), async () => {
         const state = await read(organizationId);
@@ -151,7 +161,10 @@ export function createOrganizationProviderManager({ repository, fallbackProvider
       return modelsFrom(payload);
     },
     async testConnection(organizationId, profileId) {
-      const { payload, profile } = await request(organizationId, profileId, "/chat/completions", { method: "POST", body: JSON.stringify({ model: (await profileFor(organizationId, profileId)).profile.model, messages: [{ role: "user", content: "Reply with OK only." }], temperature: 0 }) });
+      const { payload: modelPayload, profile } = await request(organizationId, profileId, "/models", { method: "GET" });
+      const models = modelsFrom(modelPayload);
+      if (models.length && !models.includes(profile.model)) throw new ProviderError("AI provider model is unavailable", { code: "provider_model_unavailable", httpStatus: 422 });
+      const { payload } = await request(organizationId, profileId, "/chat/completions", { method: "POST", body: JSON.stringify({ model: profile.model, messages: [{ role: "user", content: "Reply with OK only." }], temperature: 0 }) });
       if (!text(payload?.choices?.[0]?.message?.content, 80)) throw new ProviderError("AI provider returned no test response", { code: "provider_protocol" });
       return { profileId: profile.id, model: profile.model, success: true };
     },

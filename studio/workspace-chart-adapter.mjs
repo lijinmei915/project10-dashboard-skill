@@ -12,8 +12,14 @@ export function normalizeChartSeries(component) {
 }
 
 export function chartAriaLabel(title, type) {
-  const labels = { line: "折线图", area: "面积图", pie: "环形图", bar: "柱状图", "horizontal-bar": "条形图" };
+  const labels = { line: "折线图", "time-series": "时序图", area: "面积图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图" };
   return `${title || "图表"} · ${labels[type] || labels.bar}`;
+}
+
+export function visibleChartSeries(component, visibility = {}) {
+  const series = normalizeChartSeries(component);
+  const visible = series.filter(({ name }) => visibility[name] !== false);
+  return visible.length ? visible : series;
 }
 
 export async function requestChartSvg(payload, fetcher = fetch) {
@@ -27,7 +33,7 @@ export async function requestChartSvg(payload, fetcher = fetch) {
   return result.svg;
 }
 
-export function createWorkspaceChartAdapter({ document: documentRef, dashboard, request = requestChartSvg, cache = new Map(), resolveType, resolvePalette, getMode, createFallbackSvg, escape = CSS.escape }) {
+export function createWorkspaceChartAdapter({ document: documentRef, dashboard, request = requestChartSvg, cache = new Map(), resolveType, resolvePalette, getMode, createFallbackSvg, getSeriesVisibility = () => ({}), onSeriesVisibilityChange, escape = CSS.escape }) {
   return Object.freeze({
     async render(component) {
       const card = dashboard.querySelector(`[data-item-id="${escape(component.id)}"]`);
@@ -41,15 +47,29 @@ export function createWorkspaceChartAdapter({ document: documentRef, dashboard, 
         return { status: "native", type };
       }
       const labels = Array.isArray(component.props?.labels) ? component.props.labels.map(String) : [];
-      const series = normalizeChartSeries(component);
+      const allSeries = normalizeChartSeries(component);
+      const visibility = getSeriesVisibility(component.id) || {};
+      const series = visibleChartSeries(component, visibility);
       if (!series.some(({ values }) => values.some(Number.isFinite))) {
         existing?.remove();
         delete card.dataset.chartRendered;
         return { status: "empty", type };
       }
       const colors = resolvePalette(card);
+      let legend = card.querySelector(":scope > .dashboard-chart-legend");
+      if (allSeries.length > 1 && component.props?.legend?.visible !== false) {
+        if (!legend) { legend = documentRef.createElement("div"); legend.className = "dashboard-chart-legend"; legend.setAttribute("aria-label", "图例"); }
+        legend.replaceChildren(...allSeries.map((item, index) => {
+          const button = documentRef.createElement("button"); button.type = "button"; button.className = "dashboard-chart-legend-item";
+          const visible = visibility[item.name] !== false; button.setAttribute("aria-pressed", String(visible)); button.style.setProperty("--legend-color", colors[index % colors.length]);
+          const dot = documentRef.createElement("span"); dot.className = "dashboard-chart-legend-dot"; dot.setAttribute("aria-hidden", "true");
+          const label = documentRef.createElement("span"); label.textContent = item.name; button.append(dot, label);
+          button.addEventListener("click", () => onSeriesVisibilityChange?.({ componentId: component.id, seriesName: item.name, visible: !visible })); return button;
+        }));
+        const body = card.querySelector(".chart-render, .bar-chart"); body ? body.before(legend) : card.append(legend);
+      } else legend?.remove();
       const width = Math.max(280, Math.min(1200, Math.round(card.getBoundingClientRect().width - 40) || 720));
-      const payload = { type, labels, series, mode: getMode(), width, height: 260, palette: colors };
+      const payload = { type, labels, series, thresholds: component.props?.thresholds || [], mode: getMode(), width, height: 260, palette: colors, legend: false };
       const cacheKey = JSON.stringify(payload);
       let container = existing;
       if (!container) {

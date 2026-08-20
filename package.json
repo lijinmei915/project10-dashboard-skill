@@ -21,6 +21,7 @@
     "@phosphor-icons/core": "2.1.1",
     "csv-parse": "^6.1.0",
     "echarts": "^6.1.0",
+    "parse5": "^8.0.0",
     "pg": "^8.23.0",
     "playwright": "1.55.1",
     "read-excel-file": "^8.0.3"

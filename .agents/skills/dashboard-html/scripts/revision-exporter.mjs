@@ -26,49 +26,97 @@ function chartSvg(component, workspace) {
   const resource = workspace.resources?.charts?.[component.id] ?? {};
   const type = component.props.chartType || resource.type || "bar";
   const labels = component.props.labels ?? resource.labels ?? [];
-  const values = component.props.values ?? resource.series?.[0]?.values ?? [];
+  const allSeries = component.props.series ?? resource.series ?? [{ name: component.title, values: component.props.values ?? [] }];
+  const visibility = workspace.interactions?.chartSeriesVisibility?.[component.id] ?? {};
+  const visibleSeries = allSeries.filter(({ name }) => visibility[name] !== false);
+  const series = visibleSeries.length ? visibleSeries : allSeries;
+  let values = series[0]?.values ?? [];
+  let chartLabels = labels;
+  if (type === "histogram" && values.length) {
+    const samples = values.map(Number).filter(Number.isFinite);
+    const minimum = Math.min(...samples, 0); const maximum = Math.max(...samples, 1);
+    const count = Math.max(4, Math.min(12, Math.ceil(Math.sqrt(samples.length)))); const size = (maximum - minimum || 1) / count;
+    const bins = Array(count).fill(0); samples.forEach((value) => bins[Math.min(count - 1, Math.max(0, Math.floor((value - minimum) / size)))] += 1);
+    values = bins; chartLabels = bins.map((_, index) => `${(minimum + index * size).toFixed(0)}-${(minimum + (index + 1) * size).toFixed(0)}`);
+  }
   if (!values.length || component.props.empty) return `<div class="empty">暂无数据</div>`;
   const coords = points(values);
-  const labelNodes = type === "horizontal-bar" ? "" : labels.map((label, index) => `<text x="${coords[index]?.[0] ?? 28}" y="212" text-anchor="middle">${escapeHtml(label)}</text>`).join("");
+  const horizontalTypes = ["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"];
+  const labelNodes = horizontalTypes.includes(type) ? "" : chartLabels.map((label, index) => `<text x="${coords[index]?.[0] ?? 28}" y="212" text-anchor="middle">${escapeHtml(label)}</text>`).join("");
   let shape;
-  if (type === "pie") {
+  if (["pie", "sector-pie", "rose"].includes(type)) {
     const total = values.reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0) || 1;
-    let offset = 0;
-    shape = values.map((value, index) => {
-      const length = Math.max(0, Number(value) || 0) / total * 100;
-      const node = `<circle cx="320" cy="105" r="68" fill="none" stroke="var(--chart-${index % 8 + 1})" stroke-width="34" pathLength="100" stroke-dasharray="${length} ${100 - length}" stroke-dashoffset="${-offset}"/>`;
-      offset += length;
-      return node;
+    if (type === "pie") {
+      let offset = 0;
+      shape = values.map((value, index) => { const length = Math.max(0, Number(value) || 0) / total * 100; const node = `<circle cx="320" cy="105" r="68" fill="none" stroke="var(--chart-${index % 8 + 1})" stroke-width="34" pathLength="100" stroke-dasharray="${length} ${100 - length}" stroke-dashoffset="${-offset}"/>`; offset += length; return node; }).join("");
+    } else {
+      const maximum = Math.max(...values.map(Number), 1); let angle = -Math.PI / 2;
+      shape = values.map((value, index) => { const sweep = Math.max(0, Number(value) || 0) / total * Math.PI * 2; const radius = type === "rose" ? 34 + Math.max(0, Number(value) || 0) / maximum * 56 : 86; const x1 = 320 + Math.cos(angle) * radius; const y1 = 105 + Math.sin(angle) * radius; const end = angle + sweep; const x2 = 320 + Math.cos(end) * radius; const y2 = 105 + Math.sin(end) * radius; const path = `<path d="M320 105 L${x1} ${y1} A${radius} ${radius} 0 ${sweep > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z" fill="var(--chart-${index % 8 + 1})"/>`; angle = end; return path; }).join("");
+    }
+  } else if (horizontalTypes.includes(type)) {
+    const ranked = type === "ranking-bar" ? chartLabels.map((label, index) => ({ label, value: Number(values[index]) || 0 })).sort((left, right) => right.value - left.value) : null;
+    const displayLabels = ranked?.map(({ label }) => label) || chartLabels;
+    const displaySeries = ranked ? [{ name: series[0].name, values: ranked.map(({ value }) => value) }] : series;
+    const normalized = type === "percent-stacked-horizontal-bar"; const stacked = ["stacked-horizontal-bar", "percent-stacked-horizontal-bar", "gantt"].includes(type);
+    const totals = displayLabels.map((_, index) => displaySeries.reduce((sum, item) => sum + Math.abs(Number(item.values[index]) || 0), 0));
+    const maximum = normalized ? 100 : Math.max(...(stacked ? totals : displaySeries.flatMap((item) => item.values.map((value) => Math.abs(Number(value) || 0)))), 1);
+    const rowHeight = Math.max(18, 164 / displayLabels.length);
+    shape = displayLabels.map((label, categoryIndex) => {
+      let offset = type === "diverging-bar" ? 0 : 108; const widthAvailable = type === "diverging-bar" ? 252 : 504;
+      const bars = displaySeries.map((item, seriesIndex) => {
+        const raw = Math.abs(Number(item.values[categoryIndex]) || 0); const value = normalized && totals[categoryIndex] ? raw / totals[categoryIndex] * 100 : raw; const width = value / maximum * widthAvailable;
+        const height = Math.max(6, (rowHeight - 7) / (stacked ? 1 : displaySeries.length)); const y = 18 + categoryIndex * rowHeight + (stacked ? 0 : seriesIndex * height);
+        let x = offset;
+        if (type === "diverging-bar") x = seriesIndex === 0 ? 320 - width : 320;
+        else if (stacked) offset += width;
+        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="3" fill="${type === "gantt" && seriesIndex === 0 ? "transparent" : `var(--chart-${seriesIndex % 8 + 1})`}"/>`;
+      }).join("");
+      return `${bars}<text x="100" y="${18 + categoryIndex * rowHeight + rowHeight / 2 + 4}" text-anchor="end">${type === "ranking-bar" ? `${categoryIndex + 1}. ` : ""}${escapeHtml(label)}</text>`;
     }).join("");
-  } else if (type === "horizontal-bar") {
-    const maximum = Math.max(...values.map((value) => Math.max(0, Number(value) || 0)), 1);
-    const rowHeight = Math.max(18, 164 / values.length);
-    shape = values.map((value, index) => {
-      const y = 18 + index * rowHeight;
-      const width = Math.max(0, Number(value) || 0) / maximum * 504;
-      return `<rect x="108" y="${y}" width="${width}" height="${Math.max(10, rowHeight - 7)}" rx="4" fill="var(--chart-1)"/><text x="100" y="${y + rowHeight / 2 + 4}" text-anchor="end">${escapeHtml(labels[index] ?? "")}</text>`;
+  } else if (["grouped-bar", "stacked-bar", "percent-stacked-bar"].includes(type)) {
+    const normalized = type === "percent-stacked-bar";
+    const stacked = type !== "grouped-bar";
+    const categoryCount = Math.max(chartLabels.length, ...series.map((item) => item.values.length));
+    const totals = Array.from({ length: categoryCount }, (_, index) => series.reduce((sum, item) => sum + Math.max(0, Number(item.values[index]) || 0), 0));
+    const maximum = normalized ? 100 : stacked ? Math.max(...totals, 1) : Math.max(...series.flatMap((item) => item.values.map(Number)), 1);
+    const slot = 584 / Math.max(categoryCount, 1); const groupWidth = Math.min(54, slot * .72); const barWidth = stacked ? groupWidth : groupWidth / series.length;
+    shape = Array.from({ length: categoryCount }, (_, categoryIndex) => {
+      let offset = 0;
+      return series.map((item, seriesIndex) => {
+        const raw = Math.max(0, Number(item.values[categoryIndex]) || 0); const value = normalized && totals[categoryIndex] ? raw / totals[categoryIndex] * 100 : raw;
+        const height = value / maximum * 172; const x = 28 + categoryIndex * (584 / Math.max(categoryCount - 1, 1)) - groupWidth / 2 + (stacked ? 0 : seriesIndex * barWidth); const y = 190 - height - offset;
+        if (stacked) offset += height;
+        return `<rect x="${x}" y="${y}" width="${barWidth}" height="${height}" fill="var(--chart-${seriesIndex % 8 + 1})"/>`;
+      }).join("");
     }).join("");
-  } else if (type === "bar") {
+  } else if (type === "bar" || type === "histogram") {
     const baseline = 190;
     const width = Math.min(42, 480 / Math.max(values.length, 1));
-    shape = coords.map(([x, y]) => `<rect x="${x - width / 2}" y="${y}" width="${width}" height="${baseline - y}" rx="4" fill="var(--chart-1)"/>`).join("");
+    shape = coords.map(([x, y]) => `<rect x="${x - width / 2}" y="${y}" width="${width}" height="${baseline - y}" rx="${type === "histogram" ? 0 : 4}" fill="var(--chart-1)"/>`).join("");
   } else {
     const line = coords.map(([x, y]) => `${x},${y}`).join(" ");
     const area = type === "area" ? `<polygon points="28,190 ${line} 612,190" fill="var(--chart-1)" opacity=".14"/>` : "";
-    shape = `${area}<polyline points="${line}" fill="none" stroke="var(--chart-1)" stroke-width="3" stroke-linejoin="round"/>${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" fill="var(--surface)" stroke="var(--chart-1)" stroke-width="3"/>`).join("")}`;
+    const thresholds = type === "time-series" ? (component.props.thresholds ?? []).map((value) => { const y = points([Number(value), ...values]).shift()?.[1] ?? 105; return `<line x1="28" x2="612" y1="${y}" y2="${y}" stroke="var(--chart-2)" stroke-dasharray="6 5"/>`; }).join("") : "";
+    shape = `${area}${thresholds}<polyline points="${line}" fill="none" stroke="var(--chart-1)" stroke-width="3" stroke-linejoin="round"/>${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" fill="var(--surface)" stroke="var(--chart-1)" stroke-width="3"/>`).join("")}`;
   }
   return `<svg class="chart" viewBox="0 0 640 220" role="img" aria-label="${escapeHtml(component.title)}"><g class="chart-shape">${shape}</g><g class="chart-labels">${labelNodes}</g></svg>`;
 }
 
 function renderComponent(component, workspace, span) {
   const subtitle = component.subtitle ? `<p class="component-subtitle">${escapeHtml(component.subtitle)}</p>` : "";
+  const headerControls = (workspace.document.controls ?? []).filter(({ type, props }) => type === "filter-bar" && props.placement?.kind === "component-header" && props.placement.targetId === component.id).map((control) => `<div class="component-header-controls">${control.props.controls.map((filter) => { const value = workspace.interactions?.filters?.[filter.id] ?? filter.defaultValue; return `<label class="dashboard-filter"><span class="sr-only">${escapeHtml(filter.label)}</span><select data-dashboard-filter="${escapeHtml(filter.id)}" data-filter-field="${escapeHtml(filter.field)}">${filter.options.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label>`; }).join("")}</div>`).join("");
   let body = "";
   if (component.type === "kpi") body = `<strong class="kpi-value">${escapeHtml(component.props.value)}</strong>${component.props.trend ? `<span class="trend">${escapeHtml(component.props.trend)}</span>` : ""}`;
-  else if (component.type === "chart") body = chartSvg(component, workspace);
+  else if (component.type === "chart") {
+    const series = component.props.series ?? workspace.resources?.charts?.[component.id]?.series ?? [{ name: component.title, values: component.props.values ?? [] }];
+    const visibility = workspace.interactions?.chartSeriesVisibility?.[component.id] ?? {};
+    const legend = series.length > 1 && component.props.legend?.visible !== false ? `<div class="chart-legend" aria-label="图例">${series.map((item, index) => `<button type="button" data-chart-series="${escapeHtml(item.name)}" aria-pressed="${visibility[item.name] !== false}" style="--legend-color:var(--chart-${index % 8 + 1})"><i></i><span>${escapeHtml(item.name)}</span></button>`).join("")}</div>` : "";
+    body = `${legend}${chartSvg(component, workspace)}`;
+  }
   else if (component.type === "list") body = component.props.empty ? `<div class="empty">暂无数据</div>` : `<ul>${(component.props.items ?? []).map((item) => `<li><span>${escapeHtml(item.label ?? item)}</span><strong>${escapeHtml(item.value ?? "")}</strong></li>`).join("")}</ul>`;
   else if (component.type === "table") body = component.props.empty ? `<div class="empty">暂无数据</div>` : `<div class="table-wrap"><table><thead><tr>${(component.props.columns ?? []).map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead><tbody>${(component.props.rows ?? []).map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   else body = `<div class="prose">${escapeHtml(component.props.body ?? "")}</div>`;
-  return `<article class="card component-${component.type}" data-component-id="${escapeHtml(component.id)}" style="--span:${span}"><header><h3>${escapeHtml(component.title)}</h3>${subtitle}</header><div class="component-body">${body}</div></article>`;
+  return `<article class="card component-${component.type}" data-component-id="${escapeHtml(component.id)}" style="--span:${span}"><header><h3>${escapeHtml(component.title)}</h3>${headerControls}${subtitle}</header><div class="component-body">${body}</div></article>`;
 }
 
 function portableRuntime() {
@@ -101,6 +149,7 @@ function portableRuntime() {
     if (binding.kind === "series") card.querySelector(".chart")?.replaceWith(Object.assign(document.createElement("template"), { innerHTML: chart(component, rows) }).content.firstElementChild);
   });
   root.querySelectorAll("[data-dashboard-filter]").forEach((select) => select.addEventListener("change", () => { state.interactions.filters[select.dataset.dashboardFilter] = select.value; render(); }));
+  root.querySelectorAll("[data-chart-series]").forEach((button) => button.addEventListener("click", () => { const card = button.closest("[data-component-id]"); const id = card.dataset.componentId; state.interactions.chartSeriesVisibility ||= {}; state.interactions.chartSeriesVisibility[id] ||= {}; const visible = button.getAttribute("aria-pressed") !== "true"; state.interactions.chartSeriesVisibility[id][button.dataset.chartSeries] = visible; button.setAttribute("aria-pressed", String(visible)); render(); }));
   const setView = (tab) => { const visible = new Set(tab.dataset.sectionIds.split(/\s+/)); root.querySelectorAll("[data-dashboard-view]").forEach((item) => item.setAttribute("aria-selected", String(item === tab))); root.querySelectorAll("[data-section-id]").forEach((section) => { section.hidden = !visible.has(section.dataset.sectionId); }); };
   root.querySelectorAll("[data-dashboard-view]").forEach((tab) => tab.addEventListener("click", () => setView(tab)));
   const activeTab = root.querySelector('[data-dashboard-view][aria-selected="true"]'); if (activeTab) setView(activeTab);
@@ -108,6 +157,7 @@ function portableRuntime() {
 
 const styles = `
 :root{--accent:#e8590c;--page:#f5f7fa;--surface:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--shadow:0 2px 8px rgb(15 23 42/.06);--radius:8px;--gap:16px;--chart-1:#5b8ff9;--chart-2:#45b8d8;--chart-3:#43c59e;--chart-4:#96bf45;--chart-5:#f3a83b;--chart-6:#f06b72;--chart-7:#de72b4;--chart-8:#9270e8}*{box-sizing:border-box}html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark;--page:#14171d;--surface:#20242c;--text:#f4f6f8;--muted:#aab2c0;--line:#343b47;--shadow:0 6px 18px rgb(0 0 0/.28)}body{margin:0;background:var(--page);color:var(--text);font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}.dashboard{width:min(100%,1440px);margin:auto;padding:28px}.dashboard[data-page-type="report"]{width:min(calc(100% - 32px),1000px);margin:24px auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}.page-header{margin-bottom:24px}.page-header h1{margin:0;font-size:30px;line-height:1.2}.page-header p,.section-header p,.component-subtitle{margin:6px 0 0;color:var(--muted)}.sample-label{display:inline-block;margin-top:10px;color:var(--accent);font-size:12px}.dashboard-controls{margin-bottom:20px}.section{margin-top:24px}.section-header{margin-bottom:12px}.section-header h2{margin:0;font-size:17px}.component-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--gap)}.card{grid-column:span var(--span);min-width:0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.card h3{margin:0;font-size:14px}.component-body{margin-top:16px}.kpi-value{display:block;font-size:28px}.trend{display:block;margin-top:7px;color:var(--accent);font-size:13px}.chart{display:block;width:100%;min-height:180px}.chart text{fill:var(--muted);font-size:11px}ul{display:grid;gap:10px;margin:0;padding:0;list-style:none}li{display:flex;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--line)}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{color:var(--muted)}.prose{white-space:pre-wrap;line-height:1.7}.empty{padding:28px;text-align:center;color:var(--muted)}[hidden]{display:none!important}@media(max-width:760px){.dashboard{padding:18px}.card{grid-column:1/-1}.page-header h1{font-size:25px}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.card>header{position:relative}.component-header-controls{position:absolute;top:0;right:0}.component-header-controls select{min-width:124px;height:34px;padding:0 30px 0 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font:inherit}.chart-legend{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;margin:0 0 10px}.chart-legend button{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:2px 0;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}.chart-legend button[aria-pressed="false"]{opacity:.42;text-decoration:line-through}.chart-legend button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}.chart-legend i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--legend-color)}@media(max-width:760px){.component-header-controls{position:static;display:flex;justify-content:flex-end;margin-top:10px}.chart-legend{overflow-x:auto;flex-wrap:nowrap}}
 ${interactionStyles}`;
 
 export function renderStandaloneWorkspace(workspace) {
@@ -115,7 +165,7 @@ export function renderStandaloneWorkspace(workspace) {
   const layout = new Map(workspace.layout.sections.map((section) => [section.id, section]));
   const portableDatasets = Object.fromEntries(Object.entries(workspace.resources?.datasets ?? {}).filter(([, dataset]) => dataset.portable === true));
   const hasPortableData = Object.keys(portableDatasets).length > 0;
-  const controlsWorkspace = hasPortableData ? workspace : { ...workspace, document: { ...workspace.document, controls: (workspace.document.controls ?? []).filter(({ type }) => type !== "filter-bar") } };
+  const controlsWorkspace = hasPortableData ? { ...workspace, document: { ...workspace.document, controls: (workspace.document.controls ?? []).filter(({ props }) => !props.placement) } } : { ...workspace, document: { ...workspace.document, controls: (workspace.document.controls ?? []).filter(({ type }) => type !== "filter-bar") } };
   const controls = renderInteractionControls(controlsWorkspace);
   const sections = document.sections.map((section) => {
     const sectionLayout = layout.get(section.id);

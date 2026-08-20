@@ -113,7 +113,11 @@ npm start
 
 - 不提供默认远程模型，避免模型升级静默改变生成结果。
 - `OPENAI_BASE_URL` 可选，默认 `https://api.openai.com/v1`；只允许 HTTPS，测试时允许 loopback HTTP。
-- `DASHBOARD_AI_TIMEOUT_MS` 可选，默认 `45000`，限制范围为 `1000–180000`。
+- `DASHBOARD_AI_TIMEOUT_MS` 可选，表示整个 Generation Job 的最大任务时长，默认 `300000`（5 分钟），限制范围为 `1000–600000`；首次生成与自动 repair 共享该窗口。
+- `DASHBOARD_AI_FIRST_BYTE_TIMEOUT_MS` 可选，表示等待 Provider 返回响应头/首包的最长时间，默认 `120000`；不得超过最大任务时长。复杂推理模型可能在开始输出前先进行较长规划，连接测试成功不代表生成首包会同样快。
+- `DASHBOARD_AI_IDLE_TIMEOUT_MS` 可选，表示流式响应相邻数据块之间允许的最长空闲时间，默认 `60000`；每收到一个数据块后重新计时，不得超过最大任务时长。
+- OpenAI Responses 与 OpenAI-compatible Chat Completions 均以流式方式读取，但只有完整 JSON 通过 Workspace Schema、命令和安全校验后才进入预览；半截 JSON 不会写入 Workspace。
+- Generation Job 同样以 `DASHBOARD_AI_TIMEOUT_MS` 作为包含首次生成与自动 repair 在内的整体硬上限，repair 不会重新获得一段新的 5 分钟窗口。
 - 在具有受控预算的真实环境，可运行 `npm run smoke:provider` 验证一次首稿和一次局部精修均进入 `preview-ready`；脚本要求显式 `DASHBOARD_AI_PROVIDER=openai`、模型和密钥，绝不提交 Project 或输出 prompt/workspace/密钥。
 - 密钥只用于 Node 服务端 Authorization header，不进入 prompt、workspace、health 响应、浏览器、本地项目、日志或 standalone HTML。
 - `.env` 和 `.env.*` 已加入 Git 忽略；当前启动命令不会自动加载 `.env`，应由 shell、进程管理器或部署平台注入环境变量。

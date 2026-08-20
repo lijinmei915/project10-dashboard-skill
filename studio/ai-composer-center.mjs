@@ -8,11 +8,12 @@ if (!bridge) throw new Error("DashboardStudioBridge is required");
 const ui = {
   composer: $("#aiComposer"), toggle: $("#aiComposerToggle"), launcherLabel: $("#aiComposerLauncherLabel"), title: $("#aiComposerTitle"), close: $("#aiComposerClose"), panel: $("#aiComposerPanel"),
   scope: $("#aiScope"), scopeName: $("#aiScopeName"), guide: $("#aiPromptGuide"), componentCapability: $("#aiComponentCapability"), componentTemplate: $("#aiComponentTemplate"), draftTemplates: $("#aiDraftTemplates"), refineTemplates: $("#aiRefineTemplates"), chartRefineTemplates: $("#aiChartRefineTemplates"), prompt: $("#aiPromptInput"), dataSource: $("#aiDataSource"),
-  generate: $("#aiGenerateButton"), cancel: $("#aiCancelButton"), accept: $("#aiAcceptButton"), undo: $("#aiUndoButton"), review: $("#aiReview"), reviewTitle: $("#aiReviewTitle"), reviewMeta: $("#aiReviewMeta"), reviewDiff: $("#aiReviewDiff"), historyToggle: $("#aiHistoryToggle"), history: $("#aiHistory"), historyCount: $("#aiHistoryCount"), historyList: $("#aiHistoryList"), historyCompare: $("#aiHistoryCompare"), historyCompareTitle: $("#aiHistoryCompareTitle"), historyCompareMeta: $("#aiHistoryCompareMeta"), historyCompareList: $("#aiHistoryCompareList"), historyCompareClose: $("#aiHistoryCompareClose"), status: $("#aiGenerationStatus"), promptCount: $("#aiPromptCount"), summaryAudience: $("#aiSummaryAudience"), summaryPageType: $("#aiSummaryPageType"), summaryData: $("#aiSummaryData"), summaryComponents: $("#aiSummaryComponents"), summaryNotice: $("#aiSummaryNotice"), dataSourceName: $("#aiDataSourceName"), sampleDataPreference: $("#aiSampleDataPreference"), dataPortable: $("#aiDataPortable")
+  generate: $("#aiGenerateButton"), cancel: $("#aiCancelButton"), accept: $("#aiAcceptButton"), undo: $("#aiUndoButton"), review: $("#aiReview"), reviewTitle: $("#aiReviewTitle"), reviewMeta: $("#aiReviewMeta"), reviewDiff: $("#aiReviewDiff"), historyToggle: $("#aiHistoryToggle"), history: $("#aiHistory"), historyCount: $("#aiHistoryCount"), historyList: $("#aiHistoryList"), historyCompare: $("#aiHistoryCompare"), historyCompareTitle: $("#aiHistoryCompareTitle"), historyCompareMeta: $("#aiHistoryCompareMeta"), historyCompareList: $("#aiHistoryCompareList"), historyCompareClose: $("#aiHistoryCompareClose"), status: $("#aiGenerationStatus"), promptCount: $("#aiPromptCount"), pageTypeControls: $("#aiPageTypeControls"), dataSourceName: $("#aiDataSourceName"), dataPortable: $("#aiDataPortable"), canvasBar: $("#canvasGenerationBar"), canvasTitle: $("#canvasGenerationTitle"), canvasMessage: $("#canvasGenerationMessage"), canvasStop: $("#canvasGenerationStop"), canvasAccept: $("#canvasGenerationAccept"), canvasDismiss: $("#canvasGenerationDismiss"), canvasReopen: $("#canvasGenerationReopen")
 };
 const composerHome = ui.composer.parentNode;
 const composerHomeNextSibling = ui.composer.nextSibling;
 const generateHome = ui.generate.parentNode;
+const chartLabels = { line: "折线图", "time-series": "时序图", area: "面积图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", categorical: "多色" };
 
 let serviceChecked = false;
 let pendingRun = null;
@@ -20,12 +21,16 @@ let baselineWorkspace = null;
 let refinementTarget = null;
 let chartCatalogLoaded = false;
 let activeGenerationJobId = null;
+let activeGenerationEventSource = null;
 let pendingGenerationJobId = null;
 let generationRequestToken = 0;
+let activeGenerationPageType = "dashboard";
+let canvasGenerationActive = false;
+let progressiveRevealToken = 0;
 const generationJobStorageKey = "dashboard-generation-job-v1";
 
 function rememberGenerationJob() {
-  try { sessionStorage.setItem(generationJobStorageKey, JSON.stringify({ id: activeGenerationJobId, refinementTarget })); } catch {}
+  try { sessionStorage.setItem(generationJobStorageKey, JSON.stringify({ id: activeGenerationJobId, refinementTarget, pageType: activeGenerationPageType })); } catch {}
 }
 
 function forgetGenerationJob() {
@@ -42,8 +47,24 @@ function rememberedGenerationJob() {
   }
 }
 
+function syncCanvasGeneration() {
+  if (!ui.canvasBar) return;
+  const state = ui.composer.dataset.state;
+  const visible = canvasGenerationActive && ["working", "ready", "error"].includes(state);
+  ui.canvasBar.hidden = !visible;
+  if (!visible) return;
+  ui.canvasBar.dataset.state = state;
+  ui.canvasMessage.textContent = ui.status.textContent;
+  ui.canvasStop.hidden = !(state === "working" && activeGenerationJobId);
+  ui.canvasAccept.hidden = state !== "ready" || !pendingRun;
+  ui.canvasDismiss.hidden = state !== "ready" || !pendingRun;
+  ui.canvasReopen.hidden = state !== "error";
+  ui.canvasTitle.textContent = state === "ready" ? "首稿已生成" : state === "error" ? "首稿生成失败" : `正在生成 ${activeGenerationPageType === "report" ? "Report" : "Dashboard"}`;
+}
+
 function setState(state) {
   ui.composer.dataset.state = state;
+  syncCanvasGeneration();
 }
 
 function friendlyGenerationError(error, responseStatus = 0) {
@@ -52,6 +73,7 @@ function friendlyGenerationError(error, responseStatus = 0) {
   if (!responseStatus || responseStatus === 404 || /ENOENT|Failed to fetch|fetch failed|generation\/(draft|refine|undo)/i.test(message)) return "AI 生成服务未启动，请运行 npm start 后重试";
   if (responseStatus === 429) return "模型请求较多，请稍后重试";
   if (responseStatus === 504) return "模型响应超时，当前画布未修改，请重试或缩短需求";
+  if (/bundle failed validation|invalid streamed JSON|invalid JSON|invalid stream event|结构校验/i.test(message)) return "模型返回内容未通过页面结构校验，已自动修复一次仍失败；当前画布未修改，请重试或简化需求";
   if (responseStatus === 503 && /OPENAI_API_KEY|DASHBOARD_AI_MODEL|provider|配置/i.test(message)) return "远程模型尚未完成服务端配置，请检查环境变量后重启服务";
   if (responseStatus === 502 || responseStatus === 503) return "上游模型暂时不可用，当前画布未修改，请稍后重试";
   if (/Try changing|No supported local change/.test(message)) return "当前指令没有匹配可修改字段，请明确标题、副标题、顺序或增删操作";
@@ -83,7 +105,6 @@ function diffLabel(path) {
 }
 
 function diffValue(value) {
-  const chartLabels = { line: "折线图", area: "面积图", bar: "柱状图", "horizontal-bar": "条形图", pie: "环形图", categorical: "多色" };
   if (value === undefined || value === null || value === "") return "无";
   if (typeof value === "string") return chartLabels[value] || value;
   if (typeof value === "object" && !Array.isArray(value) && (value.title || value.id)) return value.title || value.id;
@@ -129,7 +150,7 @@ function renderReview(run) {
     });
     return;
   }
-  const generatedChartTypes = run.preview.workspace.document.sections.flatMap(({ components }) => components).filter(({ type }) => type === "chart").map(({ props }) => ({ line: "折线图", area: "面积图", bar: "柱状图", "horizontal-bar": "条形图", pie: "环形图" }[props.chartType || "bar"]));
+  const generatedChartTypes = run.preview.workspace.document.sections.flatMap(({ components }) => components).filter(({ type }) => type === "chart").map(({ props }) => chartLabels[props.chartType || "bar"]);
   ui.reviewTitle.textContent = plan.title;
   ui.reviewMeta.textContent = `${plan.sections.length} 个分区 · ${plan.sections.reduce((count, section) => count + section.components.length, 0)} 个组件${generatedChartTypes.length ? ` · ${generatedChartTypes.join("、")}` : ""} · ${run.bundle.provenance.mode === "sample" ? "示例数据" : "用户数据"}`;
 }
@@ -198,24 +219,47 @@ async function loadChartCatalog() {
   }
 }
 
-const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+async function readGenerationJob(jobId) {
+  const response = await fetch(`/api/generation/jobs/${encodeURIComponent(jobId)}`, { headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.job) throw Object.assign(new Error(payload.error || "生成任务查询失败"), { responseStatus: response.status });
+  return payload.job;
+}
 
-async function pollGenerationJob(jobId, token) {
-  for (;;) {
-    await delay(250);
-    if (token !== generationRequestToken || activeGenerationJobId !== jobId) return null;
-    const response = await fetch(`/api/generation/jobs/${encodeURIComponent(jobId)}`, { headers: { Accept: "application/json" } });
-    const payload = await response.json().catch(() => ({}));
-    if (token !== generationRequestToken || activeGenerationJobId !== jobId) return null;
-    if (!response.ok || !payload.job) throw Object.assign(new Error(payload.error || "生成任务查询失败"), { responseStatus: response.status });
-    if (["succeeded", "failed", "canceled"].includes(payload.job.status)) return payload.job;
-  }
+function streamGenerationJob(jobId, token) {
+  return new Promise((resolve, reject) => {
+    activeGenerationEventSource?.close();
+    const source = new EventSource(`/api/generation/jobs/${encodeURIComponent(jobId)}/events`);
+    activeGenerationEventSource = source;
+    const finish = async () => {
+      source.close();
+      if (activeGenerationEventSource === source) activeGenerationEventSource = null;
+      if (token !== generationRequestToken || activeGenerationJobId !== jobId) return resolve(null);
+      try { resolve(await readGenerationJob(jobId)); } catch (error) { reject(error); }
+    };
+    const stages = {
+      "job.queued": "生成任务已排队...",
+      "job.started": "正在分析需求与数据...",
+      "generation.generating": "正在生成页面内容..."
+    };
+    Object.entries(stages).forEach(([type, message]) => source.addEventListener(type, () => {
+      if (token !== generationRequestToken || activeGenerationJobId !== jobId) return source.close();
+      ui.status.textContent = message;
+    }));
+    ["preview.ready", "job.failed", "job.canceled"].forEach((type) => source.addEventListener(type, finish, { once: true }));
+    source.onerror = () => {
+      if (token !== generationRequestToken || activeGenerationJobId !== jobId) return source.close();
+      ui.status.textContent = "进度连接中断，正在自动恢复...";
+    };
+  });
 }
 
 async function cancelActiveGeneration() {
   const jobId = activeGenerationJobId;
   if (!jobId) return;
   generationRequestToken += 1;
+  activeGenerationEventSource?.close();
+  activeGenerationEventSource = null;
   activeGenerationJobId = null;
   forgetGenerationJob();
   ui.generate.disabled = true;
@@ -226,6 +270,7 @@ async function cancelActiveGeneration() {
     if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
     baselineWorkspace = null;
     refinementTarget = null;
+    canvasGenerationActive = false;
     setState("idle");
     ui.status.textContent = "已停止生成，当前画布未改变";
   } catch (error) {
@@ -237,14 +282,38 @@ async function cancelActiveGeneration() {
   }
 }
 
-function presentCompletedGeneration(run) {
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function revealValidatedSections(run) {
+  const token = ++progressiveRevealToken;
+  const sectionIds = run.preview.workspace.document.sections.map(({ id }) => id);
+  const sections = sectionIds.map((id) => document.querySelector(`.report-body > .section[data-section-id="${CSS.escape(id)}"]`)).filter(Boolean);
+  if (sections.length < 2 || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  sections.forEach((section) => section.classList.add("ai-section-pending"));
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  for (const [index, section] of sections.entries()) {
+    if (token !== progressiveRevealToken) break;
+    section.classList.remove("ai-section-pending");
+    section.classList.add("ai-section-revealed");
+    ui.status.textContent = `首稿已校验，正在呈现分区 ${index + 1}/${sections.length}`;
+    syncCanvasGeneration();
+    await wait(160);
+  }
+  sections.forEach((section) => section.classList.remove("ai-section-pending", "ai-section-revealed"));
+}
+
+async function presentCompletedGeneration(run) {
   const refinement = ["section", "component"].includes(run.request.scope?.kind);
   ui.generate.textContent = refinement ? "预览修改" : "生成首稿";
   serviceChecked = true;
   pendingRun = run;
+  canvasGenerationActive = true;
   bridge.applyAiPreview(run.preview.workspace, refinementTarget);
   renderReview(run);
   ui.review.hidden = false;
+  if (!refinement) await revealValidatedSections(run);
   setState("ready");
   ui.status.textContent = refinement ? "修改预览已通过校验，接受后才会写入当前草稿" : "首稿预览已通过校验，接受后才会写入当前草稿";
 }
@@ -271,23 +340,26 @@ async function resumeGenerationJob() {
   baselineWorkspace = context.currentWorkspace;
   refinementTarget = remembered.refinementTarget || (remembered.refinementCardId ? { kind: "component", id: remembered.refinementCardId } : null);
   activeGenerationJobId = remembered.id;
+  activeGenerationPageType = remembered.pageType || "dashboard";
+  canvasGenerationActive = true;
   const token = ++generationRequestToken;
   setState("working");
   ui.generate.textContent = "停止生成";
   ui.status.textContent = "正在恢复生成任务...";
   try {
-    const job = await pollGenerationJob(remembered.id, token);
+    const job = await streamGenerationJob(remembered.id, token);
     if (!job) return;
     activeGenerationJobId = null;
     forgetGenerationJob();
     if (job.status === "canceled") {
+      canvasGenerationActive = false;
       setState("idle");
       ui.status.textContent = "生成任务已取消，当前画布未改变";
       return;
     }
     if (job.status !== "succeeded" || job.run?.status !== "preview-ready") throw Object.assign(new Error(job.error?.message || job.run?.error?.message || "生成结果校验失败"), { responseStatus: 422 });
     pendingGenerationJobId = remembered.id;
-    presentCompletedGeneration(job.run);
+    await presentCompletedGeneration(job.run);
   } catch (error) {
     activeGenerationJobId = null;
     forgetGenerationJob();
@@ -301,7 +373,11 @@ async function resumeGenerationJob() {
 async function requestCandidate() {
   if (activeGenerationJobId) return cancelActiveGeneration();
   const prompt = ui.prompt.value.trim();
-  if (!prompt) {
+  const selectedDataSource = bridge.getSelectedDataSource();
+  const selectedPageType = ui.pageTypeControls?.querySelector('input[name="aiPageType"]:checked')?.value || "dashboard";
+  activeGenerationPageType = selectedPageType;
+  const effectivePrompt = prompt || (selectedDataSource?.contentKind === "page" ? "保留导入页面的业务内容和信息层级，使用当前视觉主题与组件规范重新生成页面" : "");
+  if (!effectivePrompt) {
     ui.status.textContent = "请先描述业务目标";
     ui.prompt.focus();
     return;
@@ -324,7 +400,7 @@ async function requestCandidate() {
       body: JSON.stringify({
         mode: refinement ? "refine" : "draft",
         request: {
-          id: `request-${Date.now()}`, prompt, language: context.language || "zh", pageType: "auto", audience: "业务负责人",
+          id: `request-${Date.now()}`, prompt: effectivePrompt, language: context.language || "zh", pageType: selectedPageType,
           ...(refinement ? { scope: { kind: target.kind, id: target.id } } : {}),
           dataInputs: refinement || !context.dataSource ? [] : [{ id: context.dataSource.id, kind: "uploaded", name: context.dataSource.name }]
         },
@@ -335,17 +411,24 @@ async function requestCandidate() {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.job?.id) throw new Error(payload.issues?.[0]?.message || payload.error || "生成任务创建失败");
     activeGenerationJobId = payload.job.id;
+    canvasGenerationActive = true;
     rememberGenerationJob();
+    syncCanvasGeneration();
+    window.dispatchEvent(new CustomEvent("dashboard-generation-job-started", { detail: { jobId: payload.job.id, pageType: selectedPageType } }));
     ui.generate.disabled = false;
     ui.generate.textContent = "停止生成";
-    const job = await pollGenerationJob(payload.job.id, token);
+    const job = await streamGenerationJob(payload.job.id, token);
     if (!job) return;
     activeGenerationJobId = null;
     forgetGenerationJob();
-    if (job.status === "canceled") return;
+    if (job.status === "canceled") {
+      canvasGenerationActive = false;
+      setState("idle");
+      return;
+    }
     if (job.status !== "succeeded" || job.run?.status !== "preview-ready") throw Object.assign(new Error(job.error?.message || job.run?.error?.message || "生成结果校验失败"), { responseStatus: job.error?.httpStatus || 422 });
     pendingGenerationJobId = payload.job.id;
-    presentCompletedGeneration(job.run);
+    await presentCompletedGeneration(job.run);
   } catch (error) {
     activeGenerationJobId = null;
     forgetGenerationJob();
@@ -361,11 +444,13 @@ async function requestCandidate() {
 }
 
 async function cancelCandidate() {
+  progressiveRevealToken += 1;
   const refinement = ["section", "component"].includes(pendingRun?.request?.scope?.kind);
   if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
   pendingRun = null;
   baselineWorkspace = null;
   refinementTarget = null;
+  canvasGenerationActive = false;
   ui.review.hidden = true;
   ui.reviewDiff.replaceChildren();
   setState("idle");
@@ -376,6 +461,7 @@ async function cancelCandidate() {
 
 async function acceptCandidate() {
   if (!pendingRun) return;
+  progressiveRevealToken += 1;
   const refinement = ["section", "component"].includes(pendingRun.request.scope?.kind);
   ui.accept.disabled = true;
   setState("working");
@@ -390,6 +476,7 @@ async function acceptCandidate() {
     pendingRun = null;
     baselineWorkspace = null;
     refinementTarget = null;
+    canvasGenerationActive = false;
     ui.review.hidden = true;
     ui.undo.hidden = !payload.revision.inverseCommands;
     setState("idle");
@@ -604,7 +691,7 @@ function syncScope() {
   ui.scope.querySelector("span").textContent = sectionRefinement ? "当前分区" : "当前卡片";
   ui.scopeName.textContent = target?.title || "";
   ui.draftTemplates.hidden = refinement;
-  ui.componentCapability.hidden = refinement;
+  ui.componentCapability.hidden = true;
   ui.refineTemplates.hidden = !refinement;
   ui.refineTemplates.querySelectorAll("[data-component-refine]").forEach((button) => { button.hidden = sectionRefinement; });
   ui.refineTemplates.querySelectorAll("[data-section-refine]").forEach((button) => { button.hidden = !sectionRefinement; });
@@ -665,29 +752,19 @@ function fillTemplate(value, message) {
 
 function syncDraftSummary() {
   if (!ui.promptCount) return;
-  const prompt = ui.prompt.value.trim();
   ui.promptCount.textContent = `${ui.prompt.value.length} / ${ui.prompt.maxLength}`;
-  const audience = prompt.match(/为([^，。；]{2,16}?)(?:生成|制作|创建)/)?.[1];
-  ui.summaryAudience.textContent = audience || "待识别";
-  ui.summaryPageType.textContent = /\bReport\b|报告|复盘/i.test(prompt) ? "Report" : "Dashboard";
-  const sourceName = ui.dataSourceName?.textContent?.trim();
-  ui.summaryData.textContent = sourceName && sourceName !== "未选择数据" ? sourceName : "示例数据";
-  const componentLabels = [];
-  if (/指标|金额|数量|转化率|完成率/.test(prompt)) componentLabels.push("指标卡");
-  if (/趋势|折线|面积|柱状/.test(prompt)) componentLabels.push("趋势图");
-  if (/渠道|占比|环形|排行/.test(prompt)) componentLabels.push("排行或占比图");
-  if (/风险|异常|问题/.test(prompt)) componentLabels.push("风险事项");
-  if (!componentLabels.length) componentLabels.push("指标卡", "趋势图", "明细列表");
-  ui.summaryComponents.replaceChildren(...componentLabels.slice(0, 4).map((label) => {
-    const item = document.createElement("li"); item.textContent = label; return item;
-  }));
-  ui.summaryNotice.textContent = prompt ? "配置已就绪，可继续修改后生成" : "选择模板或输入需求后，系统将在这里整理生成范围";
+  ui.promptCount.hidden = ui.prompt.value.length < 400;
+  ui.promptCount.dataset.limit = String(ui.prompt.value.length >= ui.prompt.maxLength);
 }
 
 ui.generate.addEventListener("click", requestCandidate);
 ui.generate.dataset.bound = "true";
 ui.cancel.addEventListener("click", cancelCandidate);
 ui.accept.addEventListener("click", acceptCandidate);
+ui.canvasStop?.addEventListener("click", cancelActiveGeneration);
+ui.canvasAccept?.addEventListener("click", acceptCandidate);
+ui.canvasDismiss?.addEventListener("click", cancelCandidate);
+ui.canvasReopen?.addEventListener("click", () => window.DashboardProjectCenter?.openProjectDialog());
 ui.cancel.dataset.bound = "true"; ui.accept.dataset.bound = "true";
 ui.undo.addEventListener("click", undoAcceptedChange);
 ui.historyToggle.addEventListener("click", () => setHistoryOpen(ui.history.hidden));
@@ -712,7 +789,8 @@ ui.componentTemplate.addEventListener("change", () => {
   ui.componentTemplate.value = "";
 });
 if (ui.dataSourceName) new MutationObserver(syncDraftSummary).observe(ui.dataSourceName, { childList: true, characterData: true, subtree: true });
-ui.sampleDataPreference?.addEventListener("change", () => { if (ui.dataPortable) { ui.dataPortable.checked = ui.sampleDataPreference.checked; ui.dataPortable.dispatchEvent(new Event("change", { bubbles: true })); } });
+if (ui.status) new MutationObserver(syncCanvasGeneration).observe(ui.status, { childList: true, characterData: true, subtree: true });
+window.addEventListener("dashboard-data-source-change", syncDraftSummary);
 window.addEventListener("dashboard-ai-context-change", syncScope);
 
 function refreshHistory() {

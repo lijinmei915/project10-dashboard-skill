@@ -10,6 +10,7 @@ import {
   startPlanning,
   transitionGenerationRun
 } from "./generation-pipeline.mjs";
+import { validateGenerationBundle } from "./workspace-core.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillDir = path.resolve(scriptDir, "..");
@@ -19,7 +20,9 @@ const [generationSchema, workspaceSchema, componentRegistry] = await Promise.all
   readJson("data/component-registry.json")
 ]);
 
-const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_TIMEOUT_MS = 300_000;
+const DEFAULT_FIRST_BYTE_TIMEOUT_MS = 120_000;
+const DEFAULT_IDLE_TIMEOUT_MS = 60_000;
 const MAX_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024;
 const PROVIDER_OUTPUT_SCHEMA = buildProviderOutputSchema();
 
@@ -33,6 +36,11 @@ For section scope, emit only narrow commands for the selected section and requir
 For workspace scope, the command batch must deterministically materialize the returned workspace from the supplied baseline.
 Never invent real data. Use sample provenance and a visible sample-data label when no supplied input supports a value.
 The platform, not you, validates, repairs, previews, commits, restores, exports, and publishes.`;
+
+const COMPATIBLE_PROVIDER_INSTRUCTIONS = `${PROVIDER_INSTRUCTIONS}
+The following is the authoritative JSON Schema for your response. Return one object that matches it exactly. Do not omit plan, commands, workspace, or provenance fields, and do not add wrapper fields such as answer, result, markdown, or commentary.
+JSON Schema:
+${JSON.stringify(PROVIDER_OUTPUT_SCHEMA)}`;
 
 async function readJson(relativePath) {
   return JSON.parse(await readFile(path.join(skillDir, relativePath), "utf8"));
@@ -153,6 +161,77 @@ function parseChatCompletionCandidate(payload) {
   }
 }
 
+function parseSsePayloads(text) {
+  return String(text).split(/\r?\n\r?\n/).flatMap((block) => {
+    const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+    if (!data || data === "[DONE]") return [];
+    try { return [JSON.parse(data)]; } catch { throw new ProviderError("AI provider returned an invalid stream event", { code: "provider_protocol" }); }
+  });
+}
+
+function parseChatCompletionStream(text) {
+  let content = "";
+  let usage = null;
+  for (const payload of parseSsePayloads(text)) {
+    if (payload?.error) throw new ProviderError(cleanText(payload.error.message || "AI provider stream failed"), { code: "provider_upstream", httpStatus: 502 });
+    content += payload?.choices?.[0]?.delta?.content || "";
+    usage = normalizeUsage(payload?.usage) || usage;
+  }
+  try { return { candidate: JSON.parse(content), usage }; }
+  catch { throw new ProviderError("AI provider returned invalid streamed JSON", { code: "provider_protocol" }); }
+}
+
+function parseResponsesStream(text) {
+  let content = "";
+  let usage = null;
+  for (const payload of parseSsePayloads(text)) {
+    if (payload?.type === "error" || payload?.error) throw new ProviderError(cleanText(payload.error?.message || payload.message || "AI provider stream failed"), { code: "provider_upstream", httpStatus: 502 });
+    if (payload?.type === "response.output_text.delta") content += payload.delta || "";
+    if (payload?.type === "response.completed") usage = normalizeUsage(payload.response?.usage) || usage;
+  }
+  try { return { candidate: JSON.parse(content), usage }; }
+  catch { throw new ProviderError("AI provider returned invalid streamed JSON", { code: "provider_protocol" }); }
+}
+
+function parseProviderErrorResponse(responseText, isEventStream) {
+  if (isEventStream) {
+    try {
+      const events = parseSsePayloads(responseText);
+      return events.find((event) => event?.error)?.error?.message
+        || events.find((event) => event?.message)?.message;
+    } catch {
+      return null;
+    }
+  }
+  try { return JSON.parse(responseText || "{}").error?.message; }
+  catch { return null; }
+}
+
+async function readProviderResponse(response, { controller, firstByteTimeoutMs, idleTimeoutMs, onFirstChunk }) {
+  if (!response.body?.getReader) return response.text();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let bytes = 0;
+  for (;;) {
+    let idle;
+    try {
+      const chunk = await Promise.race([
+        reader.read(),
+        new Promise((_, reject) => { idle = setTimeout(() => { controller.abort(); reject(new ProviderError(bytes ? "AI provider stream became idle" : "AI provider returned no first byte", { code: "provider_timeout", httpStatus: 504, retryable: true })); }, bytes ? idleTimeoutMs : firstByteTimeoutMs); })
+      ]);
+      if (chunk.done) break;
+      if (!bytes) onFirstChunk?.();
+      bytes += chunk.value.byteLength;
+      if (bytes > MAX_PROVIDER_RESPONSE_BYTES) throw new ProviderError("AI provider response is too large", { code: "provider_protocol" });
+      text += decoder.decode(chunk.value, { stream: true });
+    } finally {
+      clearTimeout(idle);
+    }
+  }
+  return text + decoder.decode();
+}
+
 function providerCandidate(value) {
   if (value && typeof value === "object" && !Array.isArray(value) && value.candidate && typeof value.candidate === "object") {
     return { candidate: value.candidate, usage: normalizeUsage(value.usage) };
@@ -170,21 +249,24 @@ function addUsage(current, next) {
   };
 }
 
-export function createOpenAIProvider({ apiKey, model, endpoint = "https://api.openai.com/v1/responses", timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = globalThis.fetch } = {}) {
+export function createOpenAIProvider({ apiKey, model, endpoint = "https://api.openai.com/v1/responses", timeoutMs = DEFAULT_TIMEOUT_MS, firstByteTimeoutMs = DEFAULT_FIRST_BYTE_TIMEOUT_MS, idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS, fetchImpl = globalThis.fetch } = {}) {
   const resolvedApiKey = String(apiKey || "").trim();
   const resolvedModel = cleanText(model, 200);
   if (!resolvedApiKey) throw new ProviderError("OPENAI_API_KEY is required for the OpenAI provider", { code: "provider_configuration", httpStatus: 503 });
   if (!resolvedModel) throw new ProviderError("DASHBOARD_AI_MODEL is required for the OpenAI provider", { code: "provider_configuration", httpStatus: 503 });
   if (typeof fetchImpl !== "function") throw new ProviderError("Fetch is unavailable for the OpenAI provider", { code: "provider_configuration", httpStatus: 503 });
   const resolvedEndpoint = validateEndpoint(endpoint);
-  const resolvedTimeout = Math.max(1_000, Math.min(180_000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS));
+  const resolvedTimeout = Math.max(1_000, Math.min(600_000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS));
+  const resolvedFirstByteTimeout = Math.max(1, Math.min(resolvedTimeout, Number(firstByteTimeoutMs) || DEFAULT_FIRST_BYTE_TIMEOUT_MS));
+  const resolvedIdleTimeout = Math.max(1, Math.min(resolvedTimeout, Number(idleTimeoutMs) || DEFAULT_IDLE_TIMEOUT_MS));
 
   async function requestCandidate(context, externalSignal = null) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener("abort", abort, { once: true });
-    const timeout = setTimeout(() => controller.abort(), resolvedTimeout);
+    let firstByteTimeout = setTimeout(() => controller.abort(), resolvedFirstByteTimeout);
+    const maximumTimeout = setTimeout(() => controller.abort(), resolvedTimeout);
     try {
       const response = await fetchImpl(resolvedEndpoint, {
         method: "POST",
@@ -195,6 +277,7 @@ export function createOpenAIProvider({ apiKey, model, endpoint = "https://api.op
         body: JSON.stringify({
           model: resolvedModel,
           store: false,
+          stream: true,
           instructions: PROVIDER_INSTRUCTIONS,
           input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify(context) }] }],
           text: {
@@ -208,30 +291,36 @@ export function createOpenAIProvider({ apiKey, model, endpoint = "https://api.op
         }),
         signal: controller.signal
       });
-      const responseText = await response.text();
+      const responseText = await readProviderResponse(response, {
+        controller,
+        firstByteTimeoutMs: resolvedFirstByteTimeout,
+        idleTimeoutMs: resolvedIdleTimeout,
+        onFirstChunk: () => { clearTimeout(firstByteTimeout); firstByteTimeout = null; }
+      });
       if (Buffer.byteLength(responseText) > MAX_PROVIDER_RESPONSE_BYTES) throw new ProviderError("AI provider response is too large", { code: "provider_protocol" });
-      let payload;
-      try {
-        payload = JSON.parse(responseText || "{}");
-      } catch {
-        throw new ProviderError("AI provider returned an invalid response", { code: "provider_protocol" });
-      }
+      const isEventStream = response.headers.get("content-type")?.includes("text/event-stream");
       if (!response.ok) {
-        const message = cleanText(payload?.error?.message || `AI provider request failed with status ${response.status}`);
+        const message = cleanText(parseProviderErrorResponse(responseText, isEventStream) || `AI provider request failed with status ${response.status}`);
         throw new ProviderError(message, {
           code: response.status === 429 ? "provider_rate_limit" : "provider_upstream",
           httpStatus: providerHttpStatus(response.status),
           retryable: response.status === 429 || response.status >= 500
         });
       }
+      if (isEventStream) return parseResponsesStream(responseText);
+      let payload;
+      try { payload = JSON.parse(responseText || "{}"); }
+      catch { throw new ProviderError("AI provider returned an invalid response", { code: "provider_protocol" }); }
       return { candidate: parseCandidate(payload), usage: normalizeUsage(payload.usage) };
     } catch (error) {
       if (error instanceof ProviderError) throw error;
+      if (error?.name === "AbortError" && externalSignal?.aborted && externalSignal.reason === "provider_timeout") throw new ProviderError("AI generation exceeded the maximum task duration", { code: "provider_timeout", httpStatus: 504, retryable: true });
       if (error?.name === "AbortError" && externalSignal?.aborted) throw new ProviderError("AI generation was canceled", { code: "provider_canceled", httpStatus: 409 });
       if (error?.name === "AbortError") throw new ProviderError("AI provider request timed out", { code: "provider_timeout", httpStatus: 504, retryable: true });
       throw new ProviderError("AI provider could not be reached", { code: "provider_unavailable", httpStatus: 502, retryable: true });
     } finally {
-      clearTimeout(timeout);
+      clearTimeout(firstByteTimeout);
+      clearTimeout(maximumTimeout);
       externalSignal?.removeEventListener("abort", abort);
     }
   }
@@ -264,7 +353,7 @@ export function createOpenAIProvider({ apiKey, model, endpoint = "https://api.op
   };
 }
 
-export function createOpenAICompatibleProvider({ apiKey, model, apiBase, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = globalThis.fetch, profileId = null } = {}) {
+export function createOpenAICompatibleProvider({ apiKey, model, apiBase, timeoutMs = DEFAULT_TIMEOUT_MS, firstByteTimeoutMs = DEFAULT_FIRST_BYTE_TIMEOUT_MS, idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS, fetchImpl = globalThis.fetch, profileId = null } = {}) {
   const resolvedApiKey = String(apiKey || "").trim();
   const resolvedModel = cleanText(model, 200);
   if (!resolvedApiKey) throw new ProviderError("AI provider credential is not configured", { code: "provider_configuration", httpStatus: 503 });
@@ -272,14 +361,17 @@ export function createOpenAICompatibleProvider({ apiKey, model, apiBase, timeout
   if (typeof fetchImpl !== "function") throw new ProviderError("Fetch is unavailable for the AI provider", { code: "provider_configuration", httpStatus: 503 });
   const base = validateEndpoint(apiBase).replace(/\/+$/, "");
   const endpoint = base.endsWith("/chat/completions") ? base : `${base}/chat/completions`;
-  const resolvedTimeout = Math.max(1_000, Math.min(180_000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS));
+  const resolvedTimeout = Math.max(1_000, Math.min(600_000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS));
+  const resolvedFirstByteTimeout = Math.max(1, Math.min(resolvedTimeout, Number(firstByteTimeoutMs) || DEFAULT_FIRST_BYTE_TIMEOUT_MS));
+  const resolvedIdleTimeout = Math.max(1, Math.min(resolvedTimeout, Number(idleTimeoutMs) || DEFAULT_IDLE_TIMEOUT_MS));
 
   async function requestCandidate(context, externalSignal = null) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener("abort", abort, { once: true });
-    const timeout = setTimeout(() => controller.abort(), resolvedTimeout);
+    let firstByteTimeout = setTimeout(() => controller.abort(), resolvedFirstByteTimeout);
+    const maximumTimeout = setTimeout(() => controller.abort(), resolvedTimeout);
     try {
       const response = await fetchImpl(endpoint, {
         method: "POST",
@@ -287,35 +379,46 @@ export function createOpenAICompatibleProvider({ apiKey, model, apiBase, timeout
         body: JSON.stringify({
           model: resolvedModel,
           messages: [
-            { role: "system", content: PROVIDER_INSTRUCTIONS },
+            { role: "system", content: COMPATIBLE_PROVIDER_INSTRUCTIONS },
             { role: "user", content: JSON.stringify(context) }
           ],
           response_format: { type: "json_object" },
-          temperature: 0
+          temperature: 0,
+          stream: true,
+          stream_options: { include_usage: true }
         }),
         signal: controller.signal
       });
-      const responseText = await response.text();
+      const responseText = await readProviderResponse(response, {
+        controller,
+        firstByteTimeoutMs: resolvedFirstByteTimeout,
+        idleTimeoutMs: resolvedIdleTimeout,
+        onFirstChunk: () => { clearTimeout(firstByteTimeout); firstByteTimeout = null; }
+      });
       if (Buffer.byteLength(responseText) > MAX_PROVIDER_RESPONSE_BYTES) throw new ProviderError("AI provider response is too large", { code: "provider_protocol" });
-      let payload;
-      try { payload = JSON.parse(responseText || "{}"); }
-      catch { throw new ProviderError("AI provider returned an invalid response", { code: "provider_protocol" }); }
+      const isEventStream = response.headers.get("content-type")?.includes("text/event-stream");
       if (!response.ok) {
-        const message = cleanText(payload?.error?.message || `AI provider request failed with status ${response.status}`);
+        const message = cleanText(parseProviderErrorResponse(responseText, isEventStream) || `AI provider request failed with status ${response.status}`);
         throw new ProviderError(message, {
           code: response.status === 429 ? "provider_rate_limit" : "provider_upstream",
           httpStatus: providerHttpStatus(response.status),
           retryable: response.status === 429 || response.status >= 500
         });
       }
+      if (isEventStream) return parseChatCompletionStream(responseText);
+      let payload;
+      try { payload = JSON.parse(responseText || "{}"); }
+      catch { throw new ProviderError("AI provider returned an invalid response", { code: "provider_protocol" }); }
       return { candidate: parseChatCompletionCandidate(payload), usage: normalizeUsage(payload.usage) };
     } catch (error) {
       if (error instanceof ProviderError) throw error;
+      if (error?.name === "AbortError" && externalSignal?.aborted && externalSignal.reason === "provider_timeout") throw new ProviderError("AI generation exceeded the maximum task duration", { code: "provider_timeout", httpStatus: 504, retryable: true });
       if (error?.name === "AbortError" && externalSignal?.aborted) throw new ProviderError("AI generation was canceled", { code: "provider_canceled", httpStatus: 409 });
       if (error?.name === "AbortError") throw new ProviderError("AI provider request timed out", { code: "provider_timeout", httpStatus: 504, retryable: true });
       throw new ProviderError("AI provider could not be reached", { code: "provider_unavailable", httpStatus: 502, retryable: true });
     } finally {
-      clearTimeout(timeout);
+      clearTimeout(firstByteTimeout);
+      clearTimeout(maximumTimeout);
       externalSignal?.removeEventListener("abort", abort);
     }
   }
@@ -383,19 +486,26 @@ export function createProviderFromProfileConfig(configuration, env = process.env
     model: profile.model,
     apiBase: profile.apiBase,
     timeoutMs: env.DASHBOARD_AI_TIMEOUT_MS,
+    firstByteTimeoutMs: env.DASHBOARD_AI_FIRST_BYTE_TIMEOUT_MS,
+    idleTimeoutMs: env.DASHBOARD_AI_IDLE_TIMEOUT_MS,
     fetchImpl,
     profileId: profile.id
   });
 }
 
-export function createProviderProfileManager(configuration, env = process.env, { fetchImpl = globalThis.fetch, timeoutMs = env.DASHBOARD_AI_TIMEOUT_MS } = {}) {
+export function createProviderProfileManager(configuration, env = process.env, {
+  fetchImpl = globalThis.fetch,
+  timeoutMs = env.DASHBOARD_AI_TIMEOUT_MS,
+  firstByteTimeoutMs = env.DASHBOARD_AI_FIRST_BYTE_TIMEOUT_MS,
+  idleTimeoutMs = env.DASHBOARD_AI_IDLE_TIMEOUT_MS
+} = {}) {
   const normalized = normalizedProfiles(configuration);
   let activeProfileId = normalized.activeProfileId;
   const activeProfile = () => normalized.profiles.find(({ id }) => id === activeProfileId);
   const credential = (profile) => String(env[profile.apiKeyEnv] || "").trim();
   const activeProvider = () => {
     const profile = activeProfile();
-    return createOpenAICompatibleProvider({ apiKey: credential(profile), model: profile.model, apiBase: profile.apiBase, timeoutMs, fetchImpl, profileId: profile.id });
+    return createOpenAICompatibleProvider({ apiKey: credential(profile), model: profile.model, apiBase: profile.apiBase, timeoutMs, firstByteTimeoutMs, idleTimeoutMs, fetchImpl, profileId: profile.id });
   };
   const request = async (profile, suffix, options = {}) => {
     const key = credential(profile);
@@ -472,6 +582,8 @@ export function createProviderFromEnv(env = process.env, { fetchImpl = globalThi
         model: env.DASHBOARD_AI_MODEL,
         endpoint: `${baseUrl}/responses`,
         timeoutMs: env.DASHBOARD_AI_TIMEOUT_MS,
+        firstByteTimeoutMs: env.DASHBOARD_AI_FIRST_BYTE_TIMEOUT_MS,
+        idleTimeoutMs: env.DASHBOARD_AI_IDLE_TIMEOUT_MS,
         fetchImpl
       });
     } catch (error) {
@@ -540,6 +652,24 @@ export async function runGenerationWithProvider(provider, { mode = "draft", requ
     let candidate = response.candidate;
     run.usage = addUsage(run.usage, response.usage);
     let bundle = normalizeProviderBundle(candidate, run.request);
+    let validation = validateGenerationBundle(bundle);
+    if (!validation.valid) {
+      run = transitionGenerationRun(run, "repairing", { at: now, details: { validation: "failed", issues: validation.issues } });
+      run.repairAttempts += 1;
+      response = providerCandidate(await provider.repairCandidate({
+        mode: effectiveMode,
+        request: run.request,
+        baseWorkspace: structuredClone(baseWorkspace),
+        candidate: bundle,
+        issues: structuredClone(validation.issues),
+        signal,
+        providerContext: structuredClone(providerContext)
+      }));
+      run.usage = addUsage(run.usage, response.usage);
+      bundle = normalizeProviderBundle(response.candidate, run.request);
+      validation = validateGenerationBundle(bundle);
+      if (!validation.valid) throw new ProviderError("AI provider returned a bundle that failed validation", { code: "provider_protocol", httpStatus: 502 });
+    }
     run = acceptPlan(run, bundle.plan, { at: now });
     run = acceptGenerationBundle(run, bundle, { at: now });
     run = prepareGenerationPreview(run, baseWorkspace, { at: now });

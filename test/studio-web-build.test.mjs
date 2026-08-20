@@ -42,6 +42,8 @@ test("Studio Web build is deterministic, browser-only and independently deployab
     assert.deepEqual(firstFiles, secondFiles);
     assert(firstFiles.includes("index.html"));
     assert(firstFiles.includes("studio/workspace-core-runtime.mjs"));
+    assert(firstFiles.includes("studio/resource-center.mjs"));
+    assert(firstFiles.includes("studio/resource-application-protocol.mjs"));
     assert(firstFiles.includes("build-manifest.json"));
     assert(!firstFiles.some((name) => name.includes(".agents") || /(?:server|service|repository|test)\.mjs$/.test(name)));
 
@@ -60,6 +62,10 @@ test("Studio Web build is deterministic, browser-only and independently deployab
 
     const html = await readFile(path.join(first, "index.html"), "utf8");
     assert(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), "Studio HTML must not contain inline scripts");
+    assert(html.includes('id="aiPageTypeControls"'), "New project flow must expose page type selection");
+    assert(!html.includes('aria-label="AI 生成配置摘要"'), "New project flow must not restore the passive generation summary");
+    const composerClient = await readFile(path.join(first, "studio/ai-composer-center.mjs"), "utf8");
+    assert(composerClient.includes("pageType: selectedPageType"), "Selected page type must be submitted to generation");
     const coreClient = await readFile(path.join(first, "studio/workspace-core-client.mjs"), "utf8");
     assert(coreClient.includes('from "./workspace-core-runtime.mjs"'));
 

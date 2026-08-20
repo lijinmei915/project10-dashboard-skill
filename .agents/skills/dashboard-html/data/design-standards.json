@@ -1,0 +1,64 @@
+{
+  "version": "1.0.0",
+  "sources": ["references/themes.md", "references/color-system.md", "assets/palette.v1.json"],
+  "groups": [
+    {
+      "id": "color",
+      "name": "颜色",
+      "summary": "品牌色、数据色和状态色各司其职，不用一种颜色承担所有含义。",
+      "items": [
+        { "name": "品牌强调", "token": "--accent-seed", "sample": "#ff8000", "rule": "只驱动品牌强调、单色图形和主题渐变" },
+        { "name": "数据分类", "token": "--chart-1…8", "sample": "categorical", "rule": "固定 8 色，颜色之外必须保留标签或数值" },
+        { "name": "成功", "token": "--success", "sample": "success", "rule": "只表示成功或正常状态" },
+        { "name": "提醒", "token": "--warning", "sample": "warning", "rule": "只表示提醒或需要关注" },
+        { "name": "危险", "token": "--danger", "sample": "danger", "rule": "只表示错误、风险或破坏性操作" }
+      ]
+    },
+    {
+      "id": "type",
+      "name": "字号层级",
+      "summary": "页面标题、分组标题、卡片标题和正文必须保持清晰层级。",
+      "items": [
+        { "name": "页面标题", "token": "--font-size-page-title", "sample": "32px", "rule": "仅用于页面一级标题" },
+        { "name": "分组标题", "token": "--font-size-section-title", "sample": "16px", "rule": "用于内容分组，不与页面标题抢层级" },
+        { "name": "卡片标题", "token": "--font-size-surface-title", "sample": "16px", "rule": "标准看板默认 16px，可用 12/14/16/18/20px 档位" },
+        { "name": "正文", "token": "--font-size-body", "sample": "14px", "rule": "保持稳定可读，不随视口宽度缩放" },
+        { "name": "辅助信息", "token": "--font-size-meta", "sample": "12px", "rule": "用于时间、来源和次要标签" }
+      ]
+    },
+    {
+      "id": "space",
+      "name": "间距",
+      "summary": "使用 4px 基础步进，密度变化只调整节奏，不改变信息结构。",
+      "items": [
+        { "name": "紧邻", "token": "--space-1", "sample": "4px", "rule": "图标与短标签" },
+        { "name": "控件内部", "token": "--space-2", "sample": "8px", "rule": "按钮、输入框和紧凑行" },
+        { "name": "卡片间距", "token": "--space-3", "sample": "12px", "rule": "默认 Dashboard 卡片间距" },
+        { "name": "内容分组", "token": "--space-4", "sample": "16px", "rule": "卡片内容和局部分组" },
+        { "name": "章节节奏", "token": "--space-6", "sample": "24px", "rule": "页面大分组之间" }
+      ]
+    },
+    {
+      "id": "shape",
+      "name": "形状与边界",
+      "summary": "圆角和阴影服务于层级，不把每个区域都做成浮层卡片。",
+      "items": [
+        { "name": "控件圆角", "token": "--control-radius", "sample": "6px", "rule": "按钮、输入和下拉保持一致" },
+        { "name": "卡片圆角", "token": "--radius", "sample": "8–14px", "rule": "跟随预设，资源中心自身不超过 8px" },
+        { "name": "弱边界", "token": "--line", "sample": "1px", "rule": "优先弱边框，避免层层套卡" },
+        { "name": "阴影", "token": "--shadow", "sample": "weak", "rule": "只用于需要与背景分离的 surface" }
+      ]
+    },
+    {
+      "id": "accessibility",
+      "name": "可访问性",
+      "summary": "信息不能只靠颜色，交互必须可聚焦，文字必须可读。",
+      "items": [
+        { "name": "正文对比度", "token": "contrast-text", "sample": "4.5:1", "rule": "普通文字最低 4.5:1" },
+        { "name": "图形对比度", "token": "contrast-ui", "sample": "3:1", "rule": "大字和关键图形最低 3:1" },
+        { "name": "焦点", "token": "focus-visible", "sample": "2px", "rule": "键盘操作必须显示清晰焦点" },
+        { "name": "交互目标", "token": "target-size", "sample": "32px+", "rule": "密集后台最低 32px，主要移动操作优先 44px" }
+      ]
+    }
+  ]
+}

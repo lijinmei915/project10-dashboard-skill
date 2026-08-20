@@ -33,7 +33,7 @@ accent       -> 非语义强调色 seed，由主题契约派生正文适配色
 
 | Preset | 方向 | 默认 mode | 适用场景 |
 |---|---|---|---|
-| `fx-orange` | 纷享橙、浅灰页面、白色 surface、弱阴影 | `light` | 默认通用后台 |
+| `fx-orange` | 标准橙、浅灰页面、白色 surface、弱阴影、多色图表 | `light` | 标准看板 |
 | `enterprise-blue` | 稳重蓝色、冷色页面、清晰边界 | `light` | 企业分析、业务管理 |
 | `report-light` | 暖白页面、低对比 surface、青绿色强调 | `light` | 偏阅读的简洁视觉，可用于 Dashboard 或 Report |
 | `operations-dark` | 深色页面、深色 surface、橙色状态强调 | `dark` | 运营、监控、运维 |
@@ -44,7 +44,7 @@ accent       -> 非语义强调色 seed，由主题契约派生正文适配色
 
 | Preset | Page / surface | Muted surface | Text / secondary | Accent / soft | Shadow / radius |
 |---|---|---|---|---|---|
-| `fx-orange` | `#f5f7fa` / `#ffffff` | `#f8fafc` | `#111827` / `#6b7280` | `#ff7a2f` / `rgba(255,122,47,.12)` | `0 2px 10px rgba(15,23,42,.04)` / `14px` |
+| `fx-orange` | `#f5f7fa` / `#ffffff` | `#f8fafc` | `#111827` / `#6b7280` | `#ff8000` / `rgba(255,128,0,.12)` | `0 2px 10px rgba(15,23,42,.04)` / `10px` |
 | `enterprise-blue` | `#f4f7fb` / `#ffffff` | `#f7faff` | `#172033` / `#60708a` | `#2563eb` / `rgba(37,99,235,.11)` | `0 2px 10px rgba(37,99,235,.05)` / `12px` |
 | `report-light` | `#f7f5ef` / `#fffefa` | `#f1eee6` | `#20251f` / `#6d746b` | `#147d72` / `rgba(20,125,114,.12)` | `0 1px 4px rgba(32,37,31,.04)` / `10px` |
 | `operations-dark` | `#10151f` / `#1b2430` | `#222d3b` | `#f4f7fb` / `#b9c4d2` | `#ff9b54` / `rgba(255,155,84,.15)` | `0 2px 10px rgba(0,0,0,.18)` / `12px` |
@@ -213,6 +213,6 @@ categorical  -> 不同类别或系列使用产品固定 8 色分类色板
 
 页面标题 > 分组标题 > 卡片标题 > 正文 / 辅助说明。主题可以改变字号、字重、行高和标题间距，但不能抹平这四级层次。
 
-卡片标题默认 `14px`，允许使用 `12 / 14 / 16 / 18 / 20px` 档位。分组标题隐藏时，卡片标题仍须保留；没有标题内容时直接省略标题节点，不生成空槽位。
+标准看板的卡片标题默认 `16px`，允许使用 `12 / 14 / 16 / 18 / 20px` 档位。分组标题隐藏时，卡片标题仍须保留；没有标题内容时直接省略标题节点，不生成空槽位。
 
 `cardTitleIcon` 默认 `none`。启用时使用与卡片语义匹配的内联 SVG，并通过 `.surface-title-icon` 承载；`line` 只显示线型图标，`soft` 使用主题浅色底，`solid` 使用主题实色底。它只改变普通卡片标题装饰，不影响 KPI 图标、分组标题、内容或布局。没有合适语义图标时保持 `none`，不得为了装饰重复使用同一个图标。

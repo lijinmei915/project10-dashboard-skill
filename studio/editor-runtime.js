@@ -7,13 +7,14 @@ import { LAYOUT_SPAN_STEPS, layoutDropSide, nearestLayoutSpan, reorderCanvasIds,
 import { createWorkspaceLayoutController } from "/studio/workspace-layout-controller.mjs";
 import { createWorkspaceStructureSynchronizer } from "/studio/workspace-structure-synchronizer.mjs";
 import { createAuthSessionController } from "/studio/auth-session-controller.mjs";
+import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validateIconApplication } from "/studio/resource-application-protocol.mjs";
 
     window.addEventListener("error", (event) => {
       if (/ResizeObserver loop/i.test(event.message || "")) return;
       document.documentElement.dataset.runtimeError = `${event.message} @ ${event.lineno}:${event.colno}`;
     });
     const presets = {
-      "fx-orange": { label: "默认后台", accent: "#ff8000", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "title", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, radius: 12, cardGap: 12, font: 14, shadow: "weak", spacing: "standard", light: { page: "#f5f7fa", surface: "#ffffff", mutedSurface: "#f8fafc", text: "#172033", secondary: "#667085", muted: "#98a2b3", line: "rgba(15, 23, 42, .08)" } },
+      "fx-orange": { label: "标准看板", accent: "#ff8000", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "title", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, radius: 10, cardGap: 12, cardTitleFont: 16, cardSubtitle: "none", chartPalette: "categorical", font: 14, shadow: "weak", spacing: "standard", light: { page: "#f5f7fa", surface: "#ffffff", mutedSurface: "#f8fafc", text: "#172033", secondary: "#667085", muted: "#98a2b3", line: "rgba(15, 23, 42, .08)" } },
       "enterprise-blue": { label: "企业分析", accent: "#2563eb", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 8, cardGap: 12, font: 14, shadow: "none", spacing: "standard", light: { page: "#f4f7fb", surface: "#ffffff", mutedSurface: "#f7faff", text: "#172033", secondary: "#60708a", muted: "#91a0b5", line: "rgba(37, 99, 235, .14)" } },
       "report-light": { label: "阅读简洁", accent: "#147d72", mode: "light", header: "plain", headerAlign: "center", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "none", sectionSurface: "none", sectionFont: 16, radius: 6, cardGap: 16, font: 15, shadow: "none", spacing: "relaxed", light: { page: "#f7f5ef", surface: "#fffefa", mutedSurface: "#f1eee6", text: "#20251f", secondary: "#6d746b", muted: "#92998d", line: "rgba(32, 37, 31, .10)" } },
       "operations-dark": { label: "运营深色", accent: "#ff9b54", mode: "dark", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 6, cardGap: 8, font: 13, shadow: "medium", spacing: "compact", light: { page: "#f4f6f8", surface: "#ffffff", mutedSurface: "#f7f8fa", text: "#172033", secondary: "#64748b", muted: "#94a3b8", line: "rgba(15, 23, 42, .09)" } },
@@ -23,7 +24,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     const pagePresetDefaults = {
       dashboard: {
         "fx-orange": {
-          accent: "#ff7a2f",
+          accent: "#ff8000",
           mode: "light",
           header: "plain",
           headerBackgroundType: "none",
@@ -44,7 +45,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
           cardSubtitle: "none",
           cardTitleStyle: "none",
           cardTitleLeading: "none",
-          chartPalette: "monochrome",
+          chartPalette: "categorical",
           font: 14,
           shadow: "weak",
           spacing: "standard"
@@ -134,6 +135,8 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     const dashboard = document.querySelector("#dashboardPreview");
     const designDrawer = document.querySelector("#designDrawer");
     const designDrawerClose = document.querySelector("#designDrawerClose");
+    const mobileCanvasToggle = document.querySelector("#mobileCanvasToggle");
+    const mobileSettingsReturn = document.querySelector("#mobileSettingsReturn");
     const designSaveStatus = document.querySelector("#designSaveStatus");
     const designSaveControl = document.querySelector("#designSaveControl");
     const designResetControl = document.querySelector("#designResetControl");
@@ -143,6 +146,9 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     const studioAuthToken = document.querySelector("#studioAuthToken");
     const studioAuthSubmit = document.querySelector("#studioAuthSubmit");
     const studioAuthStatus = document.querySelector("#studioAuthStatus");
+    const studioAuthTokenToggle = document.querySelector("#studioAuthTokenToggle");
+    const studioAuthExternal = document.querySelector("#studioAuthExternal");
+    const studioAuthProviders = document.querySelector("#studioAuthProviders");
     const studioAuthControl = document.querySelector("#studioAuthControl");
     const studioProjectControl = document.querySelector("#studioProjectControl");
     const publicationDialog = document.querySelector("#publicationDialog");
@@ -187,6 +193,8 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     const kpiCardBackgroundControl = document.querySelector("#kpiCardBackgroundControl");
     const kpiStyleSamples = document.querySelector("#kpiStyleSamples");
     const chartPaletteControl = document.querySelector("#chartPaletteControl");
+    const cardChartLegendField = document.querySelector("#cardChartLegendField");
+    const cardChartLegendControl = document.querySelector("#cardChartLegendControl");
     const headerBand = document.querySelector("#headerBand");
     const headerVisibilityToggle = document.querySelector("#headerVisibilityToggle");
     const headerControl = document.querySelector("#headerControl");
@@ -464,6 +472,9 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     let selectedHeaderGradientStopId = null;
     let selectedCardId = null;
     let selectedSectionId = null;
+    const selectionBoundCards = new WeakSet();
+    const resourceSession = crypto.randomUUID();
+    const resourceChannel = "BroadcastChannel" in window ? new BroadcastChannel(RESOURCE_CHANNEL) : null;
     let iconSearchTimer = null;
     let iconPickerTarget = "section";
     const sectionIconSvgCache = new Map();
@@ -809,7 +820,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
 
     function effectiveChartType(card, component = workspaceComponentModelById(card?.dataset.itemId)) {
       const type = component?.props?.chartType || state.cardOverrides?.[card?.dataset.itemId]?.chartType || card?.dataset.chartType || "bar";
-      return ["line", "area", "bar", "horizontal-bar", "pie"].includes(type) ? type : "bar";
+      return ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"].includes(type) ? type : "bar";
     }
 
     function chartPaletteForCard(card) {
@@ -818,7 +829,9 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       const mode = card.dataset.chartPalette || dashboard.dataset.chartPalette || "monochrome";
       if (mode === "categorical") return Array.from({ length: 8 }, (_, index) => read(`--chart-${index + 1}`, DASHBOARD_CATEGORICAL_PALETTE[index]));
       if (mode === "bichrome") return [read("--chart-bi-1", DASHBOARD_CATEGORICAL_PALETTE[0]), read("--chart-bi-2", DASHBOARD_CATEGORICAL_PALETTE[1])];
-      return [read("--chart-accent", DASHBOARD_CATEGORICAL_PALETTE[0])];
+      const accent = read("--chart-accent", DASHBOARD_CATEGORICAL_PALETTE[0]);
+      const surface = read("--surface", state.mode === "dark" ? "#20242c" : "#ffffff");
+      return [accent, mixHex(accent, surface, .22), mixHex(accent, surface, .42), mixHex(accent, surface, .60)];
     }
 
     function staticChartModel() {
@@ -836,6 +849,15 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       resolveType: effectiveChartType,
       resolvePalette: chartPaletteForCard,
       getMode: () => state.mode,
+      getSeriesVisibility: (componentId) => workspaceInteractions?.chartSeriesVisibility?.[componentId] || {},
+      onSeriesVisibilityChange({ componentId, seriesName, visible }) {
+        workspaceInteractions ||= { filters: {} };
+        workspaceInteractions.chartSeriesVisibility ||= {};
+        workspaceInteractions.chartSeriesVisibility[componentId] ||= {};
+        workspaceInteractions.chartSeriesVisibility[componentId][seriesName] = visible;
+        renderWorkspaceCharts();
+        scheduleWorkspaceSave();
+      },
       createFallbackSvg: createPortableChartSvg
     });
 
@@ -849,7 +871,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     }
 
     function setSelectedChartType(type) {
-      if (!selectedCardId || !["line", "area", "bar", "horizontal-bar", "pie"].includes(type)) return;
+      if (!selectedCardId || !["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"].includes(type)) return;
       const component = workspaceComponentModelById(selectedCardId);
       if (!component || component.type !== "chart") {
         state.cardOverrides ||= {};
@@ -866,12 +888,23 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
         delete state.cardOverrides[selectedCardId].chartType;
         if (!Object.keys(state.cardOverrides[selectedCardId]).length) delete state.cardOverrides[selectedCardId];
       }
-      if (type === "pie" && !state.cardOverrides?.[selectedCardId]?.chartPalette) {
+      if (["pie", "sector-pie", "rose"].includes(type) && !state.cardOverrides?.[selectedCardId]?.chartPalette) {
         state.cardOverrides ||= {};
         state.cardOverrides[selectedCardId] = { ...(state.cardOverrides[selectedCardId] || {}), chartPalette: "categorical" };
       }
       applyWorkspaceDocument(workspaceDocument);
       applyCardOverrides();
+      updateCardContext();
+      scheduleWorkspaceSave();
+    }
+
+    function setSelectedChartLegend(value) {
+      if (!selectedCardId) return;
+      const component = workspaceComponentModelById(selectedCardId);
+      if (!component || component.type !== "chart") return;
+      if (value === "auto") delete component.props.legend;
+      else component.props.legend = { visible: value === "visible", interactive: true };
+      applyWorkspaceDocument(workspaceDocument);
       updateCardContext();
       scheduleWorkspaceSave();
     }
@@ -1032,6 +1065,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
 
     function setDesignMode(open, updateUrl = true) {
       document.body.dataset.designMode = String(open);
+      if (!open) delete document.body.dataset.mobileDesignView;
       designDrawer.setAttribute("aria-hidden", String(!open));
       designDrawer.inert = !open;
       if (open) setSettingsTab("global");
@@ -1043,6 +1077,13 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
         else url.searchParams.delete("design");
         history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       }
+    }
+
+    function setMobileDesignView(view) {
+      const canvas = view === "canvas";
+      document.body.dataset.mobileDesignView = canvas ? "canvas" : "settings";
+      designDrawer.inert = canvas;
+      if (!canvas && (selectedCardId || selectedSectionId)) setSettingsTab("local");
     }
 
     window.DashboardThemeEditor = Object.freeze({
@@ -1105,6 +1146,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       sectionIconPickerField.hidden = true;
       cardChartTypeField.hidden = type !== "chart";
       cardChartPaletteField.hidden = type !== "chart";
+      cardChartLegendField.hidden = type !== "chart";
       cardSubtitleField.hidden = true;
       cardTitleIconField.hidden = type !== "generic";
       cardKpiIconField.hidden = type !== "kpi";
@@ -1140,6 +1182,10 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     function updateCardContext() {
       const card = selectedCard();
       const section = selectedSection();
+      const resourceLink = document.querySelector("#designResourceLink");
+      const selectedComponent = selectedCardId ? workspaceComponentById(selectedCardId)?.component : null;
+      const resourceTarget = selectedComponent || (selectedSectionId ? { id: selectedSectionId, kind: "section" } : null);
+      if (resourceLink) resourceLink.href = resourceCenterUrl({ target: resourceTarget, session: resourceSession });
       dashboard.querySelectorAll("[data-item-id][data-selected]").forEach((item) => delete item.dataset.selected);
       dashboard.querySelectorAll(".section[data-selected]").forEach((item) => delete item.dataset.selected);
       if (!card) {
@@ -1211,6 +1257,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       cardKpiShapeField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
       cardChartPaletteControl.value = override.chartPalette || "inherit";
       cardChartTypeControl.value = effectiveChartType(card);
+      cardChartLegendControl.value = selectedComponent?.props?.legend?.visible === true ? "visible" : selectedComponent?.props?.legend?.visible === false ? "hidden" : "auto";
       cardSubtitleOverrideControl.value = override.cardSubtitle || "inherit";
       cardSubtitleTextControl.value = override.cardSubtitleText ?? subtitle?.textContent.trim() ?? "";
       if (hasTitleIcon) updateCardTitleIconPickerPreview(card);
@@ -1233,6 +1280,35 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       updateCardContext();
       syncAiComposerScope();
     }
+
+    resourceChannel?.addEventListener("message", async (event) => {
+      const target = selectedCardId ? workspaceComponentById(selectedCardId)?.component : null;
+      const selectedResourceTarget = target
+        ? { id: target.id, targetType: target.type === "chart" ? "chart" : "card" }
+        : selectedSectionId ? { id: selectedSectionId, targetType: "section" } : null;
+      if (event.data?.kind === "apply-icon") {
+        const iconValidation = validateIconApplication(event.data, { selectedTarget: selectedResourceTarget, session: resourceSession });
+        if (!iconValidation.ok) return;
+        const response = await fetch(`/api/icons/phosphor/${encodeURIComponent(iconValidation.value.iconName)}?weight=regular`);
+        if (!response.ok) {
+          setSaveStatus("图标资源不可用，未应用");
+          return;
+        }
+        const applied = iconValidation.value.targetType === "section"
+          ? (setSectionIconOverride(iconValidation.value.iconName), true)
+          : setCardTitleIconOverride(iconValidation.value.iconName, iconValidation.value.targetId);
+        if (applied) setSaveStatus("已从资源中心应用图标");
+        return;
+      }
+      const validation = validateChartApplication(event.data, {
+        chartTypes: ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"],
+        selectedTarget: target,
+        session: resourceSession
+      });
+      if (!validation.ok) return;
+      setSelectedChartType(validation.value.chartType);
+      setSaveStatus("已从资源中心应用图表");
+    });
 
     function selectSection(section) {
       selectedCardId = null;
@@ -1297,11 +1373,18 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       applyState();
     }
 
-    function setCardTitleIconOverride(iconName) {
-      if (!selectedCardId || !iconName) return;
-      setCardOverride("cardTitleIconName", iconName);
-      closeSectionIconPicker();
+    function setCardTitleIconOverride(iconName, targetId = selectedCardId) {
+      if (!targetId || !iconName) return false;
+      state.cardOverrides ||= {};
+      const override = { ...(state.cardOverrides[targetId] || {}), cardTitleIconName: iconName };
+      if (state.cardTitleLeading !== "icon") state.cardTitleLeading = "icon";
+      if (state.cardTitleIcon === "none") state.cardTitleIcon = "line";
+      state.cardOverrides[targetId] = override;
       applyState();
+      updateCardContext();
+      scheduleWorkspaceSave();
+      closeSectionIconPicker();
+      return true;
     }
 
     function setCardOverride(key, value) {
@@ -1478,7 +1561,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
         const override = state.cardOverrides[card.dataset.itemId];
         if (!override) return;
         if (["monochrome", "bichrome", "categorical"].includes(override.chartPalette)) card.dataset.chartPalette = override.chartPalette;
-        if (["line", "area", "bar", "horizontal-bar", "pie"].includes(override.chartType)) card.dataset.chartType = override.chartType;
+        if (["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"].includes(override.chartType)) card.dataset.chartType = override.chartType;
         if (cardTitleStylePresets[override.cardTitleStyle]) {
           const titleStyle = cardTitleStylePresets[override.cardTitleStyle];
           card.dataset.cardTitleIcon = titleStyle.cardTitleIcon;
@@ -1617,7 +1700,8 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     }
 
     function bindCardSelection(card) {
-      if (!card || card.dataset.selectionBound === "true") return;
+      if (!card || selectionBoundCards.has(card)) return;
+      selectionBoundCards.add(card);
       card.dataset.selectionBound = "true";
       card.addEventListener("click", (event) => {
         if (document.body.dataset.designMode !== "true" || event.target.closest(".layout-resize-handle")) return;
@@ -2399,7 +2483,14 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
       });
       refreshLayoutButtons();
       dashboard.addEventListener("click", (event) => {
-        if (document.body.dataset.designMode !== "true" || event.target.closest(".surface[data-item-id]")) return;
+        if (document.body.dataset.designMode !== "true" || event.target.closest(".layout-resize-handle")) return;
+        const card = event.target.closest(".surface[data-item-id]");
+        if (card) selectCard(card);
+      }, true);
+      dashboard.addEventListener("click", (event) => {
+        if (document.body.dataset.designMode !== "true") return;
+        const card = event.target.closest(".surface[data-item-id]");
+        if (card) return;
         selectSection(event.target.closest(".section[data-section-id]"));
       });
     }
@@ -3242,7 +3333,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
         "--chart-7": chartPalette.categorical[6], "--chart-8": chartPalette.categorical[7],
         "--accent": accentTokens.structure,
         "--radius": `${state.radius}px`, "--card-gap": `${state.cardGap}px`, "--card-title-size": `${state.cardTitleFont}px`, "--card-subtitle-size": `max(12px, ${(state.cardTitleFont * .82).toFixed(2)}px)`, "--hero-title-size": `${state.headerTitleFont}px`,
-        "--font-scale": (state.font / 14).toFixed(3), "--section-title-size": `${state.sectionFont}px`, "--section-title-weight": state.sectionWeight, "--section-marker-height": `${(state.sectionFont * 1.05).toFixed(2)}px`,
+        "--font-scale": (state.font / 14).toFixed(3), "--content-font-size": `${state.font}px`, "--support-font-size": `max(12px, ${(state.font * .86).toFixed(2)}px)`, "--compact-font-size": `max(12px, ${(state.font * .72).toFixed(2)}px)`, "--section-title-size": `${state.sectionFont}px`, "--section-title-weight": state.sectionWeight, "--section-marker-height": `${(state.sectionFont * 1.05).toFixed(2)}px`,
         "--section-kicker-size": "12px", "--space": `${spaces[state.spacing]}px`, "--shadow": shadowMap[state.shadow]
       };
       Object.entries(vars).forEach(([name, value]) => dashboard.style.setProperty(name, value));
@@ -3572,6 +3663,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     });
     cardChartPaletteControl.addEventListener("change", () => setCardOverride("chartPalette", cardChartPaletteControl.value));
     cardChartTypeControl.addEventListener("change", () => setSelectedChartType(cardChartTypeControl.value));
+    cardChartLegendControl.addEventListener("change", () => setSelectedChartLegend(cardChartLegendControl.value));
     cardSubtitleOverrideControl.addEventListener("change", () => setCardOverride("cardSubtitle", cardSubtitleOverrideControl.value));
     cardSubtitleTextControl.addEventListener("input", () => setCardOverride("cardSubtitleText", cardSubtitleTextControl.value));
     cardKpiIconOverrideControl.addEventListener("change", () => setCardOverride("kpiIcon", cardKpiIconOverrideControl.value));
@@ -3876,7 +3968,7 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     }
 
     const studioAuth = createAuthSessionController({
-      gate: studioAuthGate, form: studioAuthForm, token: studioAuthToken, submit: studioAuthSubmit, status: studioAuthStatus, logout: studioAuthControl, projectControl: studioProjectControl,
+      gate: studioAuthGate, form: studioAuthForm, token: studioAuthToken, submit: studioAuthSubmit, status: studioAuthStatus, logout: studioAuthControl, projectControl: studioProjectControl, tokenToggle: studioAuthTokenToggle, external: studioAuthExternal, providers: studioAuthProviders,
       onActor(payload) {
       const actor = payload.actor || null;
       if (actor?.role === "viewer") {
@@ -3887,6 +3979,8 @@ import { createAuthSessionController } from "/studio/auth-session-controller.mjs
     });
 
     designDrawerClose.addEventListener("click", () => setDesignMode(false));
+    mobileCanvasToggle.addEventListener("click", () => setMobileDesignView("canvas"));
+    mobileSettingsReturn.addEventListener("click", () => setMobileDesignView("settings"));
     document.addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "d") {
         event.preventDefault();
