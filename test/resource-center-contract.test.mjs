@@ -20,7 +20,7 @@ test("resource center consumes shared catalogs and exposes all resource views", 
   for (const endpoint of ["/api/charts/catalog", "/api/components/catalog", "/api/icons/search", "/api/design/standards"]) assert(runtime.includes(endpoint));
   assert(server.includes('url.pathname === "/api/design/standards"'));
   assert.equal(components.length, 8);
-  assert.equal(charts.length, 18);
+  assert.equal(charts.length, 21);
   assert.deepEqual(standards.groups.map(({ id }) => id), ["color", "type", "space", "shape", "accessibility"]);
   assert(!runtime.includes("共 18 种图表"), "resource counts must come from catalogs");
   assert(studioHtml.includes('id="mobileCanvasToggle"') && studioHtml.includes('id="mobileSettingsReturn"'));

@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-08-10
+last_verified: 2026-08-22
 depends_on: [docs/ARCHITECTURE.md, docs/ROADMAP.md]
 ---
 
@@ -43,7 +43,7 @@ Intake
 | Commit Revision | 已接受预览 | 不可变 revision | command batch 原子提交 |
 | Refine | revision + 局部请求/手动操作 | 字段或结构 command batch | 支持撤销、重放和审计 |
 | Export / Publish | 指定 revision | 成品或 publication | 不从偶然 DOM 状态导出 |
-| Observe | 阶段事件 | 质量指标 | 不记录凭证和敏感原始数据 |
+| Observe | 安全阶段事件与终态 telemetry | 可恢复进度与质量指标 | 不记录凭证和敏感原始数据 |
 
 ## 状态机
 
@@ -86,6 +86,9 @@ intake -> normalized -> planning -> generating -> validating
 - Studio 依据 candidate workspace 协调真实画布 DOM。模板只决定受控组件的初始结构；DOM 不得反向成为内容或布局真相。
 - 隔离预览同时保留 baseline 与 candidate。接受前原 workspace 不变；取消直接丢弃 candidate。
 - Studio 中的项目中心只承载 Intake；Generation Job 创建成功后关闭模态浮层，画布生成浮条接管运行状态和 Review 操作。浮条复用同一 Composer 状态机，不持有第二份 candidate 或 baseline。
+- 进度连接首帧发送 `job.snapshot`，并以 10 秒 heartbeat 保持代理链路；快照只包含任务状态、阶段、更新时间、终态和 `sectionsReady / sectionCount`，不包含 request、候选或结果正文。
+- 成功候选在完整 Generation Bundle、Workspace、Command materialization 和 provenance 校验通过后，按 Workspace 分区持久化 `section.ready`，最后持久化 `preview.ready`。单个事件只含分区序号、总数和组件数；失败任务不得产生 `section.ready`。
+- AI Composer 按 `section.ready` 顺序更新进度骨架；同一网络批次到达多个事件时仍逐项呈现。重连时以快照恢复权威完成数，不补演历史动画；完整 Workspace 只在成功终态后原子应用。
 
 ## 反向命令与撤销
 
@@ -143,5 +146,8 @@ Provider 不负责：
 - 结构命令找不到关联布局、触发受保护卡片规则或无法生成无损反向命令时保留当前 workspace，并返回可行动错误。
 - 示例数据必须在 document 和 provenance 中同时可见。
 - Provider chunk 只在服务端内存中累积；完整候选通过校验后，客户端一次应用原子隔离 Workspace，再按分区渐进揭示。渐进效果不构造或持久化部分 Workspace。
+- SSE 是通知通道而不是任务真相。连接失败只进入恢复提示；断线期间浏览器每 4 秒查询一次权威 Job，连接恢复后停止回退查询，遗漏的成功、失败或取消终态通过同一幂等收口恢复。
+- SSE 每次连接从 `Last-Event-ID` 后续传持久事件并先发送当前 `job.snapshot`。服务端读取仓储失败时主动结束连接，让 EventSource 自动重连，而不是伪造任务失败。
+- 服务重启时，新 worker 对仍持有未过期租约的 `running` Job 等待到期后复查；租约持续续期则继续等待，过期后才重新入队并以新 fencing token 接管，避免双执行和迟到结果覆盖。
 - Generation Job 终态持久化最小 telemetry：排队、执行、总耗时和修复次数，不复制 prompt、workspace、候选或 DataContext。`GET /api/generation/metrics` 只允许组织管理员读取默认 24 小时、最多 30 天的状态计数、成功/失败/修复率、p50/p95 与失败码聚合；不返回 Job 或用户身份。
 - 候选评审保留 Job ID 直到用户接受或取消预览。版本提交成功后写入一次 `accepted`（可关联 revision ID），取消预览后写入 `dismissed`；反馈只允许任务发起人提交，重试幂等、冲突不可改写，不采集自由文本。组织指标只增加 accepted/dismissed/unrated 和候选可用率。

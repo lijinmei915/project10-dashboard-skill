@@ -5,7 +5,10 @@ const families = Object.freeze({
   line: { label: "线图", match: ({ type }) => ["line", "time-series", "area"].includes(type) },
   column: { label: "柱图", match: ({ type }) => ["bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram"].includes(type) },
   bar: { label: "条图", match: ({ type }) => ["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"].includes(type) },
-  pie: { label: "饼图", match: ({ type }) => ["sector-pie", "pie", "rose"].includes(type) }
+  pie: { label: "饼图", match: ({ type }) => ["sector-pie", "pie", "rose"].includes(type) },
+  relation: { label: "关系图", match: ({ type }) => type === "radar" },
+  conversion: { label: "转化图", match: ({ type }) => type === "funnel" },
+  table: { label: "表格", match: ({ type }) => type === "data-table" }
 });
 
 const samples = Object.freeze({
@@ -13,6 +16,9 @@ const samples = Object.freeze({
   "time-series": { labels: ["2026-01-01","2026-02-01","2026-03-01","2026-04-01","2026-05-01"], series: [{ name: "响应时间", values: [18,22,27,24,34] }], thresholds: [20,30] },
   gantt: { labels: ["调研","设计","开发","验收"], series: [{ name: "开始", values: [0,2,5,9] }, { name: "工期", values: [3,4,5,3] }] },
   "diverging-bar": { labels: ["18-24","25-34","35-44","45+"], series: [{ name: "左侧", values: [24,32,28,18] }, { name: "右侧", values: [27,35,25,21] }] },
+  radar: { labels: ["增长","转化","留存","活跃","口碑"], series: [{ name: "本期", values: [82,68,76,88,72] }, { name: "目标", values: [75,80,78,82,85] }] },
+  funnel: { labels: ["访问","注册","试用","付费","续费"], series: [{ name: "用户数", values: [1200,820,540,260,180] }] },
+  "data-table": { labels: ["华东","华南","华北","西部"], series: [{ name: "收入", values: [128,96,84,71] }, { name: "订单", values: [342,286,251,198] }], table: { sort: "desc", sortBy: 0, limit: 4, summary: true, formats: [{ suffix: " 万" }, { suffix: " 单" }], conditional: false } },
   default: { labels: ["华东","华南","华北","西部"], series: [{ name: "本期", values: [42,36,31,24] }, { name: "上期", values: [34,29,27,21] }, { name: "目标", values: [18,22,16,20] }] }
 });
 
@@ -34,6 +40,9 @@ const semanticCopy = Object.freeze({
   "part-to-whole-solid-sectors": "用实心扇区展示整体构成",
   "part-to-whole-donut": "用圆环展示整体构成",
   "part-to-whole-radius-comparison": "用扇区半径强化规模差异"
+  ,"multi-dimensional-profile-comparison": "比较对象在多个统一维度上的能力轮廓"
+  ,"ordered-stage-conversion": "展示有序阶段中的规模递减与转化流失"
+  ,"exact-value-multi-field-lookup": "以行列形式查询精确值并对照多个字段"
 });
 
 const dataShapeCopy = Object.freeze({
@@ -45,6 +54,9 @@ const dataShapeCopy = Object.freeze({
   "categories+two-series": "分类 + 两个方向系列",
   "tasks+start-series+duration-series": "任务 + 开始时间 + 工期",
   "categories+single-nonnegative-series": "分类 + 一组非负数值"
+  ,"dimensions+one-or-more-series": "统一维度 + 一个或多个对象系列"
+  ,"ordered-stages+single-nonnegative-series": "有序阶段 + 单系列非负数值"
+  ,"rows+one-or-more-value-columns": "行标签 + 一个或多个数值列"
 });
 
 const grid = document.querySelector("#chartGrid");
@@ -160,7 +172,7 @@ async function renderIcons(query = "") {
 
 function sampleFor(type) {
   const source = samples[type] || samples.default;
-  const singleSeries = ["line","area","bar","horizontal-bar","ranking-bar","sector-pie","pie","rose"].includes(type);
+  const singleSeries = ["line","area","bar","horizontal-bar","ranking-bar","sector-pie","pie","rose","funnel"].includes(type);
   return { ...source, series: singleSeries ? [source.series[0]] : source.series };
 }
 

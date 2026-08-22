@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Token 预设工具</title>
+  <title>Dashboard Studio</title>
   <style>
-    /* Session management stays implemented but is not part of the current product surface. */
-    .studio-session-control { display: none !important; }
     :root {
       --tool-bg: #f4f4f5;
       --tool-surface: #ffffff;
@@ -201,10 +199,14 @@
     .studio-auth-gate { position: fixed; z-index: 12000; inset: 0; display: grid; padding: 24px; place-items: center; background: #f4f4f5; }
     .studio-auth-gate[hidden] { display: none; }
     .studio-auth-panel { display: grid; width: min(100%, 420px); padding: 32px; border: 1px solid var(--tool-line); border-radius: 8px; background: var(--tool-surface); box-shadow: 0 18px 48px rgba(24, 24, 27, .10); color: var(--tool-text); }
-    .studio-auth-mark { display: grid; width: 36px; height: 36px; margin-bottom: 20px; place-items: center; border-radius: 6px; background: var(--tool-text); color: #fff; font-size: 14px; font-weight: 700; }
+    .studio-auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; color: var(--tool-text); font-size: 13px; font-weight: 700; }
+    .studio-auth-mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 6px; background: var(--tool-text); color: #fff; }
+    .studio-auth-mark svg { width: 20px; height: 20px; fill: currentColor; }
     .studio-auth-panel h2 { margin: 0; font-size: 22px; line-height: 1.25; }
     .studio-auth-description { margin: 8px 0 24px; color: var(--tool-muted); font-size: 13px; line-height: 1.6; }
     .studio-auth-form { display: grid; gap: 10px; }
+    .studio-auth-field { display: grid; gap: 6px; }
+    .studio-auth-field[hidden] { display: none; }
     .studio-auth-label { color: var(--tool-text); font-size: 12px; font-weight: 600; }
     .studio-auth-input-wrap { position: relative; display: flex; align-items: center; }
     .studio-auth-input-wrap input { width: 100%; height: 40px; padding: 0 40px 0 11px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; color: var(--tool-text); font: inherit; font-size: 13px; }
@@ -213,18 +215,34 @@
     .studio-auth-toggle:hover { background: var(--tool-bg); color: var(--tool-text); }
     .studio-auth-toggle:focus-visible { outline: 2px solid var(--tool-accent); outline-offset: 1px; }
     .studio-auth-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .studio-auth-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .studio-auth-forgot { padding: 0; border: 0; background: transparent; color: var(--tool-muted); font: inherit; font-size: 11px; }
+    .studio-auth-forgot:hover { color: var(--tool-text); text-decoration: underline; }
     .studio-auth-submit { height: 40px; margin-top: 6px; border: 1px solid var(--tool-text); border-radius: 6px; background: var(--tool-text); color: #fff; font: inherit; font-size: 13px; font-weight: 600; }
     .studio-auth-submit:hover { background: #3f3f46; }
     .studio-auth-submit:disabled { cursor: wait; opacity: .62; }
+    .studio-auth-switch { min-height: 34px; border: 0; background: transparent; color: var(--tool-muted); font: inherit; font-size: 12px; }
+    .studio-auth-switch:hover { color: var(--tool-text); text-decoration: underline; }
     .studio-auth-external { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--tool-line); }
     .studio-auth-external[data-visible="true"] { display: grid; gap: 10px; }
     .studio-auth-external-label { color: var(--tool-muted); font-size: 11px; text-align: center; }
     .studio-auth-provider { display: flex; min-height: 38px; padding: 0 12px; align-items: center; justify-content: center; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; color: var(--tool-text); font: inherit; font-size: 12px; font-weight: 600; text-decoration: none; }
     .studio-auth-provider:hover { border-color: #a1a1aa; background: var(--tool-bg); }
+    .studio-auth-recovery { display: grid; gap: 12px; }
+    .studio-auth-recovery[hidden] { display: none; }
+    .studio-auth-retry { display: inline-flex; min-height: 38px; padding: 0 14px; align-items: center; justify-content: center; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; color: var(--tool-text); font: inherit; font-size: 12px; font-weight: 600; }
+    .studio-auth-retry:hover { border-color: #a1a1aa; background: var(--tool-bg); }
+    .studio-auth-retry:disabled { cursor: wait; opacity: .62; }
     .studio-auth-status { min-height: 18px; margin: 12px 0 0; color: #b42318; font-size: 12px; line-height: 1.5; }
+    .studio-auth-status[data-tone="info"] { color: var(--tool-muted); }
+    .studio-auth-gate[data-state="checking"] .studio-auth-panel { opacity: .82; }
     .studio-auth-status:empty { display: none; }
     @media (max-width: 480px) { .studio-auth-gate { padding: 16px; } .studio-auth-panel { padding: 24px; } }
-    .studio-session-control { position: fixed; z-index: 12001; top: 12px; right: 12px; }
+    .studio-session-control { display: inline-grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--tool-muted); }
+    .studio-session-control:hover { background: var(--tool-bg); color: var(--tool-text); }
+    .studio-session-control:focus-visible { outline: 2px solid rgba(24, 24, 27, .18); outline-offset: 1px; }
+    .studio-session-control svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .data-schema-header-actions { display: inline-flex; align-items: center; gap: 4px; }
     .studio-project-control {
       position: fixed;
       z-index: 9300;
@@ -743,22 +761,28 @@
       font-weight: 650;
     }
 
-    .preset-tabs { flex-wrap: nowrap; }
-    .custom-preset-row { position: relative; display: grid; min-width: 0; gap: 7px; }
-    .preset-strip { display: grid; min-width: 0; max-width: 100%; gap: 7px; }
-    .preset-strip-options { display: grid; min-width: 0; max-width: 100%; gap: 7px; overflow: visible; }
-    .preset-strip-divider { display: none; }
-    .custom-preset-tabs { display: flex; min-width: 0; align-items: center; gap: 6px; }
-    .preset-tabs, .custom-preset-tabs { flex-wrap: nowrap; }
-    .preset-tabs > button, .custom-preset-tabs > button { min-height: 30px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: #52525b; font: inherit; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
-    .preset-tabs > button:hover, .custom-preset-tabs > button:hover { background: #f4f4f5; color: var(--tool-text); }
-    .preset-tabs > button[aria-pressed="true"], .custom-preset-tabs > button[aria-pressed="true"] { background: #fff; color: var(--tool-text); box-shadow: 0 1px 4px rgba(24, 24, 27, .10); font-weight: 650; }
-    .custom-preset-dropdown { position: relative; min-width: 0; flex: 1 1 auto; }
-    .custom-preset-dropdown .custom-select-trigger { height: 30px; min-height: 30px; font-size: 11px; }
-    .custom-preset-dropdown .custom-select-listbox { z-index: 120; width: 100%; max-width: none; }
-    .custom-preset-create { margin-top: 4px; border-top: 1px solid var(--tool-line); border-radius: 0 0 4px 4px; color: var(--tool-text); font-weight: 600; }
-    .custom-preset-more { display: inline-grid; width: 22px; height: 22px; flex: 0 0 22px; padding: 0; place-items: center; border: 0; border-radius: 4px; background: transparent; color: var(--tool-muted); font: inherit; font-size: 16px; line-height: 1; }
-    .custom-preset-more:hover { background: #f4f4f5; color: var(--tool-text); }
+    .custom-preset-row { position: relative; min-width: 0; }
+    .visual-preset-select { min-width: 0; }
+    .visual-preset-select .custom-select-trigger { height: 34px; min-height: 34px; font-size: 12px; }
+    .visual-preset-select .custom-select-listbox { z-index: 120; width: 100%; max-width: none; max-height: min(360px, calc(100vh - 180px)); padding: 5px; }
+    .visual-preset-group-label { padding: 7px 8px 4px; color: var(--tool-muted); font-size: 10px; font-weight: 600; line-height: 1.2; }
+    .visual-preset-group-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--tool-line); padding-top: 10px; }
+    .visual-preset-option { grid-template-columns: minmax(0, 1fr) 14px; }
+    .visual-preset-custom-row { display: grid; grid-template-columns: minmax(0, 1fr) 26px; align-items: center; border-radius: 4px; }
+    .visual-preset-custom-row:hover, .visual-preset-custom-row:focus-within { background: #f4f4f5; }
+    .visual-preset-custom-row .custom-select-option { width: 100%; background: transparent; }
+    .visual-preset-custom-row .custom-select-option:hover { background: transparent; }
+    .custom-preset-create { margin-top: 5px; border-top: 1px solid var(--tool-line); border-radius: 0 0 4px 4px; color: var(--tool-text); font-weight: 600; }
+    .custom-preset-more { display: inline-grid; width: 24px; height: 24px; padding: 0; place-items: center; border: 0; border-radius: 4px; background: transparent; color: var(--tool-muted); font: inherit; font-size: 15px; line-height: 1; opacity: 0; }
+    .visual-preset-custom-row:hover .custom-preset-more, .custom-preset-more:focus-visible, .custom-preset-more[aria-expanded="true"] { opacity: 1; }
+    .custom-preset-more:hover { background: #e4e4e7; color: var(--tool-text); }
+    .custom-preset-popover { position: absolute; z-index: 150; top: var(--custom-preset-menu-top, 38px); left: var(--custom-preset-menu-left, 0); display: grid; width: 190px; padding: 4px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; box-shadow: 0 10px 28px rgba(24, 24, 27, .16); }
+    .custom-preset-popover[hidden] { display: none; }
+    .custom-preset-command { min-height: 32px; padding: 0 9px; border: 0; border-radius: 4px; background: transparent; color: var(--tool-text); font: inherit; font-size: 12px; text-align: left; }
+    .custom-preset-command:hover:not(:disabled), .custom-preset-command:focus-visible { outline: 0; background: #f4f4f5; }
+    .custom-preset-command:disabled { color: #a1a1aa; cursor: not-allowed; }
+    .custom-preset-command.is-danger { margin-top: 4px; border-top: 1px solid var(--tool-line); border-radius: 0 0 4px 4px; color: #b91c1c; }
+    @media (pointer: coarse) { .custom-preset-more { opacity: 1; } }
     .preset-add-button { display: none; }
     .preset-add-button:hover { border-color: #d4d4d8; background: #fafafa; }
     .preset-add-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 2; }
@@ -880,6 +904,16 @@
     .card-title-decoration-option-preview { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 5px; color: var(--tool-accent); }
     .card-title-decoration-option-preview[data-container="soft"] { background: color-mix(in srgb, var(--tool-accent) 14%, transparent); }
     .card-title-decoration-option-preview[data-container="solid"] { background: var(--tool-accent); color: #fff; }
+    .card-title-decoration-option-preview[data-container="glow"] { background: linear-gradient(135deg, var(--tool-accent), color-mix(in srgb, var(--tool-accent) 66%, #fff)); color: #fff; box-shadow: 0 3px 8px color-mix(in srgb, var(--tool-accent) 28%, transparent); }
+    .card-title-decoration-option-preview[data-color-mode="accent"] { color: var(--kpi-theme-preview, var(--tool-accent)); }
+    .card-title-decoration-option-preview[data-container="soft"][data-color-mode="accent"] { background: color-mix(in srgb, var(--kpi-theme-preview, var(--tool-accent)) 14%, transparent); }
+    .card-title-decoration-option-preview[data-container="solid"][data-color-mode="accent"] { background: var(--kpi-theme-preview, var(--tool-accent)); color: #fff; }
+    .card-title-decoration-option-preview[data-container="glow"][data-color-mode="accent"] { background: linear-gradient(135deg, var(--kpi-theme-preview, var(--tool-accent)), var(--kpi-theme-alt-preview, var(--tool-accent))); color: #fff; box-shadow: 0 3px 8px color-mix(in srgb, var(--kpi-theme-preview, var(--tool-accent)) 28%, transparent); }
+    .card-title-decoration-option-preview[data-color-mode="colorful"] { color: var(--kpi-colorful-preview-1, #5b8ff9); }
+    .card-title-decoration-option-preview[data-container="soft"][data-color-mode="colorful"] { background: linear-gradient(135deg, color-mix(in srgb, var(--kpi-colorful-preview-1, #5b8ff9) 16%, transparent), color-mix(in srgb, var(--kpi-colorful-preview-3, #43c59e) 18%, transparent)); }
+    .card-title-decoration-option-preview:is([data-container="solid"], [data-container="glow"])[data-color-mode="colorful"] { background: linear-gradient(135deg, var(--kpi-colorful-preview-1, #5b8ff9) 0 28%, var(--kpi-colorful-preview-2, #45b8d8) 28% 50%, var(--kpi-colorful-preview-3, #43c59e) 50% 72%, var(--kpi-colorful-preview-4, #96bf45) 72% 100%); color: #fff; box-shadow: 0 3px 8px color-mix(in srgb, var(--kpi-colorful-preview-1, #5b8ff9) 28%, transparent); }
+    .card-title-decoration-option-preview[data-distributed-gradient="true"] { display: grid; grid-template-columns: repeat(2, 9px); grid-template-rows: repeat(2, 9px); gap: 2px; border-radius: 0; background: transparent !important; box-shadow: none !important; }
+    .kpi-distributed-gradient-chip { width: 9px; height: 9px; border-radius: 3px; background: linear-gradient(135deg, var(--chip-start), var(--chip-end)); box-shadow: 0 1px 3px color-mix(in srgb, var(--chip-start) 24%, transparent); }
     .card-title-decoration-option-preview svg { width: 15px; height: 15px; fill: currentColor; }
     .card-title-color-option-preview { width: 16px; height: 16px; flex: 0 0 16px; border: 1px solid color-mix(in srgb, currentColor 24%, transparent); border-radius: 4px; background: var(--title-color-preview); }
     .card-title-color-option-preview[data-color-mode="neutral"] { --title-color-preview: var(--card-title-neutral-preview); }
@@ -949,6 +983,8 @@
     #sectionIconStyleField .kpi-icon-composer > select { grid-column: auto; grid-row: auto; width: 100%; min-width: 0; }
     .card-title-icon-composer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%; }
     .card-title-icon-composer > .custom-select, .card-title-icon-composer > select { width: 100%; min-width: 0; }
+    .kpi-style-composer .card-title-icon-composer { grid-template-columns: minmax(0, 1fr); }
+    .kpi-style-composer[data-icon-enabled="false"] .card-title-icon-composer { grid-template-columns: minmax(0, 1fr); }
     .kpi-icon-composer[data-show-weight="true"] { grid-template-columns: 1fr .72fr 1.35fr .6fr 1fr .75fr; }
     .kpi-icon-weight-field { display: none; min-width: 0; }
     .kpi-icon-composer[data-show-weight="true"] .kpi-icon-weight-field { display: block; grid-column: 2; grid-row: 2; }
@@ -985,6 +1021,8 @@
     .card-title-style-samples .kpi-style-sample[data-style="solid"] .kpi-style-sample-preview { width: 20px; height: 20px; background: var(--sample-accent, #ff8000); color: #fff; }
     .card-title-style-samples .kpi-style-sample:is([data-style="soft"], [data-style="solid"]) .kpi-style-sample-preview svg { width: 13px; height: 13px; }
     #kpiControls, #cardContextControls:has(#cardKpiStyleSamples:not([hidden])) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .context-settings-group-label { grid-column: 1 / -1; min-width: 0; margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--tool-line); color: var(--tool-text); font-size: 10px; font-weight: 700; line-height: 1.2; }
+    .context-settings-group-label[hidden] { display: none; }
     #kpiControls > .kpi-icon-composer, #cardKpiIconField:not([hidden]) { display: contents; }
     #kpiControls > .kpi-icon-composer > .kpi-icon-composer-label, #cardKpiIconField > .kpi-icon-composer-label { display: none; }
     #kpiControls > .kpi-icon-composer > .custom-select:first-of-type, #cardKpiIconField > .custom-select:first-of-type,
@@ -993,10 +1031,17 @@
     #kpiControls > .kpi-icon-composer .kpi-icon-weight-field, #cardKpiIconField .kpi-icon-weight-field { display: none !important; }
     #kpiControls > .kpi-icon-composer .kpi-icon-size-field, #cardKpiIconField .kpi-icon-size-field,
     #kpiControls > .kpi-icon-composer .kpi-icon-shape-field, #cardKpiIconField .kpi-icon-shape-field { display: grid !important; grid-column: auto; grid-row: auto; gap: 5px; }
+    #kpiControls > .kpi-icon-composer .kpi-icon-size-field[hidden], #cardKpiIconField .kpi-icon-size-field[hidden],
+    #kpiControls > .kpi-icon-composer .kpi-icon-shape-field[hidden], #cardKpiIconField .kpi-icon-shape-field[hidden] { display: none !important; }
     #kpiControls > .kpi-icon-composer .kpi-icon-size-field::before, #cardKpiIconField .kpi-icon-size-field::before { color: var(--tool-muted); content: "图标大小"; font-size: 10px; }
     #kpiControls > .kpi-icon-composer .kpi-icon-shape-field::before, #cardKpiIconField .kpi-icon-shape-field::before { color: var(--tool-muted); content: "底的形状"; font-size: 10px; }
-    #kpiStyleSamples, #cardKpiStyleSamples { grid-column: 1 / -1; }
-    #cardKpiLayoutField { grid-column: auto; }
+    .kpi-icon-group-label { order: -1; }
+    #kpiStyleSamples, #cardKpiStyleSamples { order: 0; grid-column: 1 / -1; }
+    #kpiControls > .kpi-icon-composer .kpi-icon-size-field, #cardKpiIconField .kpi-icon-size-field { order: 1; }
+    #kpiControls > .control-group:has(#kpiLayoutControl), #cardKpiLayoutField { order: 2; grid-column: auto; }
+    #kpiControls > .kpi-icon-composer .kpi-icon-shape-field, #cardKpiIconField .kpi-icon-shape-field { order: 3; }
+    .kpi-card-group-label { order: 4; }
+    #kpiControls > .control-group:has(#kpiCardBackgroundControl), #cardKpiBackgroundField { order: 5; }
     .header-gradient-trigger { width: 30px; height: 30px; padding: 3px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; cursor: pointer; }
     .header-gradient-trigger::before { display: block; width: 100%; height: 100%; border-radius: 3px; background: var(--header-gradient-swatch); content: ""; }
     .header-gradient-trigger[aria-expanded="true"] { border-color: var(--tool-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tool-accent) 16%, transparent); }
@@ -1261,6 +1306,29 @@
     .workspace-text-body { margin: 16px 0 0; color: var(--text-secondary); font-size: var(--content-font-size); line-height: 1.75; white-space: pre-wrap; }
     .surface[data-empty="true"] .component-empty-state { display: block; }
     .surface[data-empty="true"] .bar-chart, .surface[data-empty="true"] .chart-axis, .surface[data-empty="true"] .health-table, .surface[data-empty="true"] .ranking, .surface[data-empty="true"] .risk-list { display: none; }
+    .report-body.ai-streaming-mode > :not(.ai-streaming-preview) { display: none !important; }
+    .ai-streaming-preview { display: grid; grid-column: 1 / -1; gap: var(--card-gap); min-width: 0; }
+    .ai-streaming-preview-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; padding: 2px 2px 4px; color: var(--text-secondary); }
+    .ai-streaming-preview-header strong { color: var(--text-main); font-size: var(--content-font-size); }
+    .ai-streaming-preview-header span { color: var(--text-muted); font-size: var(--support-font-size); }
+    .ai-streaming-block { display: grid; gap: 16px; min-height: 138px; padding: 20px; border: var(--frame-width) solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); transition: border-color 180ms ease, opacity 180ms ease; }
+    .ai-streaming-block[data-state="pending"] { opacity: .58; }
+    .ai-streaming-block[data-state="generating"] { border-color: color-mix(in srgb, var(--accent-structure) 58%, var(--line)); }
+    .ai-streaming-block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .ai-streaming-block-head strong { color: var(--text-main); font-size: var(--content-font-size); }
+    .ai-streaming-block-state { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: var(--support-font-size); white-space: nowrap; }
+    .ai-streaming-block[data-state="generating"] .ai-streaming-block-state { color: var(--accent-structure); }
+    .ai-streaming-block[data-state="done"] .ai-streaming-block-state { color: #159a72; }
+    .ai-streaming-spinner { width: 10px; height: 10px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ai-streaming-spin .8s linear infinite; }
+    .ai-streaming-block[data-state="pending"] .ai-streaming-spinner, .ai-streaming-block[data-state="done"] .ai-streaming-spinner { display: none; }
+    .ai-streaming-lines { display: grid; gap: 10px; }
+    .ai-streaming-lines span { display: block; width: var(--streaming-line-width, 78%); height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--surface-muted) 25%, color-mix(in srgb, var(--surface-muted) 58%, var(--surface)) 50%, var(--surface-muted) 75%); background-size: 220% 100%; }
+    .ai-streaming-lines span:nth-child(2) { --streaming-line-width: 58%; }
+    .ai-streaming-lines span:nth-child(3) { --streaming-line-width: 88%; }
+    .ai-streaming-block[data-state="generating"] .ai-streaming-lines span { animation: ai-streaming-shimmer 1.2s ease-in-out infinite; }
+    @keyframes ai-streaming-spin { to { transform: rotate(360deg); } }
+    @keyframes ai-streaming-shimmer { 0%, 100% { opacity: .58; background-position: 100% 0; } 50% { opacity: 1; background-position: 0 0; } }
+    @media (prefers-reduced-motion: reduce) { .ai-streaming-spinner, .ai-streaming-block[data-state="generating"] .ai-streaming-lines span { animation: none; } }
     .section { min-width: 0; }
     .section.ai-section-pending { visibility: hidden; opacity: 0; transform: translateY(8px); }
     .section.ai-section-revealed { visibility: visible; opacity: 1; transform: translateY(0); transition: opacity 180ms ease, transform 180ms ease; }
@@ -1302,7 +1370,7 @@
     .section-heading h2 { margin: 0; color: var(--page-text-main); font-size: var(--section-title-size); font-weight: var(--section-title-weight); line-height: 1.3; }
     .section-heading small { display: var(--section-kicker-display); color: var(--page-text-secondary); font-size: var(--section-kicker-size); font-weight: 500; letter-spacing: 0; opacity: .72; }
     .section-heading small:empty { display: none; }
-    .section-rule { display: var(--section-rule-display); flex: 1; height: 1px; margin-left: 7px; background: var(--accent-line); }
+    .section-rule { display: var(--section-rule-display); flex: 1; height: 1px; margin-left: 7px; background: linear-gradient(90deg, var(--accent-line) 0%, transparent 100%); }
     .dashboard[data-section-visibility="hidden"] .section-heading { display: none; }
 
     .section-subtitle-editor { display: none; grid-column: 1 / -1; gap: 6px; padding-top: 2px; }
@@ -1369,9 +1437,15 @@
     .dashboard[data-kpi-icon-container="soft"] .metric:not([data-kpi-icon-container]) .metric-icon,
     .dashboard[data-kpi-icon-container="solid"] .metric:not([data-kpi-icon-container]) .metric-icon,
     .metric:is([data-kpi-icon-container="soft"], [data-kpi-icon-container="solid"]) .metric-icon { --kpi-icon-scale: .84; }
+    .dashboard[data-kpi-icon="outline"][data-kpi-icon-container="soft"] .metric:not([data-kpi-icon]):not([data-kpi-icon-container]) .metric-icon,
+    .metric[data-kpi-icon="outline"][data-kpi-icon-container="soft"] .metric-icon { --kpi-icon-scale: 1; }
+    .metric[data-resolved-kpi-icon="outline"][data-resolved-kpi-icon-background="true"] .metric-icon svg > path { stroke: currentColor; stroke-width: 3; paint-order: stroke fill; }
     .dashboard[data-kpi-icon-container="outline"] .metric-icon { border: 1px solid color-mix(in srgb, var(--icon-accent) 48%, transparent); background: transparent; color: var(--icon-accent); }
     .dashboard[data-kpi-icon-container="gradient"] .metric-icon { border: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--icon-solid) 92%, #fff), color-mix(in srgb, var(--icon-solid) 90%, #000)); color: var(--icon-on-solid); }
     .dashboard[data-kpi-icon-container="bigradient"] .metric-icon { border: 0; background: linear-gradient(145deg, var(--icon-solid), var(--icon-solid-alt)); color: var(--icon-on-solid); }
+    .dashboard[data-kpi-icon-container="glow"] .metric:not([data-kpi-icon-container]) { --kpi-icon-box: 34px; --kpi-icon-glyph: 16px; --kpi-icon-offset: 44px; --kpi-icon-shift-y: -8px; }
+    .dashboard[data-kpi-icon-container="glow"] .metric:not([data-kpi-icon-container]) .metric-icon { border: 0; background: linear-gradient(135deg, var(--icon-solid), var(--icon-solid-alt)); color: var(--icon-on-solid); box-shadow: 0 4px 12px color-mix(in srgb, var(--icon-solid) 30%, transparent); }
+    .surface[data-kpi-icon-container="glow"] { --kpi-icon-box: 34px; --kpi-icon-glyph: 16px; --kpi-icon-offset: 44px; --kpi-icon-shift-y: -8px; }
     .metric:is([data-resolved-icon-color="neutral"], [data-resolved-icon-color="gradient-neutral"]) .metric-icon { --icon-accent: var(--icon-neutral); --icon-accent-alt: var(--icon-neutral-alt); --icon-soft: var(--icon-neutral-soft); --icon-solid: var(--icon-neutral-solid); --icon-solid-alt: var(--icon-neutral-solid-alt); --icon-on-solid: var(--icon-neutral-on-solid); }
     .dashboard[data-kpi-layout="horizontal"] .metric:not([data-kpi-layout]),
     .metric[data-kpi-layout="horizontal"] { display: block; padding-left: calc(var(--space) + var(--kpi-icon-offset)); }
@@ -1504,6 +1578,7 @@
     .surface[data-kpi-icon-container="outline"] .metric-icon { border: 1px solid color-mix(in srgb, var(--icon-accent) 48%, transparent); background: transparent; color: var(--icon-accent); box-shadow: none; }
     .surface[data-kpi-icon-container="gradient"] .metric-icon { border: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--icon-solid) 92%, #fff), color-mix(in srgb, var(--icon-solid) 90%, #000)); color: var(--icon-on-solid); box-shadow: none; }
     .surface[data-kpi-icon-container="bigradient"] .metric-icon { border: 0; background: linear-gradient(145deg, var(--icon-solid), var(--icon-solid-alt)); color: var(--icon-on-solid); box-shadow: none; }
+    .surface[data-kpi-icon-container="glow"] .metric-icon { border: 0; background: linear-gradient(135deg, var(--icon-solid), var(--icon-solid-alt)); color: var(--icon-on-solid); box-shadow: 0 4px 12px color-mix(in srgb, var(--icon-solid) 30%, transparent); }
 
     .health-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, .55fr); gap: var(--card-gap); }
     .health-table { display: grid; margin-top: 13px; }
@@ -1554,6 +1629,8 @@
     .dashboard[data-section-copy="bilingual"],
     .dashboard[data-section-copy="subtitle"] { --section-kicker-display: inline; }
     .dashboard[data-section-leading="marker"] { --section-marker-display: block; }
+    .dashboard[data-section-leading="marker-glow"] { --section-marker-display: block; }
+    .dashboard[data-section-leading="marker-glow"] .section-heading::before { width: 6px; height: 12px; flex-basis: 6px; border-radius: 3px; box-shadow: 0 0 0 3px var(--accent-soft); }
     .dashboard[data-section-leading="number"] { --section-number-display: inline-block; }
     .dashboard[data-section-divider="trailing"] { --section-rule-display: block; }
     .dashboard[data-section-divider="bottom"] { --section-bottom-pad: 10px; --section-border-bottom: 1px solid var(--line); }
@@ -1886,27 +1963,27 @@
 <body>
   <div class="studio-auth-gate" id="studioAuthGate">
     <section class="studio-auth-panel" aria-labelledby="studioAuthTitle">
-      <div class="studio-auth-mark" aria-hidden="true">DS</div>
-      <h2 id="studioAuthTitle">登录 Dashboard Studio</h2>
-      <p class="studio-auth-description">管理项目、连接和 AI 生成工作流。</p>
-      <form class="studio-auth-form" id="studioAuthForm">
-        <label class="studio-auth-label" for="studioAuthToken">访问凭证</label>
-        <div class="studio-auth-input-wrap">
-          <input id="studioAuthToken" type="password" autocomplete="current-password" placeholder="输入访问凭证" required>
-          <button class="studio-auth-toggle" id="studioAuthTokenToggle" type="button" aria-label="显示访问凭证" title="显示访问凭证"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></button>
-        </div>
+      <div class="studio-auth-brand"><span class="studio-auth-mark" aria-hidden="true"><svg viewBox="0 0 256 256"><path d="M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM160,48h40V200H160ZM104,96h40V200H104ZM56,144H88v56H56Z"></path></svg></span><span>Dashboard Studio</span></div>
+      <h2 id="studioAuthTitle">登录你的工作台</h2>
+      <p class="studio-auth-description" id="studioAuthDescription">访问你的项目、数据连接和个人 AI 配置。</p>
+      <form class="studio-auth-form" id="studioAuthForm" data-mode="login">
+        <label class="studio-auth-field" id="studioAuthNameField" for="studioAuthName" hidden><span class="studio-auth-label">姓名</span><span class="studio-auth-input-wrap"><input id="studioAuthName" type="text" autocomplete="name" maxlength="80" placeholder="输入你的姓名"></span></label>
+        <label class="studio-auth-field" for="studioAuthEmail"><span class="studio-auth-label">邮箱</span><span class="studio-auth-input-wrap"><input id="studioAuthEmail" type="email" autocomplete="email" maxlength="254" placeholder="name@example.com" required></span></label>
+        <label class="studio-auth-field" for="studioAuthPassword"><span class="studio-auth-field-heading"><span class="studio-auth-label">密码</span><button class="studio-auth-forgot" id="studioAuthForgot" type="button">忘记密码</button></span><span class="studio-auth-input-wrap">
+          <input id="studioAuthPassword" type="password" autocomplete="current-password" minlength="10" maxlength="128" placeholder="输入密码" required>
+          <button class="studio-auth-toggle" id="studioAuthPasswordToggle" type="button" aria-label="显示密码" aria-pressed="false" title="显示密码"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></button>
+        </span></label>
         <button class="studio-auth-submit" id="studioAuthSubmit" type="submit">登录</button>
+        <button class="studio-auth-switch" id="studioAuthSwitch" type="button">创建账号</button>
       </form>
       <div class="studio-auth-external" id="studioAuthExternal" aria-label="外部登录方式">
         <span class="studio-auth-external-label">或使用外部账号</span>
         <div id="studioAuthProviders"></div>
       </div>
-      <p class="studio-auth-status" id="studioAuthStatus" role="status"></p>
+      <div class="studio-auth-recovery" id="studioAuthRecovery" hidden><button class="studio-auth-retry" id="studioAuthRetry" type="button">重新连接</button></div>
+      <p class="studio-auth-status" id="studioAuthStatus" role="status" aria-live="polite"></p>
     </section>
   </div>
-  <button class="studio-session-control" id="studioAuthControl" type="button" aria-label="退出登录" title="退出登录" hidden>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"></path><path d="M13 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
-  </button>
   <button class="studio-project-control" id="studioProjectControl" type="button" aria-label="打开项目与 AI 工作台" title="项目与 AI" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M3 7V5a2 2 0 0 1 2-2h5l2 2h5a2 2 0 0 1 2 2v2"></path></svg><span id="studioProjectLabel">项目 / AI</span></button>
   <button class="mobile-settings-return" id="mobileSettingsReturn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><span>返回设置</span></button>
   <main class="workspace">
@@ -1951,22 +2028,10 @@
           <label class="control-group"><span>页面类型</span><span class="segmented" id="pageTypeControls"><button type="button" data-value="dashboard" aria-pressed="true">Dashboard</button><button type="button" data-value="report" aria-pressed="false">Report</button></span></label>
           <div class="control-group"><span>视觉预设</span>
           <div class="custom-preset-row" id="customPresetRow">
-            <div class="preset-strip">
-              <div class="preset-strip-options">
-                <span class="segmented preset-tabs" id="presetControls" aria-label="内置视觉预设">
-                  <button type="button" data-preset="fx-orange" aria-pressed="true">默认后台</button>
-                  <button type="button" data-preset="enterprise-blue" aria-pressed="false">企业分析</button>
-                  <button type="button" data-preset="report-light" aria-pressed="false">阅读简洁</button>
-                  <button type="button" data-preset="operations-dark" aria-pressed="false">运营深色</button>
-                  <button type="button" data-preset="diagnostic-report" aria-pressed="false">诊断风格</button>
-                </span>
-                <span class="preset-strip-divider" aria-hidden="true"></span>
-                <div class="custom-preset-tabs" id="customPresetList" aria-label="自定义视觉预设"></div>
-              </div>
+            <div id="customPresetList" aria-label="视觉预设"></div>
             <button class="preset-add-button" id="customPresetSave" type="button" aria-label="保存为自定义预设" title="保存为自定义预设" aria-haspopup="dialog">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
             </button>
-            </div>
             <div class="custom-preset-popover" id="customPresetPopover" role="menu" aria-label="管理自定义视觉预设" hidden>
               <button class="custom-preset-command" id="customPresetUpdate" type="button" role="menuitem">更新当前预设</button>
               <button class="custom-preset-command" id="customPresetRename" type="button" role="menuitem">重命名</button>
@@ -2053,7 +2118,7 @@
           <label class="mini-control"><span>线</span><select class="control-select" id="sectionDividerControl"><option value="none">无</option><option value="trailing">右侧横线</option><option value="bottom">底部横线</option></select></label>
           <label class="mini-control"><span>字号</span><span class="range-control"><input id="sectionFontControl" type="range" min="12" max="24" step="1" value="15" aria-label="分组标题字号"><output id="sectionFontValue" class="range-value">15px</output></span></label>
           <label class="mini-control"><span>字重</span><select class="control-select" id="sectionWeightControl"><option value="500">常规</option><option value="600">中等</option><option value="700" selected>半粗</option><option value="800">粗体</option></select></label>
-          <label class="mini-control"><span>装饰</span><select class="control-select" id="sectionLeadingControl"><option value="none">无</option><option value="marker">短竖线</option><option value="number">编号</option><option value="icon">图标</option></select></label>
+          <label class="mini-control"><span>装饰</span><select class="control-select" id="sectionLeadingControl"><option value="none">无</option><option value="marker">短竖线</option><option value="marker-glow">发光短标</option><option value="number">编号</option><option value="icon">图标</option></select></label>
           <div class="mini-control" id="sectionIconStyleField" hidden><span>图标</span><span class="kpi-icon-composer"><select class="control-select" id="sectionIconStyleControl" aria-label="图标样式"><optgroup label="无底"><option value="line">线型</option><option value="filled">面型</option></optgroup><optgroup label="有底"><option value="line-soft">浅底线型</option><option value="filled-soft">浅底面型</option><option value="line-solid">深底线型</option><option value="filled-solid">深底面型</option></optgroup></select><select class="control-select" id="sectionIconColorControl" aria-label="图标颜色"><option value="neutral">中性色</option><option value="accent" selected>主题色</option><option value="gradient-accent">主题渐变</option><option value="colorful">多色</option><option value="gradient-colorful">多色渐变</option></select></span></div>
           <div class="section-subtitle-editor" id="sectionSubtitleEditor" data-visible="false" aria-label="各分组副标题">
             <label class="section-subtitle-row"><span>经营摘要</span><input type="text" data-section-subtitle="summary" placeholder="输入副标题" maxlength="80"></label>
@@ -2080,7 +2145,7 @@
       <div class="toolbar-band">
         <div class="toolbar-band-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 16v-5M12 16V7M17 16v-3"/></svg>图表</div>
         <div class="toolbar-band-controls">
-          <label class="control-group"><span>配色</span><select class="control-select" id="chartPaletteControl"><option value="monochrome" selected>单色</option><option value="bichrome">双色</option><option value="categorical">多色</option></select></label>
+          <label class="control-group"><span>配色</span><select class="control-select" id="chartPaletteControl"><option value="auto" selected>智能适配</option><option value="monochrome">单色</option><option value="bichrome">双色</option><option value="categorical">多色</option></select></label>
         </div>
       </div>
 
@@ -2094,12 +2159,12 @@
           <div class="conditional-field" id="sectionKpiControlsField" hidden></div>
           <div class="conditional-field section-icon-picker-field" id="sectionIconPickerField" hidden><label class="control-group"><span>标题图标</span><button class="section-icon-picker-button" id="sectionIconPickerTrigger" type="button"><span id="sectionIconPickerPreview"></span><span id="sectionIconPickerName">自动匹配</span></button></label></div>
           <div class="kpi-style-samples" id="cardKpiStyleSamples" hidden><span class="kpi-style-samples-label">图标样式</span><button class="kpi-style-sample" type="button" data-style="inherit"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>跟随全局</span></button><span class="kpi-style-samples-group">无底</span><button class="kpi-style-sample" type="button" data-style="none"><span class="kpi-style-sample-preview"></span><span>无</span></button><button class="kpi-style-sample" type="button" data-style="line-neutral"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>极简线型</span></button><button class="kpi-style-sample" type="button" data-style="line-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>主题线型</span></button><button class="kpi-style-sample" type="button" data-style="gradient-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>单色渐变</span></button><button class="kpi-style-sample" type="button" data-style="gradient-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色渐变</span></button><span class="kpi-style-samples-group">有底</span><button class="kpi-style-sample" type="button" data-style="line-soft"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>浅底线型</span></button><button class="kpi-style-sample" type="button" data-style="filled-solid"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>反白面型</span></button><button class="kpi-style-sample" type="button" data-style="filled-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色反白</span></button></div>
-          <div class="conditional-field" id="cardChartTypeField" hidden><label class="control-group"><span>图表类型</span><select class="control-select" id="cardChartTypeControl"><option value="line">折线图</option><option value="time-series">时序图</option><option value="area">面积图</option><option value="bar">基础柱图</option><option value="grouped-bar">分组柱图</option><option value="stacked-bar">堆叠柱图</option><option value="percent-stacked-bar">百分比堆叠柱图</option><option value="histogram">直方图</option><option value="horizontal-bar">基础条图</option><option value="grouped-horizontal-bar">分组条图</option><option value="stacked-horizontal-bar">堆叠条图</option><option value="percent-stacked-horizontal-bar">百分比堆叠条图</option><option value="diverging-bar">双向条图</option><option value="ranking-bar">排名图</option><option value="gantt">甘特图</option><option value="sector-pie">饼图</option><option value="pie">环图</option><option value="rose">玫瑰图</option></select></label></div>
+          <div class="conditional-field" id="cardChartTypeField" hidden><label class="control-group"><span>图表类型</span><select class="control-select" id="cardChartTypeControl"><option value="line">折线图</option><option value="time-series">时序图</option><option value="area">面积图</option><option value="bar">基础柱图</option><option value="grouped-bar">分组柱图</option><option value="stacked-bar">堆叠柱图</option><option value="percent-stacked-bar">百分比堆叠柱图</option><option value="histogram">直方图</option><option value="horizontal-bar">基础条图</option><option value="grouped-horizontal-bar">分组条图</option><option value="stacked-horizontal-bar">堆叠条图</option><option value="percent-stacked-horizontal-bar">百分比堆叠条图</option><option value="diverging-bar">双向条图</option><option value="ranking-bar">排名图</option><option value="gantt">甘特图</option><option value="sector-pie">饼图</option><option value="pie">环图</option><option value="rose">玫瑰图</option><option value="radar">雷达图</option><option value="funnel">漏斗图</option></select></label></div>
           <div class="conditional-field" id="cardChartPaletteField" hidden><label class="control-group"><span>图表配色</span><select class="control-select" id="cardChartPaletteControl"><option value="inherit">跟随全局</option><option value="monochrome">单色</option><option value="bichrome">双色</option><option value="categorical">多色</option></select></label></div>
           <div class="conditional-field" id="cardChartLegendField" hidden><label class="control-group"><span>图例</span><select class="control-select" id="cardChartLegendControl"><option value="auto">自动</option><option value="visible">显示</option><option value="hidden">隐藏</option></select></label></div>
           <div class="conditional-field" id="cardSubtitleField" hidden><label class="control-group"><span>副标题排布</span><select class="control-select" id="cardSubtitleOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="below">标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label><label class="control-group"><span>副标题文字</span><input class="control-input" id="cardSubtitleTextControl" type="text" maxlength="80" placeholder="输入副标题"></label></div>
           <div class="conditional-field section-icon-picker-field" id="cardTitleIconField" hidden><label class="control-group"><span>标题图标</span><button class="section-icon-picker-button" id="cardTitleIconPickerTrigger" type="button"><span id="cardTitleIconPickerPreview"></span><span id="cardTitleIconPickerName">自动匹配</span></button></label></div>
-          <div class="conditional-field kpi-icon-composer" id="cardKpiIconField" hidden><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="cardKpiIconOverrideControl" aria-label="单卡 KPI 图标"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="cardKpiWeightField"><select class="control-select" id="cardKpiWeightControl" aria-label="单卡图标粗细"><option value="inherit">跟随全局</option><option value="thin">细</option><option value="regular">标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="cardIconColorField"><select class="control-select" id="cardIconColorControl" aria-label="单卡图标颜色"><option value="inherit">跟随全局</option><option value="auto">跟随卡片</option><option value="neutral">中性色</option><option value="accent">主题色</option><option value="colorful">多色</option><option value="gradient-accent">主题渐变</option><option value="gradient-colorful">多色渐变</option></select></span><span class="kpi-icon-container-field" id="cardKpiContainerField"><select class="control-select" id="cardKpiContainerControl" aria-label="单卡图标底色"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option></select></span><span class="kpi-icon-shape-field" id="cardKpiShapeField"><select class="control-select" id="cardKpiShapeControl" aria-label="单卡图标形状"><option value="inherit">跟随全局</option><option value="rect">矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="cardKpiSizeField"><select class="control-select" id="cardKpiSizeControl" aria-label="单卡图标大小"><option value="inherit">跟随全局</option><option value="small">小</option><option value="medium">中</option><option value="large">大</option></select></span></div>
+          <div class="conditional-field kpi-icon-composer" id="cardKpiIconField" hidden><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="cardKpiIconOverrideControl" aria-label="单卡 KPI 图标"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="cardKpiWeightField"><select class="control-select" id="cardKpiWeightControl" aria-label="单卡图标粗细"><option value="inherit">跟随全局</option><option value="thin">细</option><option value="regular">标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="cardIconColorField"><select class="control-select" id="cardIconColorControl" aria-label="单卡图标颜色"><option value="inherit">跟随全局</option><option value="auto">跟随卡片</option><option value="neutral">中性色</option><option value="accent">主题色</option><option value="colorful">多色</option><option value="gradient-accent">主题渐变</option><option value="gradient-colorful">多色渐变</option></select></span><span class="kpi-icon-container-field" id="cardKpiContainerField"><select class="control-select" id="cardKpiContainerControl" aria-label="单卡图标底色"><option value="inherit">跟随全局</option><option value="none">无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option><option value="glow">光感渐变</option></select></span><span class="kpi-icon-shape-field" id="cardKpiShapeField"><select class="control-select" id="cardKpiShapeControl" aria-label="单卡图标形状"><option value="inherit">跟随全局</option><option value="rect">矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="cardKpiSizeField"><select class="control-select" id="cardKpiSizeControl" aria-label="单卡图标大小"><option value="inherit">跟随整组</option><option value="medium">标准</option><option value="large">大</option></select></span></div>
           <div class="conditional-field" id="cardKpiLayoutField" hidden><label class="control-group"><span>图标位置</span><select class="control-select" id="cardKpiLayoutControl"><option value="inherit">跟随全局</option><option value="left-top">左上</option><option value="left-middle">左中</option><option value="right-top">右上</option><option value="right-middle">右中</option></select></label></div>
           <div class="conditional-field" id="cardKpiBackgroundField" hidden><label class="control-group"><span>卡片底色</span><select class="control-select" id="cardKpiBackgroundControl"><option value="inherit">跟随整组</option><option value="default">默认</option><option value="white">白色</option><option value="single">单色</option><option value="multi">多色</option></select></label></div>
         </div>
@@ -2118,7 +2183,7 @@
         <div class="toolbar-band-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg>指标卡<span class="context-scope">核心经营指标（整组）</span></div>
         <div class="toolbar-band-controls" id="kpiControls">
           <div class="kpi-style-samples" id="kpiStyleSamples"><span class="kpi-style-samples-label">图标样式</span><span class="kpi-style-samples-group">无底</span><button class="kpi-style-sample" type="button" data-style="none"><span class="kpi-style-sample-preview"></span><span>无</span></button><button class="kpi-style-sample" type="button" data-style="line-neutral"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>极简线型</span></button><button class="kpi-style-sample" type="button" data-style="line-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>主题线型</span></button><button class="kpi-style-sample" type="button" data-style="gradient-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>单色渐变</span></button><button class="kpi-style-sample" type="button" data-style="gradient-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色渐变</span></button><span class="kpi-style-samples-group">有底</span><button class="kpi-style-sample" type="button" data-style="line-soft"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>浅底线型</span></button><button class="kpi-style-sample" type="button" data-style="filled-solid"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>反白面型</span></button><button class="kpi-style-sample" type="button" data-style="filled-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色反白</span></button></div>
-          <div class="kpi-icon-composer"><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="kpiIconControl" aria-label="KPI 图标"><option value="none" selected>无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="kpiWeightField"><select class="control-select" id="kpiWeightControl" aria-label="KPI 图标粗细"><option value="thin">细</option><option value="regular" selected>标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="kpiIconColorField" hidden><select class="control-select" id="kpiIconColorControl" aria-label="KPI 图标颜色"><option value="auto" selected>跟随卡片</option><option value="neutral">中性色</option><option value="accent">主题色</option><option value="colorful">多色</option><option value="gradient-accent">主题渐变</option><option value="gradient-colorful">多色渐变</option></select></span><span class="kpi-icon-container-field" id="kpiContainerField" hidden><select class="control-select" id="kpiContainerControl" aria-label="KPI 图标底色"><option value="none" selected>无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option></select></span><span class="kpi-icon-shape-field" id="kpiShapeField" hidden><select class="control-select" id="kpiShapeControl" aria-label="KPI 图标形状"><option value="rect" selected>矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="kpiSizeField" hidden><select class="control-select" id="kpiSizeControl" aria-label="KPI 图标大小"><option value="small">小</option><option value="medium" selected>中</option><option value="large">大</option></select></span></div>
+          <div class="kpi-icon-composer"><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="kpiIconControl" aria-label="KPI 图标"><option value="none" selected>无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="kpiWeightField"><select class="control-select" id="kpiWeightControl" aria-label="KPI 图标粗细"><option value="thin">细</option><option value="regular" selected>标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="kpiIconColorField" hidden><select class="control-select" id="kpiIconColorControl" aria-label="KPI 图标颜色"><option value="auto" selected>跟随卡片</option><option value="neutral">中性色</option><option value="accent">主题色</option><option value="colorful">多色</option><option value="gradient-accent">主题渐变</option><option value="gradient-colorful">多色渐变</option></select></span><span class="kpi-icon-container-field" id="kpiContainerField" hidden><select class="control-select" id="kpiContainerControl" aria-label="KPI 图标底色"><option value="none" selected>无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option><option value="glow">光感渐变</option></select></span><span class="kpi-icon-shape-field" id="kpiShapeField" hidden><select class="control-select" id="kpiShapeControl" aria-label="KPI 图标形状"><option value="rect" selected>矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="kpiSizeField" hidden><select class="control-select" id="kpiSizeControl" aria-label="KPI 图标大小"><option value="medium" selected>标准</option><option value="large">大</option></select></span></div>
           <label class="control-group"><span>图标位置</span><select class="control-select" id="kpiLayoutControl"><option value="left-top">左上</option><option value="left-middle">左中</option><option value="right-top" selected>右上</option><option value="right-middle">右中</option></select></label>
           <label class="control-group"><span>卡片底色</span><select class="control-select" id="kpiCardBackgroundControl"><option value="default" selected>默认</option><option value="white">白色</option><option value="single">单色</option><option value="multi">多色</option></select></label>
         </div>
@@ -2228,9 +2293,9 @@
 
     <div class="data-schema-dialog" id="projectDialog" role="dialog" aria-modal="true" aria-labelledby="projectDialogTitle" hidden>
       <section class="data-schema-panel project-panel">
-        <header class="data-schema-header"><span><strong id="projectDialogTitle">项目中心</strong><br><span>管理已有项目，或通过 AI 创建新项目</span></span><button class="data-schema-close" id="projectDialogClose" type="button" aria-label="关闭项目中心">×</button></header>
+        <header class="data-schema-header"><span><strong id="projectDialogTitle">项目中心</strong><br><span>管理已有项目，或通过 AI 创建新项目</span></span><div class="data-schema-header-actions"><button class="studio-session-control" id="studioAuthControl" type="button" aria-label="退出登录" title="退出登录" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"></path><path d="M13 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg></button><button class="data-schema-close" id="projectDialogClose" type="button" aria-label="关闭项目中心">×</button></div></header>
         <div class="project-workspace-tabs"><button id="projectListTab" type="button" aria-pressed="true">已有项目</button><button id="projectNewAi" type="button" aria-pressed="false">新建项目</button><button id="projectAiEditTab" type="button" aria-pressed="false" hidden>AI 编辑</button><button id="organizationControl" type="button">我的 AI 设置</button></div>
-        <div class="project-list-view" id="projectListView"><div class="project-list-toolbar"><span class="data-schema-status" id="projectStatus">项目以服务端版本为准</span><span class="project-list-count" id="projectListCount"></span></div><div class="project-list-filters"><input class="studio-ui-input" id="projectSearch" type="search" placeholder="搜索项目名称" aria-label="搜索项目名称"><select class="studio-ui-select" id="projectStatusFilter" aria-label="项目状态"><option value="active">进行中</option><option value="all">全部状态</option><option value="archived">已归档</option></select><select class="studio-ui-select" id="projectSort" aria-label="项目排序"><option value="updated">最近更新</option><option value="name">项目名称</option></select><select class="studio-ui-select" id="projectOwnership" aria-label="项目归属"><option value="all">全部项目</option><option value="editable">我可编辑</option></select></div><div class="project-list" id="projectList"></div></div>
+        <div class="project-list-view" id="projectListView"><div class="project-list-toolbar"><span class="data-schema-status" id="projectStatus">项目以服务端版本为准</span><span class="project-list-count" id="projectListCount"></span></div><div class="project-list-filters"><input class="studio-ui-input" id="projectSearch" type="search" placeholder="搜索项目名称" aria-label="搜索项目名称"><select class="studio-ui-select" id="projectSort" aria-label="项目排序"><option value="updated">最后修改</option><option value="name">项目名称</option></select><select class="studio-ui-select" id="projectOwnership" aria-label="项目归属"><option value="all">全部项目</option><option value="editable">我可编辑</option></select></div><div class="project-list" id="projectList"></div></div>
         <div class="project-composer-view" id="projectComposerView" hidden></div>
         <div class="project-settings-view" id="projectSettingsView" hidden></div>
         <footer class="data-schema-footer"><span class="data-schema-status">接受 AI 首稿后自动创建项目；后续修改保存为新版本</span><div class="data-schema-actions" id="projectPrimaryActions"><button id="projectDialogCancel" type="button">取消</button></div></footer>
@@ -2239,7 +2304,7 @@
 
     <div class="data-schema-dialog" id="memberDialog" role="dialog" aria-modal="true" aria-labelledby="memberDialogTitle" hidden>
       <section class="data-schema-panel member-panel">
-        <header class="data-schema-header"><span><strong id="memberDialogTitle">项目成员</strong><br><span id="memberProjectName">同组织成员</span></span><button class="data-schema-close" id="memberDialogClose" type="button" aria-label="关闭成员管理">×</button></header>
+        <header class="data-schema-header"><span><strong id="memberDialogTitle">项目协作者</strong><br><span id="memberProjectName">管理当前项目的访问权限</span></span><button class="data-schema-close" id="memberDialogClose" type="button" aria-label="关闭协作者管理">×</button></header>
         <div class="member-list" id="memberList"></div>
         <footer class="data-schema-footer"><span class="data-schema-status" id="memberStatus">成员权限由服务端执行</span><div class="data-schema-actions"><button id="memberDialogCancel" type="button">取消</button><button class="data-schema-save" id="memberSave" type="button">保存成员</button></div></footer>
       </section>
@@ -2312,7 +2377,7 @@
     </div>
 
     <section class="canvas-generation-bar" id="canvasGenerationBar" data-state="working" role="status" aria-live="polite" hidden><div class="canvas-generation-copy"><span class="canvas-generation-indicator" aria-hidden="true"></span><strong class="canvas-generation-title" id="canvasGenerationTitle">正在生成首稿</strong><span class="canvas-generation-message" id="canvasGenerationMessage"></span></div><div class="canvas-generation-actions"><button id="canvasGenerationReopen" type="button" hidden>调整设置</button><button id="canvasGenerationDismiss" type="button" hidden>放弃首稿</button><button class="canvas-generation-primary" id="canvasGenerationAccept" type="button" hidden>接受首稿</button><button id="canvasGenerationStop" type="button">停止生成</button></div></section>
-    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-background-type="none" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-icon="none" data-kpi-icon-weight="regular" data-kpi-icon-color="auto" data-kpi-icon-container="none" data-kpi-layout="right-top" data-chart-palette="monochrome" data-page-texture="none" data-surface-boundary="normal">
+    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-background-type="none" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-icon="none" data-kpi-icon-weight="regular" data-kpi-icon-color="auto" data-kpi-icon-container="none" data-kpi-layout="right-top" data-chart-palette="auto" data-page-texture="none" data-surface-boundary="normal">
       <header class="report-hero">
         <div class="hero-fx-layer" aria-hidden="true">
           <span class="hero-aurora hero-aurora-1"></span>
@@ -2367,12 +2432,12 @@
     </article>
   </main>
 
-  <script type="module" src="/studio/editor-runtime.js?v=20260820-standard-preset"></script>
+  <script type="module" src="/studio/editor-runtime.js?v=20260820-smart-chart-palette"></script>
   <script type="module" src="/studio/project-center.mjs"></script>
   <script type="module" src="/studio/studio-router.mjs"></script>
   <script type="module" src="/studio/publication-center.mjs"></script>
   <script type="module" src="/studio/data-source-center.mjs"></script>
-  <script type="module" src="/studio/ai-composer-center.mjs"></script>
+  <script type="module" src="/studio/ai-composer-center.mjs?v=20260822-section-progress"></script>
   <script type="module" src="/studio/export-center.mjs"></script>
 </body>
 </html>

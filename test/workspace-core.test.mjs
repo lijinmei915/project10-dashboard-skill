@@ -197,7 +197,10 @@ test("maps explicit and semantic chart requests to the controlled catalog", () =
     ["用甘特图展示项目排期", "gantt"],
     ["用饼图展示渠道销售额占比", "sector-pie"],
     ["用环图展示渠道销售额占比", "pie"],
-    ["用玫瑰图展示品类规模", "rose"]
+    ["用玫瑰图展示品类规模", "rose"],
+    ["用雷达图展示团队能力画像", "radar"],
+    ["用漏斗图展示销售转化路径", "funnel"],
+    ["用数据表展示区域明细", "data-table"]
   ];
   cases.forEach(([prompt, expected], index) => {
     assert.equal(inferChartType(prompt), expected);
@@ -214,7 +217,7 @@ test("maps explicit and semantic chart requests to the controlled catalog", () =
 test("rejects chart types outside the controlled catalog", () => {
   const invalid = structuredClone(fixture.workspace);
   const chart = invalid.document.sections.flatMap(({ components }) => components).find(({ type }) => type === "chart");
-  chart.props.chartType = "radar";
+  chart.props.chartType = "scatter";
   const result = validateWorkspace(invalid);
   assert.equal(result.valid, false);
   assert(result.issues.some(({ path }) => path.endsWith("/props/chartType")));
@@ -681,13 +684,13 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
   assert.equal(capabilities.version, 1);
   assert.deepEqual(capabilities.components.map(({ type }) => type), ["summary", "kpi", "chart", "table", "list", "text"]);
   assert.deepEqual(capabilities.controls.map(({ type }) => type), ["filter-bar", "view-tabs"]);
-  assert.deepEqual(capabilities.charts.map(({ type }) => type), ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"]);
+  assert.deepEqual(capabilities.charts.map(({ type }) => type), ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"]);
 
   const horizontalCatalogResponse = await fetch(`${endpoint}/api/charts/catalog?q=${encodeURIComponent("排行图")}`);
   assert.equal(horizontalCatalogResponse.status, 200);
   assert((await horizontalCatalogResponse.json()).charts.some(({ type }) => type === "ranking-bar"));
 
-  for (const type of ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"]) {
+  for (const type of ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"]) {
     const chartResponse = await fetch(`${endpoint}/api/charts/render`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -696,6 +699,17 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
     assert.equal(chartResponse.status, 200);
     assert.match((await chartResponse.json()).svg, /^<svg[^>]+>/);
   }
+
+  const tableResponse = await fetch(`${endpoint}/api/charts/render`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "data-table", labels: ["华南", "华东", "西部"], series: [{ name: "收入", values: [96, 128, 71] }], table: { sort: "desc", sortBy: 0, limit: 2, summary: true, formats: [{ prefix: "¥", suffix: "万" }], conditional: true }, width: 480, height: 240 })
+  });
+  const tableSvg = (await tableResponse.json()).svg;
+  assert.equal(tableResponse.status, 200);
+  assert(tableSvg.indexOf("华东") < tableSvg.indexOf("华南"));
+  assert(!tableSvg.includes("西部"));
+  assert.match(tableSvg, /¥128万/);
+  assert.match(tableSvg, /合计/);
 
   const draftResponse = await fetch(`${endpoint}/api/generation/draft`, {
     method: "POST",

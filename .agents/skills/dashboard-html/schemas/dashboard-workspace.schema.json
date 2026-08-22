@@ -221,7 +221,7 @@
   },
   "additionalProperties": false,
   "$defs": {
-    "chartType": { "enum": ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"] },
+    "chartType": { "enum": ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"] },
     "identifier": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "numberFormat": {
       "type": "object",

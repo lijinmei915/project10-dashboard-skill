@@ -33,6 +33,8 @@ import { createOrganizationAuditOutboxDispatcher } from "./studio-organization-a
 import { createOrganizationSessionRevocationOutboxDispatcher } from "./studio-organization-session-revocation-outbox.mjs";
 import { createPublicationRenderService } from "./publication-render-service.mjs";
 import { AuthError, createStudioAuthService } from "./studio-auth-service.mjs";
+import { createAccountRepository } from "./studio-account-repository.mjs";
+import { createAuthRateLimiter } from "./auth-rate-limiter.mjs";
 import { authorizeProject, projectAccessRole, updateProjectAccess } from "./project-access-service.mjs";
 import { copyProject, updateProjectMetadata } from "./project-management-service.mjs";
 import { createAuditEvent, createAuditRepository } from "./studio-audit-repository.mjs";
@@ -76,6 +78,8 @@ const defaultJobRepository = createJobRepository({ directory: process.env.DASHBO
 const defaultRefreshScheduleRepository = createRefreshScheduleRepository({ directory: process.env.DASHBOARD_REFRESH_SCHEDULES_DIR || path.join(rootDir, ".dashboard-refresh-schedules") });
 const defaultOrganizationRepository = createOrganizationRepository({ directory: process.env.DASHBOARD_ORGANIZATIONS_DIR || path.join(rootDir, ".dashboard-organizations") });
 const defaultExternalIdentityRepository = createExternalIdentityRepository({ directory: process.env.DASHBOARD_EXTERNAL_IDENTITIES_DIR || path.join(rootDir, ".dashboard-external-identities") });
+const defaultAccountRepository = createAccountRepository({ directory: process.env.DASHBOARD_ACCOUNTS_DIR || path.join(rootDir, ".dashboard-accounts") });
+const defaultAuthRateLimiter = createAuthRateLimiter({ limit: Number(process.env.DASHBOARD_AUTH_RATE_LIMIT) || 8, windowMs: Number(process.env.DASHBOARD_AUTH_RATE_WINDOW_MS) || 15 * 60 * 1000 });
 const defaultAuditRepository = createAuditRepository({ directory: process.env.DASHBOARD_AUDIT_DIR || path.join(rootDir, ".dashboard-audit") });
 const defaultAuditOutbox = createAuditOutboxDispatcher({ projectRepository: defaultProjectRepository, auditRepository: defaultAuditRepository });
 const defaultPublicationRenderer = createPublicationRenderService({ timeoutMs: Number(process.env.DASHBOARD_RENDER_TIMEOUT_MS) || 30_000 });
@@ -87,10 +91,11 @@ function configuredOrganizationIdentities() {
 function configuredAuthService(sessionRepository = null, organizationRepository = null, configuredOrganizationService = null) {
   const mode = process.env.DASHBOARD_AUTH_MODE || "disabled";
   const users = Object.entries(jsonEnvironment("DASHBOARD_AUTH_USERS_JSON")).map(([id, user]) => ({ id, ...user }));
-  const organizationService = configuredOrganizationService || (organizationRepository ? createOrganizationService({ repository: organizationRepository, identities: configuredOrganizationIdentities() }) : null);
+  const organizationService = mode === "password" ? null : configuredOrganizationService || (organizationRepository ? createOrganizationService({ repository: organizationRepository, identities: configuredOrganizationIdentities() }) : null);
   return createStudioAuthService({
     mode,
     users,
+    accountRepository: mode === "password" ? defaultAccountRepository : null,
     sessionTtlMs: Number(process.env.DASHBOARD_AUTH_SESSION_TTL_MS) || 8 * 60 * 60 * 1000,
     secureCookies: process.env.DASHBOARD_AUTH_SECURE_COOKIE === "true",
     sessionRepository,
@@ -204,26 +209,33 @@ async function sendGenerationEventStream(request, response, generationJobService
     Connection: "keep-alive",
     "X-Accel-Buffering": "no"
   });
+  response.flushHeaders?.();
   response.write("retry: 1000\n\n");
+  response.write(`event: job.snapshot\ndata: ${JSON.stringify({ status: initial.status, stage: initial.stage, progress: initial.progress, updatedAt: initial.updatedAt, terminal: initial.terminal })}\n\n`);
   let closed = false;
   let lastHeartbeat = Date.now();
   request.once("close", () => { closed = true; });
   let snapshot = initial;
-  while (!closed) {
-    for (const event of snapshot.events) {
-      cursor = event.id;
-      response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+  try {
+    while (!closed) {
+      for (const event of snapshot.events) {
+        cursor = event.id;
+        response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      }
+      if (snapshot.terminal) break;
+      if (Date.now() - lastHeartbeat >= 10_000) {
+        response.write(`event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`);
+        lastHeartbeat = Date.now();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      snapshot = await generationJobService.events(jobId, actor, { after: cursor });
+      if (!snapshot) break;
     }
-    if (snapshot.terminal) break;
-    if (Date.now() - lastHeartbeat >= 15_000) {
-      response.write(`event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`);
-      lastHeartbeat = Date.now();
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    snapshot = await generationJobService.events(jobId, actor, { after: cursor });
-    if (!snapshot) break;
+  } catch {
+    // Ending the stream lets EventSource reconnect while the job keeps running.
+  } finally {
+    if (!closed && !response.writableEnded) response.end();
   }
-  if (!closed) response.end();
 }
 
 function sendArtifact(response, artifact, { disposition = "attachment", cacheControl = "private, no-cache", headers = {} } = {}) {
@@ -281,7 +293,15 @@ function normalizeChartRequest(input) {
     width: Math.max(240, Math.min(1600, Number(input.width) || 720)),
     height: Math.max(180, Math.min(1000, Number(input.height) || 360)),
     palette: Array.isArray(input.palette) ? input.palette.slice(0, 12).filter((color) => /^#[0-9a-f]{6}$/i.test(color)) : [],
-    thresholds: Array.isArray(input.thresholds) ? input.thresholds.slice(0, 6).map(Number).filter(Number.isFinite) : []
+    thresholds: Array.isArray(input.thresholds) ? input.thresholds.slice(0, 6).map(Number).filter(Number.isFinite) : [],
+    table: {
+      sort: ["asc", "desc"].includes(input.table?.sort) ? input.table.sort : "none",
+      sortBy: Math.max(0, Math.min(11, Number(input.table?.sortBy) || 0)),
+      limit: Math.max(1, Math.min(20, Number(input.table?.limit) || 8)),
+      summary: input.table?.summary === true,
+      formats: Array.isArray(input.table?.formats) ? input.table.formats.slice(0, 12).map((format) => ({ prefix: String(format?.prefix || "").slice(0, 12), suffix: String(format?.suffix || "").slice(0, 12), decimals: Math.max(0, Math.min(4, Number(format?.decimals) || 0)) })) : [],
+      conditional: input.table?.conditional === true
+    }
   };
 }
 
@@ -331,6 +351,22 @@ function chartOption({ type, labels, series, palette, mode, width, thresholds = 
       }]
     };
   }
+  if (type === "radar") {
+    const maximum = Math.max(1, ...series.flatMap(({ values }) => values.map((value) => Number(value) || 0)));
+    return {
+      animation: false, color: colors, textStyle, tooltip: { show: false },
+      legend: { show: series.length > 1, top: 0, textStyle },
+      radar: { center: ["50%", series.length > 1 ? "57%" : "52%"], radius: width < 420 ? "55%" : "66%", splitNumber: 4, indicator: labels.map((name) => ({ name, max: maximum })), axisName: textStyle, splitLine: { lineStyle: { color: gridColor } }, splitArea: { show: false }, axisLine: { lineStyle: { color: axisColor } } },
+      series: [{ type: "radar", symbolSize: 5, areaStyle: { opacity: 0.12 }, data: series.map(({ name, values }) => ({ name, value: labels.map((_, index) => Number(values[index]) || 0) })) }]
+    };
+  }
+  if (type === "funnel") {
+    const values = series[0].values;
+    return {
+      animation: false, color: colors, textStyle, tooltip: { show: false }, legend: { show: false },
+      series: [{ type: "funnel", left: width < 420 ? "8%" : "16%", width: width < 420 ? "84%" : "68%", top: 12, bottom: 12, minSize: "20%", maxSize: "100%", sort: "descending", gap: 2, label: { color: textStyle.color, formatter: "{b}  {c}" }, itemStyle: { borderColor: mode === "dark" ? "#20242c" : "#fff", borderWidth: 1 }, data: values.map((value, index) => ({ name: labels[index] || `Stage ${index + 1}`, value })) }]
+    };
+  }
   return {
     animation: false,
     color: colors,
@@ -365,6 +401,17 @@ function chartOption({ type, labels, series, palette, mode, width, thresholds = 
 
 function renderChartSvg(input) {
   const config = normalizeChartRequest(input);
+  if (config.type === "data-table") {
+    const escapeXml = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+    const background = config.mode === "dark" ? "#20242c" : "#ffffff"; const text = config.mode === "dark" ? "#f4f6f8" : "#27272a"; const muted = config.mode === "dark" ? "#aeb8c6" : "#71717a"; const line = config.mode === "dark" ? "#343b47" : "#e4e4e7";
+    const order = config.labels.map((label, index) => ({ label, index })); if (config.table.sort !== "none") order.sort((left, right) => ((config.series[config.table.sortBy]?.values[left.index] || 0) - (config.series[config.table.sortBy]?.values[right.index] || 0)) * (config.table.sort === "asc" ? 1 : -1));
+    const visibleRows = order.slice(0, config.table.limit); const columns = Math.max(1, config.series.length); const labelWidth = Math.min(140, config.width * .3); const columnWidth = (config.width - labelWidth - 24) / columns; const summaryRows = config.table.summary ? 1 : 0; const rowHeight = Math.min(36, (config.height - 46) / Math.max(visibleRows.length + summaryRows, 1));
+    const formatted = (value, column) => { const format = config.table.formats[column] || {}; return `${format.prefix || ""}${Number(value || 0).toFixed(format.decimals || 0)}${format.suffix || ""}`; };
+    const headers = config.series.map(({ name }, index) => `<text x="${labelWidth + 12 + columnWidth * (index + .5)}" y="27" text-anchor="middle" fill="${muted}" font-size="12">${escapeXml(name)}</text>`).join("");
+    const rows = visibleRows.map(({ label, index }, row) => { const y = 42 + row * rowHeight; const values = config.series.map((item, column) => { const value = Number(item.values[index]) || 0; const maximum = Math.max(...item.values.map(Number), 0); const color = config.table.conditional && value === maximum ? (config.palette[column] || "#16a34a") : text; return `<text x="${labelWidth + 12 + columnWidth * (column + .5)}" y="${y + rowHeight / 2 + 4}" text-anchor="middle" fill="${color}" font-size="12" font-weight="${color === text ? 400 : 700}">${escapeXml(formatted(value, column))}</text>`; }).join(""); return `<rect x="12" y="${y}" width="${config.width - 24}" height="${rowHeight}" fill="${row % 2 ? background : config.mode === "dark" ? "#262b34" : "#fafafa"}"/><text x="22" y="${y + rowHeight / 2 + 4}" fill="${text}" font-size="12">${escapeXml(label)}</text>${values}<line x1="12" x2="${config.width - 12}" y1="${y + rowHeight}" y2="${y + rowHeight}" stroke="${line}"/>`; }).join("");
+    const summary = config.table.summary ? (() => { const y = 42 + visibleRows.length * rowHeight; return `<text x="22" y="${y + rowHeight / 2 + 4}" fill="${text}" font-size="12" font-weight="700">合计</text>${config.series.map((item, column) => `<text x="${labelWidth + 12 + columnWidth * (column + .5)}" y="${y + rowHeight / 2 + 4}" text-anchor="middle" fill="${text}" font-size="12" font-weight="700">${escapeXml(formatted(visibleRows.reduce((sum, row) => sum + (Number(item.values[row.index]) || 0), 0), column))}</text>`).join("")}`; })() : "";
+    return `<svg width="${config.width}" height="${config.height}" viewBox="0 0 ${config.width} ${config.height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="数据表格"><rect width="100%" height="100%" fill="${background}"/><text x="22" y="27" fill="${muted}" font-size="12">分类</text>${headers}<line x1="12" x2="${config.width - 12}" y1="40" y2="40" stroke="${line}"/>${rows}${summary}</svg>`;
+  }
   const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: config.width, height: config.height });
   try {
     chart.setOption(chartOption(config));
@@ -494,8 +541,21 @@ export async function handlePreviewRequest(request, response, { provider = defau
       return sendJson(response, 405, { error: "Method not allowed" });
     }
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
-      const session = await authService.login((await readJsonBody(request)).token);
+      const body = await readJsonBody(request);
+      const authSource = request.socket?.remoteAddress || "unknown";
+      if (authService.mode === "password") {
+        const attempt = defaultAuthRateLimiter.consume(authSource, body.email);
+        if (!attempt.allowed) return sendJson(response, 429, { error: "登录尝试过多，请稍后重试", code: "rate-limited" }, { "Retry-After": String(attempt.retryAfter), "Cache-Control": "no-store" });
+      }
+      const session = authService.mode === "password" ? await authService.loginWithPassword(body) : await authService.login(body.token);
+      if (authService.mode === "password") defaultAuthRateLimiter.reset(authSource, body.email);
       return sendJson(response, 200, { authenticated: true, actor: session.actor, expiresAt: session.expiresAt }, { "Set-Cookie": session.cookie });
+    }
+    if (url.pathname === "/api/auth/register" && request.method === "POST") {
+      const body = await readJsonBody(request); const authSource = request.socket?.remoteAddress || "unknown"; const attempt = defaultAuthRateLimiter.consume(authSource, body.email);
+      if (!attempt.allowed) return sendJson(response, 429, { error: "注册尝试过多，请稍后重试", code: "rate-limited" }, { "Retry-After": String(attempt.retryAfter), "Cache-Control": "no-store" });
+      const session = await authService.register(body); defaultAuthRateLimiter.reset(authSource, body.email);
+      return sendJson(response, 201, { authenticated: true, actor: session.actor, expiresAt: session.expiresAt }, { "Set-Cookie": session.cookie });
     }
     const invitationStart = url.pathname.match(/^\/api\/auth\/oidc\/([a-zA-Z0-9._-]{1,128})\/invitation-start$/);
     if (invitationStart && request.method === "POST") {

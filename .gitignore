@@ -9,6 +9,7 @@ node_modules/
 .dashboard-jobs/
 .dashboard-refresh-schedules/
 .dashboard-organizations/
+.dashboard-accounts/
 .dashboard-audit/
 .dashboard-provider-profiles/
 .dashboard-provider-secrets/

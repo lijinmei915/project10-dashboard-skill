@@ -1,7 +1,25 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import { assertSessionRepository, createMemorySessionRepository } from "./studio-session-repository.mjs";
 
 const roles = new Set(["admin", "editor", "viewer"]);
+const scrypt = promisify(scryptCallback);
+
+async function passwordHash(password) {
+  const value = String(password || "");
+  if (value.length < 10 || value.length > 128) throw new AuthError("密码需为 10-128 个字符", 422, "password-policy");
+  const salt = randomBytes(16);
+  const derived = await scrypt(value, salt, 64, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return `scrypt$16384$8$1$${salt.toString("base64url")}$${derived.toString("base64url")}`;
+}
+
+async function passwordMatches(password, encoded) {
+  const [algorithm, n, r, p, salt, expected] = String(encoded || "").split("$");
+  if (algorithm !== "scrypt" || !salt || !expected) return false;
+  const expectedBytes = Buffer.from(expected, "base64url");
+  const actual = await scrypt(String(password || ""), Buffer.from(salt, "base64url"), expectedBytes.length, { N: Number(n), r: Number(r), p: Number(p), maxmem: 64 * 1024 * 1024 });
+  return actual.length === expectedBytes.length && timingSafeEqual(actual, expectedBytes);
+}
 
 function organizationId(value) {
   const normalized = String(value || "default").trim();
@@ -29,8 +47,9 @@ function parseCookies(header = "") {
   }));
 }
 
-export function createStudioAuthService({ mode = "disabled", users = [], sessionTtlMs = 8 * 60 * 60 * 1000, secureCookies = false, clock = () => Date.now(), sessionRepository: configuredSessionRepository = null, organizationService = null } = {}) {
-  if (!["disabled", "token", "oidc"].includes(mode)) throw new Error("DASHBOARD_AUTH_MODE must be disabled, token, or oidc");
+export function createStudioAuthService({ mode = "disabled", users = [], accountRepository = null, sessionTtlMs = 8 * 60 * 60 * 1000, secureCookies = false, clock = () => Date.now(), sessionRepository: configuredSessionRepository = null, organizationService = null } = {}) {
+  if (!["disabled", "password", "token", "oidc"].includes(mode)) throw new Error("DASHBOARD_AUTH_MODE must be disabled, password, token, or oidc");
+  if (mode === "password" && !accountRepository) throw new Error("Password auth requires an account repository");
   const identities = users.map((user) => {
     if (!user?.id || !user?.name || !roles.has(user.role) || (mode === "token" && !user.token)) throw new Error(`Each ${mode} auth user requires id, name, role${mode === "token" ? ", and token" : ""}`);
     return { actor: { id: String(user.id), name: String(user.name), role: user.role, organizationId: organizationId(user.organizationId) }, hash: user.token ? tokenHash(user.token) : null };
@@ -42,6 +61,11 @@ export function createStudioAuthService({ mode = "disabled", users = [], session
   const sessionKey = (sessionId) => createHash("sha256").update(sessionId).digest("hex");
   const resolveOrganizationActor = async (actor) => organizationService ? organizationService.resolveActor(actor) : actor;
   const actorFor = async (actorId, actorOrganizationId) => {
+    if (mode === "password") {
+      const account = await accountRepository.findById(actorId);
+      if (account?.status === "active" && account.organizationId === organizationId(actorOrganizationId)) return { id: account.id, name: account.name, role: "editor", organizationId: account.organizationId };
+      return null;
+    }
     const identity = identities.find(({ actor }) => actor.id === String(actorId) && actor.organizationId === organizationId(actorOrganizationId));
     if (identity) return structuredClone(identity.actor);
     if (organizationService?.resolveMemberActor) return organizationService.resolveMemberActor(actorId, actorOrganizationId);
@@ -78,6 +102,7 @@ export function createStudioAuthService({ mode = "disabled", users = [], session
   };
   return {
     mode,
+    capabilities: Object.freeze({ registration: mode === "password", passwordRecovery: false }),
     sessionProvider: sessionRepository.provider || "custom",
     sessionCapabilities,
     async readiness() {
@@ -91,7 +116,7 @@ export function createStudioAuthService({ mode = "disabled", users = [], session
     },
     async status(request) {
       const session = await sessionFromRequest(request);
-      return { mode, authenticated: Boolean(session), ...(session ? { actor: structuredClone(session.actor), expiresAt: session.expiresAt ? new Date(session.expiresAt).toISOString() : null } : {}) };
+      return { mode, authenticated: Boolean(session), capabilities: { registration: mode === "password", passwordRecovery: false }, ...(session ? { actor: structuredClone(session.actor), expiresAt: session.expiresAt ? new Date(session.expiresAt).toISOString() : null } : {}) };
     },
     async directory(actor) {
       if (!actor) throw new AuthError("Authentication required", 401, "unauthenticated");
@@ -105,6 +130,24 @@ export function createStudioAuthService({ mode = "disabled", users = [], session
       const identity = identities.find(({ hash }) => hash && hash.length === actual.length && timingSafeEqual(hash, actual));
       if (!identity) throw new AuthError("Invalid access token", 401, "invalid-credentials");
       return issueSession(identity.actor);
+    },
+    async register({ email, name, password }) {
+      if (mode !== "password") throw new AuthError("账号注册未启用", 409, "auth-disabled");
+      const hash = await passwordHash(password);
+      let account;
+      try { account = await accountRepository.create({ email, name, passwordHash: hash }); }
+      catch (error) {
+        if (error?.code === "account-exists") throw new AuthError("该邮箱已注册", 409, "account-exists");
+        throw new AuthError(error.message || "注册失败", 422, "invalid-account");
+      }
+      return issueSession({ id: account.id, name: account.name, role: "editor", organizationId: account.organizationId });
+    },
+    async loginWithPassword({ email, password }) {
+      if (mode !== "password") throw new AuthError("账号登录未启用", 409, "auth-disabled");
+      let account = null;
+      try { account = await accountRepository.findByEmail(email, { includePasswordHash: true }); } catch {}
+      if (!account || account.status !== "active" || !await passwordMatches(password, account.passwordHash)) throw new AuthError("邮箱或密码不正确", 401, "invalid-credentials");
+      return issueSession({ id: account.id, name: account.name, role: "editor", organizationId: account.organizationId });
     },
     async actor(actorId, actorOrganizationId) {
       return actorFor(actorId, actorOrganizationId);
@@ -127,7 +170,7 @@ export function createStudioAuthService({ mode = "disabled", users = [], session
       const session = await sessionFromRequest(request);
       if (!session) throw new AuthError("Authentication required", 401, "unauthenticated");
       if (write && session.actor.role === "viewer") throw new AuthError("Editor role is required", 403, "forbidden");
-      if ((mode === "token" || mode === "oidc") && request.method !== "GET") {
+      if ((mode === "password" || mode === "token" || mode === "oidc") && request.method !== "GET") {
         const origin = request.headers.origin;
         if (!origin || origin !== expectedOrigin) throw new AuthError("Request origin is not allowed", 403, "csrf");
       }

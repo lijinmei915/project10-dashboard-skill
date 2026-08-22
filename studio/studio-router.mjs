@@ -31,6 +31,7 @@ function syncProjectRoute(event) {
 
 window.addEventListener("dashboard-project-center-ready", () => activateRoute().catch(() => {}), { once: true });
 window.addEventListener("dashboard-publication-center-ready", () => activateRoute().catch(() => {}), { once: true });
+window.addEventListener("dashboard-auth-ready", () => activateRoute().catch(() => {}));
 window.addEventListener("dashboard-project-change", syncProjectRoute);
 if (window.DashboardProjectCenter) activateRoute().catch(() => {});
 

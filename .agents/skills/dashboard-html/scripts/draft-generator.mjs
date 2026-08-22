@@ -50,6 +50,9 @@ const domainProfiles = [
 ];
 
 const explicitChartTypeRules = [
+  ["data-table", /数据表|明细表|表格图表|data\s*table/i],
+  ["radar", /雷达图|蛛网图|radar\s*chart/i],
+  ["funnel", /漏斗图|转化漏斗|funnel\s*chart/i],
   ["time-series", /时序图|时间序列图|time\s*series/i],
   ["rose", /玫瑰图|南丁格尔玫瑰图|rose\s*chart/i],
   ["sector-pie", /实心饼图|饼图|pie\s*chart/i],
@@ -71,6 +74,9 @@ const explicitChartTypeRules = [
 ];
 
 const semanticChartTypeRules = [
+  ["data-table", /精确值|多字段对照|明细数据|逐行查看/],
+  ["radar", /能力模型|能力画像|多维对比|指标画像/],
+  ["funnel", /转化路径|阶段流失|销售漏斗|逐层转化/],
   ["time-series", /时间轴|监控趋势|阈值趋势|按时间戳/],
   ["gantt", /项目排期|任务排期|时间进度|里程碑计划/],
   ["diverging-bar", /正负对比|两侧对比|人口结构/],
@@ -509,7 +515,7 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
   const tableFields = importedContext?.context.fields.slice(0, 4) ?? [];
   const chartType = inferChartType(request.prompt);
   const asksForTimeSeries = /最近|趋势|走势|时间|周|月|季度|年度/.test(request.prompt);
-  const usesCompositionCategories = ["pie", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"].includes(chartType)
+  const usesCompositionCategories = ["pie", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "radar", "funnel"].includes(chartType)
     || (!asksForTimeSeries && /渠道|来源|分类|排行|排名|对比|分布/.test(request.prompt));
   const chartCategoryField = importedContext ? chartCategoryFieldFromData : usesCompositionCategories ? "sourceName" : "periodLabel";
   const chartTitle = chartType === "pie" ? profile.rankingTitle.replace(/\s*Top\s*5/i, "构成") : usesCompositionCategories ? profile.rankingTitle : profile.trendTitle;
@@ -541,7 +547,7 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
   const seriesValueIndex = snapshotColumnIndex(seriesColumns, chartMetric.id, 1);
   const seriesValues = seriesRows.map((row) => Number(row[seriesValueIndex]) || 0);
   const seriesLabels = seriesRows.map((row) => String(row[seriesCategoryIndex] ?? ""));
-  const multiSeriesChart = ["grouped-bar", "stacked-bar", "percent-stacked-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar"].includes(chartType);
+  const multiSeriesChart = ["grouped-bar", "stacked-bar", "percent-stacked-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "radar"].includes(chartType);
   const sampleChartLabels = ["华东", "华南", "华北", "西部"];
   const sampleChartSeries = multiSeriesChart ? [
     { name: "本期", values: [42, 36, 31, 24] },
@@ -639,7 +645,7 @@ export function createDeterministicDraft(input, baseWorkspace, { dataContexts = 
     return [cardId, next];
   }).filter(([, override]) => Object.keys(override).length));
   const generatedChart = document.sections.flatMap(({ components }) => components).find(({ type }) => type === "chart");
-  if (["pie", "sector-pie", "rose"].includes(generatedChart?.props.chartType) && !cardOverrides[generatedChart.id]?.chartPalette) {
+  if (["pie", "sector-pie", "rose", "radar", "funnel"].includes(generatedChart?.props.chartType) && !cardOverrides[generatedChart.id]?.chartPalette) {
     cardOverrides[generatedChart.id] = { ...(cardOverrides[generatedChart.id] ?? {}), chartPalette: "categorical" };
   }
   const workspace = {

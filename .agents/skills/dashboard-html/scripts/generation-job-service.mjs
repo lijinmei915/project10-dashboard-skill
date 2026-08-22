@@ -7,7 +7,38 @@ const terminalStatuses = new Set(["succeeded", "failed", "canceled"]);
 const feedbackOutcomes = new Set(["accepted", "dismissed"]);
 const feedbackReasons = new Set(["off-target", "inaccurate-data", "wrong-chart", "poor-layout", "missing-content"]);
 const dayMs = 24 * 60 * 60 * 1000;
-const generationEventTypes = new Set(["job.queued", "job.started", "generation.generating", "preview.ready", "job.failed", "job.canceled"]);
+const generationEventTypes = new Set(["job.queued", "job.started", "generation.generating", "section.ready", "preview.ready", "job.failed", "job.canceled"]);
+
+function generationStage(job) {
+  const lastEventType = job.events?.at(-1)?.type;
+  if (lastEventType === "section.ready") return "validating";
+  if (lastEventType === "generation.generating") return "generating";
+  if (lastEventType === "job.started") return "starting";
+  if (lastEventType === "preview.ready" || job.status === "succeeded") return "ready";
+  if (lastEventType === "job.failed" || job.status === "failed") return "failed";
+  if (lastEventType === "job.canceled" || job.status === "canceled") return "canceled";
+  return "queued";
+}
+
+function generationProgress(job) {
+  const latest = [...(job.events || [])].reverse().find(({ type }) => type === "section.ready");
+  if (!latest) return { sectionsReady: 0, sectionCount: 0 };
+  const sectionCount = Math.max(0, Math.min(12, Number(latest.sectionCount) || 0));
+  return {
+    sectionsReady: Math.max(0, Math.min(sectionCount, Number(latest.sectionIndex) || 0)),
+    sectionCount
+  };
+}
+
+function appendSectionReadyEvents(job, runResult, at) {
+  const sections = runResult?.preview?.workspace?.document?.sections;
+  if (!Array.isArray(sections) || !sections.length) return job;
+  return sections.reduce((next, section, index) => appendJobEvent(next, "section.ready", at, {
+    sectionIndex: index + 1,
+    sectionCount: sections.length,
+    componentCount: Array.isArray(section?.components) ? section.components.length : 0
+  }), job);
+}
 
 function appendJobEvent(job, type, at, details = {}) {
   if (!generationEventTypes.has(type)) throw new Error(`Unsupported generation event: ${type}`);
@@ -132,6 +163,7 @@ export function generationJobSummary(job) {
     type: job.type,
     mode: job.mode,
     status: job.status,
+    progress: generationProgress(job),
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     ...(job.startedAt ? { startedAt: job.startedAt } : {}),
@@ -148,6 +180,7 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
   const timers = new Map();
   const controllers = new Map();
   const heartbeatTimers = new Map();
+  const leaseRecoveryTimers = new Map();
   const workerId = configuredWorkerId || `generation-worker-${randomUUID()}`;
   const leaseDurationMs = Math.max(1_000, Number(configuredLeaseDurationMs) || 30_000);
   const maximumDurationMs = Math.max(1_000, Math.min(600_000, Number(configuredMaximumDurationMs) || 300_000));
@@ -163,6 +196,27 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
     if (handle !== undefined) clearTimer(handle);
     heartbeatTimers.delete(id);
   };
+  const stopLeaseRecovery = (id) => {
+    const handle = leaseRecoveryTimers.get(id);
+    if (handle !== undefined) clearTimer(handle);
+    leaseRecoveryTimers.delete(id);
+  };
+  const scheduleLeaseRecovery = (id, expiresAt) => {
+    stopLeaseRecovery(id);
+    const delay = Math.max(0, Date.parse(expiresAt || "") - clock() + 25) || 25;
+    const recover = async () => {
+      leaseRecoveryTimers.delete(id);
+      const current = await jobRepository.get(id).catch(() => null);
+      if (current?.type !== "dashboard-generation" || current.status !== "running") return;
+      const currentExpiry = Date.parse(current.lease?.expiresAt || "");
+      if (Number.isFinite(currentExpiry) && currentExpiry > clock()) return scheduleLeaseRecovery(id, current.lease.expiresAt);
+      const queued = await jobRepository.update(id, (job) => job.status === "running" && Date.parse(job.lease?.expiresAt || "") <= clock()
+        ? ({ ...job, status: "queued", updatedAt: new Date(clock()).toISOString(), lease: null })
+        : job).catch(() => null);
+      if (queued?.status === "queued") schedule(queued);
+    };
+    leaseRecoveryTimers.set(id, timer(() => recover().catch(() => scheduleLeaseRecovery(id, new Date(clock() + 1_000).toISOString())), delay));
+  };
   const heartbeat = (id, token) => {
     stopHeartbeat(id);
     const renew = async () => {
@@ -173,6 +227,7 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
     heartbeatTimers.set(id, timer(renew, Math.max(500, Math.floor(leaseDurationMs / 3))));
   };
   const run = async (id) => {
+    stopLeaseRecovery(id);
     const token = randomUUID();
     const claimed = await jobRepository.update(id, (job) => {
       if (job?.type !== "dashboard-generation" || job.status !== "queued") return job;
@@ -207,15 +262,20 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
         runResult.error = { message: "AI generation exceeded the maximum task duration", code: "provider_timeout", httpStatus: 504, retryable: true };
       }
       const completedAt = new Date(clock()).toISOString();
-      return jobRepository.update(id, (job) => ownsLease(job, token) ? appendJobEvent({
-        ...job,
-        status: runResult.status === "preview-ready" ? "succeeded" : "failed",
-        updatedAt: completedAt,
-        completedAt,
-        ...(runResult.status === "preview-ready" ? { result: runResult, error: null } : { error: { code: runResult.error?.code || "generation-failed", message: String(runResult.error?.message || "Generation failed").slice(0, 240), httpStatus: Number(runResult.error?.httpStatus) || 422 } }),
-        telemetry: telemetryFor(job, completedAt, runResult.repairAttempts),
-        lease: null
-      }, runResult.status === "preview-ready" ? "preview.ready" : "job.failed", completedAt, runResult.status === "preview-ready" ? { stage: "preview-ready" } : { code: runResult.error?.code || "generation-failed" }) : job);
+      return jobRepository.update(id, (job) => {
+        if (!ownsLease(job, token)) return job;
+        let completed = {
+          ...job,
+          status: runResult.status === "preview-ready" ? "succeeded" : "failed",
+          updatedAt: completedAt,
+          completedAt,
+          ...(runResult.status === "preview-ready" ? { result: runResult, error: null } : { error: { code: runResult.error?.code || "generation-failed", message: String(runResult.error?.message || "Generation failed").slice(0, 240), httpStatus: Number(runResult.error?.httpStatus) || 422 } }),
+          telemetry: telemetryFor(job, completedAt, runResult.repairAttempts),
+          lease: null
+        };
+        if (runResult.status === "preview-ready") completed = appendSectionReadyEvents(completed, runResult, completedAt);
+        return appendJobEvent(completed, runResult.status === "preview-ready" ? "preview.ready" : "job.failed", completedAt, runResult.status === "preview-ready" ? { stage: "preview-ready" } : { code: runResult.error?.code || "generation-failed" });
+      });
     } catch (error) {
       const completedAt = new Date(clock()).toISOString();
       return jobRepository.update(id, (job) => ownsLease(job, token) ? appendJobEvent({ ...job, status: "failed", updatedAt: completedAt, completedAt, error: { code: error?.code || error?.issues?.[0]?.code || "generation-failed", message: String(error?.message || "Generation failed").slice(0, 240), httpStatus: Number(error?.httpStatus || error?.statusCode) || 422 }, telemetry: telemetryFor(job, completedAt), lease: null }, "job.failed", completedAt, { code: error?.code || error?.issues?.[0]?.code || "generation-failed" }) : job);
@@ -246,7 +306,14 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
       if (!job || job.type !== "dashboard-generation") return null;
       authorize(job, actor);
       const cursor = Math.max(0, Number(after) || 0);
-      return { events: (job.events || []).filter(({ id: eventId }) => eventId > cursor).map((event) => structuredClone(event)), terminal: terminalStatuses.has(job.status), status: job.status };
+      return {
+        events: (job.events || []).filter(({ id: eventId }) => eventId > cursor).map((event) => structuredClone(event)),
+        terminal: terminalStatuses.has(job.status),
+        status: job.status,
+        stage: generationStage(job),
+        progress: generationProgress(job),
+        updatedAt: job.updatedAt
+      };
     },
     async cancel(id, actor) {
       const current = await jobRepository.get(id);
@@ -257,6 +324,7 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
       if (handle !== undefined) { clearTimer(handle); timers.delete(id); }
       controllers.get(id)?.abort("provider_canceled");
       stopHeartbeat(id);
+      stopLeaseRecovery(id);
       const completedAt = new Date(clock()).toISOString();
       const job = await jobRepository.update(id, (candidate) => activeStatuses.has(candidate.status) ? appendJobEvent({ ...candidate, status: "canceled", updatedAt: completedAt, completedAt, error: null, telemetry: telemetryFor(candidate, completedAt), lease: null }, "job.canceled", completedAt) : candidate);
       return generationJobSummary(job);
@@ -292,13 +360,16 @@ export function createGenerationJobService({ jobRepository, provider, resolveDat
       resumed = true;
       for (const job of await jobRepository.list()) {
         if (job.type !== "dashboard-generation" || !activeStatuses.has(job.status)) continue;
-        if (job.status === "running" && Date.parse(job.lease?.expiresAt || "") > clock()) continue;
+        if (job.status === "running" && Date.parse(job.lease?.expiresAt || "") > clock()) {
+          scheduleLeaseRecovery(job.id, job.lease.expiresAt);
+          continue;
+        }
         const queued = job.status === "running" ? await jobRepository.update(job.id, (candidate) => candidate.status === "running" && Date.parse(candidate.lease?.expiresAt || "") <= clock() ? ({ ...candidate, status: "queued", updatedAt: new Date(clock()).toISOString(), lease: null }) : candidate) : job;
         if (queued.status === "queued") schedule(queued);
       }
     },
     run,
     workerId,
-    get activeTimerCount() { return timers.size + heartbeatTimers.size; }
+    get activeTimerCount() { return timers.size + heartbeatTimers.size + leaseRecoveryTimers.size; }
   };
 }

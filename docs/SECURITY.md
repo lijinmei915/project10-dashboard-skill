@@ -1,7 +1,7 @@
 ---
 layer: governance
 type: spec
-last_verified: 2026-08-11
+last_verified: 2026-08-22
 depends_on: [docs/ARCHITECTURE.md, docs/ENVIRONMENT.md]
 ---
 
@@ -14,18 +14,28 @@ depends_on: [docs/ARCHITECTURE.md, docs/ENVIRONMENT.md]
 ## 运行模式
 
 - `disabled`：默认本地开发模式，服务端使用 `local-admin`；只能监听可信本机环境，不构成多用户认证。
-- `token`：服务端环境配置用户与一次性登录令牌；令牌只进入登录请求，成功后换成服务端内存会话。
+- `password`：个人在线模式。用户以邮箱和密码注册、登录，每个账户自动获得独立个人空间；密码使用带随机盐的 `scrypt` 哈希，原文不进入账户文件、Session、日志或业务对象。
+- `token`：仅保留给旧部署迁移的兼容模式，不再提供产品登录入口；新部署不得使用管理员分发令牌作为个人账户方案。
 - `oidc`：服务端只允许 Provider 授权回调创建 session；token 登录端点返回拒绝。file 与 PostgreSQL storage 都可通过显式 Provider metadata、单独 client secret 和 HTTPS JWK URI 环境配置启用；PostgreSQL 使用共享 External Identity 仓储。
-- token/OIDC 模式的管理 API 默认拒绝未登录请求；`/p/*` 与 `/embed/*` 继续按 Publication access 独立授权。
+- password/token/OIDC 模式的管理 API 默认拒绝未登录请求；`/p/*` 与 `/embed/*` 继续按 Publication access 独立授权。
 - `/api/platform/readiness` 与生成 health 可匿名用于进程探针；只返回 provider、布尔/枚举能力和各仓储检查状态，不返回存储目录、对象数量、业务内容、身份或凭证。
 - OIDC 模式的 readiness 额外探测 Provider 编排和 External Identity 仓储；仅报告 `mode`、provider 数量及最小状态，缺少任一依赖时返回失败，不泄露 provider ID、issuer、JWK、identity 内容或 secret。
 
 ## 会话
 
 - Cookie 为 `HttpOnly; SameSite=Strict; Path=/`，默认有效期 8 小时。
+- 密码注册与登录按来源和邮箱的不透明摘要限流，默认 15 分钟最多 8 次尝试；成功认证后清理对应失败计数。响应不回显邮箱、密码或账户是否存在的内部细节。
 - HTTPS 部署必须设置 `DASHBOARD_AUTH_SECURE_COOKIE=true`。
 - 会话 ID 使用 256-bit 随机值，只存在 HttpOnly Cookie；repository 仅保存其 SHA-256 摘要、actor/organization 引用和过期时间。访问令牌与原始会话 ID 不进入浏览器存储、URL、Project、Dataset、Publication、artifact、数据库或业务日志。
 - file provider 默认使用内存 Session，服务重启后失效；PostgreSQL provider 使用共享 Session，支持跨实例读取和注销。人工组织成员暂停或移除会把按成员撤销写入组织更新的 durable outbox，再由 dispatcher 清理同组织全部 session；每次鉴权仍重新映射当前受控身份，因此延迟投递不会让已移除身份继续访问。
+
+### 个人账号界面边界
+
+- `disabled` 模式不显示登录门禁；只有 `password / token / oidc` 部署需要认证界面。
+- `password` 状态公开 `registration` 与 `passwordRecovery` 能力。当前允许自助注册但不具备密码找回通道；“忘记密码”只说明联系维护者，不声称已发送邮件。
+- 登录页不持久化密码；错误凭证后清空密码并保留邮箱。网络或状态接口失败时隐藏表单，仅提供明确故障状态与重新连接，避免在服务未知时接受凭证。
+- 登录成功后保持当前相对路径与查询参数并重新激活深链。外部身份 return path 只接受站内相对路径，继续受 OIDC transaction 校验约束。
+- 退出入口位于项目中心，调用同源 `POST /api/auth/logout` 清理服务端 Session 和 Cookie；隐藏入口不等于会话撤销。
 
 ## 授权
 
@@ -50,7 +60,7 @@ depends_on: [docs/ARCHITECTURE.md, docs/ENVIRONMENT.md]
 
 ### Project ACL
 
-- 每个 token 身份属于一个 `organizationId`；身份目录、Project 列表和审计事件先按组织隔离，再执行 Project ACL。跨组织 admin 不具有访问权。
+- 每个个人账户内部使用唯一 `personal-<account-id>` 作为隔离空间键；该键不作为产品中的组织概念展示。身份目录、Project 列表和审计事件先按空间隔离，再执行 Project ACL。
 - 新 Project 自动将创建者记录为 owner；owner 可授予其他身份 `viewer` 或 `editor` 项目角色。
 - 全局 `admin` 可读取、编辑和管理所有 Project；全局 `editor` 仍须是 Project owner/editor 才能写入，全局 `viewer` 即使被授予项目 editor 也保持只读。
 - Project 列表过滤不可见对象；读取、revision、历史、恢复、导出、Publication 管理和访问审计均在服务端执行资源授权。
@@ -104,5 +114,5 @@ depends_on: [docs/ARCHITECTURE.md, docs/ENVIRONMENT.md]
 ## 当前非目标
 
 - 当前没有跨组织委派、邀请邮件投递、SCIM、MFA、密码找回、分布式/账户级速率限制、策略管理 UI、独立验证的审计链头外部保留或合规保留策略。
-- token 身份源适合受控部署，不替代企业 IdP、SSO 或 MFA。
+- 旧 token 身份源只用于迁移，不替代个人账号、企业 IdP、SSO 或 MFA。
 - PostgreSQL 已提供共享数据库事务、Session、Organization、Refresh 租约、集中审计与共享查询缓存；多实例生产部署仍须补集中运维、密钥管理与组织策略治理。

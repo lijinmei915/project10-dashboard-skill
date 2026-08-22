@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: log
-last_verified: 2026-08-11
+last_verified: 2026-08-22
 depends_on: [docs/CHANGELOG.md]
 ---
 
@@ -636,10 +636,30 @@ depends_on: [docs/CHANGELOG.md]
 
 - 结论：项目中心继续使用浮层完成数据、需求和页面类型输入；服务端返回 Generation Job ID 后立即关闭浮层，由主画布生成浮条提供状态、停止、接受和放弃操作
 - 原因：生成阶段需要观察画布变化，长时间保持模态浮层会遮挡用户最需要检查的内容。保留 Composer 作为唯一状态源，画布只投影其状态和调用原操作，可避免形成第二套生成事务
-- 边界：本阶段仍在完整候选通过校验后替换隔离预览，不将半截 JSON 或未校验分区写入 Workspace。任务进度后续由 SSE 事件接管；接受前不创建 revision，放弃和失败必须恢复 baseline
+- 边界：完整候选通过校验后才替换隔离预览，不将半截 JSON 或未校验分区写入 Workspace。任务进度由 SSE 的安全阶段事件和 `section.ready` 接管；接受前不创建 revision，放弃和失败必须恢复 baseline
 
 ### 决策 104：生成进度与 Provider 内容流分层，使用三段超时
 
 - 结论：浏览器通过可恢复 SSE 只接收受控 Job 阶段；服务端对 Provider 请求使用默认 120 秒首包、60 秒流空闲和 5 分钟最大任务时长，并在内存中拼接完整候选 JSON。
 - 原因：固定总超时会误杀持续输出的复杂生成，高频轮询又产生无意义请求；分段时限既允许长任务持续推进，也能识别未响应、输出中断和无限生成三种故障。
 - 边界：Provider 原始 chunk、prompt、Key、DataContext 和半截 JSON 不进入 Job SSE、Workspace 或日志。只有完整候选通过 Schema、命令和安全校验后才能成为预览；取消始终优先映射为 `provider_canceled`。
+
+### 决策 105：进度传输状态与 Generation Job 状态分离
+
+- 结论：SSE 只承担可恢复的进度通知，每次连接首帧必须发送不含输入或结果的 `job.snapshot`；浏览器断线时只在该时段以低频 HTTP 查询权威 Job，连接恢复后停止回退查询。SSE 错误本身不得把任务标为失败。成功任务在完整 Generation Bundle、Workspace、Command materialization 与 provenance 校验通过后，持久化与分区一一对应的 `section.ready`，再写入 `preview.ready`
+- 原因：浏览器、代理或服务重启都可能中断长连接，但持久化任务仍可继续；若把 EventSource 错误直接映射为生成失败，用户会看到与服务端事实冲突的状态，也可能错过已持久化的终态事件
+- 边界：任务进程重启后必须等待旧 worker 租约到期再重新入队，避免双执行；当前仍是 Web 进程内 worker 与 file/PostgreSQL Job Repository，尚未拆为独立队列 worker。`section.ready` 只携带分区序号、总数和组件数，表示已验证分区的顺序呈现，不是 Provider partial JSON、独立分区模型调用或部分 Workspace 提交；完整 Workspace 仍只在终态后原子替换画布
+
+## 2026-08-22
+
+### 决策 106：个人账号作为默认在线身份
+
+- 结论：本地可信单机场景继续使用 `disabled`；在线个人场景使用邮箱密码账号，每个账号自动创建独立个人空间。`token` 只保留旧部署服务端迁移兼容，不恢复令牌输入框，也不把 AI Provider Key 当作 Studio 登录凭证
+- 原因：当前产品面向个人使用，不需要管理员分发凭证或组织配置；账号密码更符合普通用户认知，也能让项目、数据和 AI 连接按个人身份隔离
+- 边界：当前没有邮件投递、重置令牌仓储和重置页面，因此公开 `passwordRecovery=false`；界面只说明联系维护者，不得伪造“邮件已发送”
+
+### 决策 107：登录门禁保持原始深链
+
+- 结论：身份状态在 Studio 壳层读取，不用独立登录路由替换目标地址。认证成功派发 `dashboard-auth-ready`，Router 重新激活当前 `/studio/projects/:id` 或其他站内路由
+- 原因：用户通常从具体项目链接进入；登录后退回列表会丢失任务上下文。保持 pathname 和 query 可以让认证只作为门禁，不改变用户目标
+- 边界：服务状态未知时隐藏提交表单并只提供重新连接；邮箱可保留，密码不持久化。退出入口融合进项目中心标题栏，主画布不增加账号浮动控件

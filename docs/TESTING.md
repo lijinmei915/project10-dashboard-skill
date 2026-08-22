@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: guide
-last_verified: 2026-08-11
+last_verified: 2026-08-22
 depends_on: [.agents/skills/dashboard-html/references/testing.md]
 ---
 
@@ -23,7 +23,7 @@ npm run test:browser
 ```
 
 - `npm run check` 验证预览服务语法、workspace / generation 协议、固定色板、Skill 包清单和连续两次打包的逐字节可复现性。
-- 同一命令要求预览 HTML 零内联脚本、独立解析 `studio/editor-runtime.js` 和 Studio 模块，并执行 workspace 迁移、字段与结构命令事务、精确数组反向命令、生成状态机、来源一致性、多领域口述首稿、Provider Gateway、Generation Job 租约/取消/恢复、页面级交互协议、跨组件数据联动，以及生成、局部精修、提交、撤销、历史查询和恢复 HTTP 接口测试。
+- 同一命令要求预览 HTML 零内联脚本、独立解析 `studio/editor-runtime.js` 和 Studio 模块，并执行 workspace 迁移、字段与结构命令事务、精确数组反向命令、生成状态机、来源一致性、多领域口述首稿、Provider Gateway、Generation Job 租约/取消/恢复、SSE 快照与逐分区进度、页面级交互协议、跨组件数据联动，以及生成、局部精修、提交、撤销、历史查询和恢复 HTTP 接口测试。
 - 浏览器生成流程还会通过可见自定义选择器手动切换图表类型，确认画布、手工 revision 和 standalone 中的受控 `props.chartType` 一致。
 - 同一浏览器流程将当前 workspace 降为 v1，确认共享 core 恢复后得到 v2、默认 headerAlign 和 paletteVersion；随后提交非法快照，确认 bridge 抛出受控错误且当前画布标题不变。
 - `npm run build:skill` 按显式清单生成 ZIP，解包后要求文件与清单完全一致，并在解包目录再次运行契约检查。
@@ -128,7 +128,9 @@ npm run test:browser
 - 双页面项目回归中，一页先保存手工 revision，另一页以旧 revision 保存必须得到 `409` 提示并保留脏状态；用户确认“重新加载”后才恢复服务器最新 workspace，旧页面不可能静默覆盖
 - Workspace Session 单测覆盖 localStorage 正常/坏 JSON、URL state 与旧 hash config、写回时移除 logo、配额失败、旧历史清理和工程内嵌状态
 - 当前完整自动基线：Generation eval `8/8`、平均 `100`、修复 `0`；Node `141 passed / 6 PostgreSQL environment skip`、Playwright `15/15`、Skill 29 文件且可复现；Skill SHA-256 为 `8e39d228e9f3863c5da12a75286c27603817e01ba6dff520b4303c55408bb3a9`。
-- Generation Job 定向回归覆盖公开摘要不返回 input、同组织发起人/管理员授权、双 worker 只调用一次 Provider、运行中取消 fencing、HTTP 创建/轮询、浏览器迟到结果拒绝和刷新后任务恢复。
+- Generation Job 定向回归覆盖公开摘要不返回 input、同组织发起人/管理员授权、双 worker 只调用一次 Provider、运行中取消 fencing、HTTP 创建/轮询、浏览器迟到结果拒绝和刷新后任务恢复；同时验证 SSE 首帧快照、`Last-Event-ID` 续传、遗漏终态恢复和断线 HTTP 兜底不把任务误标为失败。
+- 逐分区进度回归要求：成功 Job 的 `section.ready` 与已验证 Workspace 分区一一对应且严格位于 `preview.ready` 之前；失败 Job 不产生该事件；事件和公开 `progress` 不得包含标题、正文、prompt、Workspace 或 Provider 输出；前端必须监听事件并禁止用 interval 模拟完成数。
+- 重启恢复回归要求：新 worker 遇到未过期旧租约时等待而非抢占，旧 worker 续租时继续等待，租约过期后仅一个 worker 重新入队接管，旧 fencing token 的迟到结果不得覆盖终态。
 - 浏览器导出回归证明：AI 首稿接受后产生未保存手动修改时，点击导出先追加新的 `revision-user-*`，再下载该不可变版本；产物不含 Studio 模块或 DOM fallback 标识。
 - renderer parity 合同逐项验证同一 revision 的 section、component、顺序、跨度、页面类型、明暗主题和数据来源标记在 standalone 中无遗漏或重复；筛选、Tab 和响应式继续由 Chromium artifact 回归证明。
 - Anchor 回归覆盖 HTTPS-only 最小 payload、bearer secret 不进入 payload、失败分类后保留稳定 anchor 重试和 receipt 最小持久化；配置 `DASHBOARD_TEST_POSTGRES_URL` 后，PostgreSQL conformance 额外验证 chain commit 同事务创建 anchor、跨连接池投递和 current status。
@@ -193,7 +195,7 @@ npm run test:browser
 - 配置组织审批时，editor 创建的 unlisted Publication 为 `pending`，正确 token 的 share/embed 在批准前仍为 `404`；仅同组织管理员可批准，批准后原链接生效，审批人/请求人 ID 不进入公开摘要
 - Publication 的创建、提交审批、批准和撤回会生成最小 project audit event；审计仓储故障时 Publication 仍写入并保留内部 outbox，恢复后从审计读取路径重投，audit API 不返回 token、URL 或内部 outbox
 - Playwright 以真实 Studio token 会话覆盖审批交互：editor 提交 unlisted 发布后仅看到“待审批”且原链接为 404；切换为同组织管理员后显示“批准发布”，批准完成后同一链接返回 200
-- 同一审批流程还验证项目记录把 `publication.submitted / publication.approved` 显示为“提交发布审批 / 批准发布”，管理员无需理解内部审计 action 才能复核治理决策
+- 同一审批流程通过审计 API 验证 `publication.submitted / publication.approved` 事件完整；当前个人产品界面不展示项目记录入口
 - 相同 Semantic Query 二次请求命中缓存；TTL 到期、Dataset 指纹变化或语义版本变化必须 miss。成功刷新返回最新聚合，失败刷新保留上一版 records/fingerprint 并可再次上传重试
 - Publication 详情在 Dataset 成功刷新后显示 `stale`，数据源不存在时显示 `missing`，便携内嵌数据标记为 `embedded`
 - Studio 发布管理已验证发布当前 revision、选择 unlisted、下载 artifact、确认撤回和撤回后返回 `410`；重新运行测试不会继承上一轮 Publication
@@ -211,7 +213,7 @@ npm run test:browser
 - token 模式未登录管理 API 返回 401，错误 token 不进入响应；登录 Cookie 包含 HttpOnly 与 SameSite=Strict，HTTPS 配置增加 Secure
 - viewer 可读取 Project，但写入返回 403；editor 缺失或伪造 Origin 的非 GET 请求返回 403，同源写入成功
 - 退出清除服务端会话和 Cookie，旧 Cookie 再访问返回 401
-- 真实浏览器验证登录门禁、错误令牌、viewer 只读、固定退出入口、editor 登录和 Cookie 会话；默认 disabled 模式既有 8 条流程继续兼容
+- 真实浏览器验证 token 迁移提示、服务 API 角色会话、viewer 只读和 Cookie 会话；产品界面不再提供令牌输入，默认 disabled 模式继续兼容
 - REST Connector 验证精确主机白名单、HTTPS、敏感查询参数、服务端凭证引用、禁止重定向、JSON recordsPath、2 MB 上限和凭证不落盘；未配置连接器返回 `503`
 - Refresh Job 验证指数退避、最大尝试、同 Dataset 活跃任务冲突、重启恢复、成功/失败终态和 `/api/jobs` 可观察性；Studio 连接 API 后通过 job 刷新并读取最新 Dataset
 - Refresh Job 取消验证 queued 定时器被移除、running 迟到结果不写入 Dataset；Schedule 验证固定间隔、触发 Job、禁用、持久化 API 和 Studio 频率/任务管理
@@ -219,6 +221,17 @@ npm run test:browser
 - Node 回归 `57/57` 通过；浏览器回归 `7/7` 通过
 - 编码 `001` 已验证可从误推断数字无损恢复为文本；语义模型版本递增，过期 schema 更新返回 `409`
 - 浏览器字段配置将收入设为 `max + 人民币`、转化率设为 `average + 百分比`，生成 KPI 分别显示 `¥1,800` 和 `35%`
+
+## 个人账号登录验收
+
+2026-08-22 已完成：
+
+- Node 合同覆盖 password 匿名状态能力、自助注册、带盐 `scrypt` 存储、重复账号、错误凭证、限流、HttpOnly Cookie、注销、Session 恢复、个人项目隔离和 disabled 本地免登录。
+- Playwright 使用独立临时账户/项目仓储验证服务首次 `503` 后重新连接、邮箱原生校验、错误凭证保留邮箱、密码显隐 `aria-pressed`、未配置找回说明、注册、刷新恢复、退出和重新登录。
+- 深链从 `/studio/projects/:id` 进入登录门禁，成功登录后重新激活原项目；不跳回项目列表，也不丢失查询参数。
+- 390 × 844 移动端登录卡宽度不超过可用视口，页面横向溢出不超过 1px；验收截图由 `test/browser/password-auth.spec.mjs` 产出。
+- 旧 token 浏览器回归只验证迁移提示；角色会话通过服务 API 建立，继续覆盖 viewer/editor 权限，但不恢复已废弃的令牌输入框。
+- 推荐门禁：`node --test test/password-auth.test.mjs test/studio-auth-service.test.mjs test/organization-service.test.mjs`、`npx playwright test test/browser/password-auth.spec.mjs`、`npm test`、`npm run test:studio-build`、`npm run test:browser`。
 
 ## M3 阶段门槛审计
 

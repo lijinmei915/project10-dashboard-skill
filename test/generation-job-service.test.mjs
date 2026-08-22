@@ -49,7 +49,10 @@ test("generation jobs persist lifecycle while hiding internal input from summari
   assert.equal(completed.run.status, "preview-ready");
   assert.equal(completed.input, undefined);
   const eventSnapshot = await service.events(created.id, actor);
-  assert.deepEqual(eventSnapshot.events.map(({ type }) => type), ["job.queued", "job.started", "generation.generating", "preview.ready"]);
+  const sectionCount = completed.run.preview.workspace.document.sections.length;
+  assert.deepEqual(eventSnapshot.events.map(({ type }) => type), ["job.queued", "job.started", "generation.generating", ...Array(sectionCount).fill("section.ready"), "preview.ready"]);
+  assert.deepEqual(eventSnapshot.events.filter(({ type }) => type === "section.ready").map(({ sectionIndex, sectionCount: total }) => [sectionIndex, total]), Array.from({ length: sectionCount }, (_, index) => [index + 1, sectionCount]));
+  assert.deepEqual(eventSnapshot.progress, { sectionsReady: sectionCount, sectionCount });
   assert.equal(eventSnapshot.terminal, true);
   const stored = await jobRepository.get(created.id);
   assert.equal(stored.input.request.prompt, request.prompt);
@@ -101,6 +104,39 @@ test("generation job lease lets only one worker call the provider", async (t) =>
   await Promise.all([first.run("generation-race"), second.run("generation-race")]);
   assert.equal(providerCalls, 1);
   assert.equal((await first.get("generation-race", actor)).status, "succeeded");
+});
+
+test("a new worker resumes a running job after the inherited lease expires", async (t) => {
+  const jobRepository = await fixture(t);
+  const dormantService = createGenerationJobService({
+    jobRepository,
+    provider: createProviderFromEnv({}),
+    resolveData: async (candidate) => ({ request: candidate, dataContexts: [] }),
+    timer: () => 1,
+    clearTimer: () => {}
+  });
+  await dormantService.create({ id: "generation-restart-recovery", mode: "draft", request, baseWorkspace: baseline, actor });
+  await jobRepository.update("generation-restart-recovery", (job) => ({
+    ...job,
+    status: "running",
+    startedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    lease: {
+      ownerId: "stopped-worker",
+      token: "stopped-worker-token",
+      acquiredAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 80).toISOString()
+    }
+  }));
+  const resumedService = createGenerationJobService({
+    jobRepository,
+    provider: createProviderFromEnv({}),
+    resolveData: async (candidate) => ({ request: candidate, dataContexts: [] })
+  });
+  await resumedService.resume();
+  const completed = await waitFor(() => resumedService.get("generation-restart-recovery", actor), ({ status }) => status === "succeeded", 2_000);
+  assert.equal(completed.run.status, "preview-ready");
+  assert.equal(resumedService.activeTimerCount, 0);
 });
 
 test("generation metrics aggregate one organization without exposing job inputs", async (t) => {
@@ -174,6 +210,8 @@ test("limits the complete generation job including provider repair", async (t) =
   const completed = await waitFor(() => service.get("generation-deadline", actor), ({ status }) => status === "failed", 2_000);
   assert.equal(completed.error.code, "provider_timeout");
   assert.equal(completed.error.httpStatus, 504);
+  assert.deepEqual(completed.progress, { sectionsReady: 0, sectionCount: 0 });
+  assert.equal((await service.events("generation-deadline", actor)).events.some(({ type }) => type === "section.ready"), false);
 });
 
 test("generation job HTTP API creates and polls an isolated preview", async (t) => {
@@ -201,9 +239,25 @@ test("generation job HTTP API creates and polls an isolated preview", async (t) 
   assert.equal(eventResponse.status, 200);
   assert.match(eventResponse.headers.get("content-type"), /^text\/event-stream/);
   const eventStream = await eventResponse.text();
+  assert.match(eventStream, /event: job\.snapshot/);
+  assert.match(eventStream, /"status":"succeeded"/);
+  assert.match(eventStream, /"stage":"ready"/);
+  assert.match(eventStream, /"progress":\{"sectionsReady":\d+,"sectionCount":\d+\}/);
+  assert.match(eventStream, /"terminal":true/);
   assert.match(eventStream, /event: generation\.generating/);
+  assert.match(eventStream, /event: section\.ready/);
   assert.match(eventStream, /event: preview\.ready/);
   assert.doesNotMatch(eventStream, /event: job\.queued/);
+  assert.doesNotMatch(eventStream, /生成销售经营看板|async-generation|actorId|workspace/i);
+  assert.equal(eventStream.includes(completed.run.preview.workspace.document.sections[0].title), false);
+  const recoveredTerminalResponse = await fetch(`${endpoint}/api/generation/jobs/${created.id}/events`, { headers: { "Last-Event-ID": "999" } });
+  assert.equal(recoveredTerminalResponse.status, 200);
+  const recoveredTerminalStream = await recoveredTerminalResponse.text();
+  assert.match(recoveredTerminalStream, /event: job\.snapshot/);
+  assert.match(recoveredTerminalStream, /"status":"succeeded"/);
+  assert.match(recoveredTerminalStream, /"progress":\{"sectionsReady":\d+,"sectionCount":\d+\}/);
+  assert.match(recoveredTerminalStream, /"terminal":true/);
+  assert.doesNotMatch(recoveredTerminalStream, /event: preview\.ready/);
   const feedbackResponse = await fetch(`${endpoint}/api/generation/jobs/${created.id}/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

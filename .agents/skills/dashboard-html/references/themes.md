@@ -112,12 +112,13 @@ accent       -> 非语义强调色 seed，由主题契约派生正文适配色
 ## Chart Palette
 
 ```txt
+auto         -> 单系列单色、双系列双色、三系列及以上与饼图分类多色
 monochrome   -> 使用固定色板中最接近主题色相的一色
 bichrome     -> 使用固定色板中最接近主题色相的两色
 categorical  -> 不同类别或系列使用产品固定 8 色分类色板
 ```
 
-`monochrome` 是默认值，按主题色相从固定色板取最近一色；`bichrome` 取最近两色；`categorical` 使用完整固定色板。色值、可见项排序、多色和多色渐变规则以 `color-system.md` 与 `assets/palette.v1.json` 为准。双色只用于两组数据或明确二分类，不得把单系列时间序列按奇偶项交替着色。
+`auto` 是标准看板默认值，根据图表类型和系列数量解析为其余三种模式；饼图、环图和玫瑰图始终按分类多色。`monochrome` 按主题色相从固定色板取最近一色；`bichrome` 取最近两色；`categorical` 使用完整固定色板。色值、可见项排序、多色和多色渐变规则以 `color-system.md` 与 `assets/palette.v1.json` 为准。不得把单系列时间序列或单系列柱状图按数据项交替着色。
 
 ## Card Overrides
 
@@ -184,6 +185,16 @@ categorical  -> 不同类别或系列使用产品固定 8 色分类色板
 ## Section Header Styles
 
 分组标题是主题的一部分，但不决定 section 内容。使用 starter 的 `.section-header`、`.section-heading`、`.section-index`、`.section-title` 和 `.section-note`。
+
+Studio 的分组标题装饰可使用 `marker-glow`：左侧为 `6px × 12px` 的主题色短标，并以主题浅色形成 `3px` 柔光。`sectionDivider: trailing` 使用从 `--accent-line` 到透明的右侧渐隐横线，不使用贯穿整行的实色硬线。这两项只改变标题视觉，不改变分组结构、顺序或内容。
+
+KPI 图标不向用户暴露形态、容器和颜色的任意组合，而使用固定样式：无、主题/多色线型、主题/多色面型、主题/多色浅底、主题/多色光感、主题/多色反白。默认是无底的“主题线型”，单卡额外支持“跟随整组”。固定样式仍序列化到 `kpiIcon / kpiIconContainer / kpiIconColor`，保持 Workspace 和导出兼容。选择器中的主题预览必须读取当前主题派生图标色；多色使用 fx-ui-report-skill 的橙、蓝、绿、紫四组 KPI 色，并以四枚独立色块表达。画布中的多色语义是多张 KPI 分别使用 `#FF8000→#FFB347`、`#2563EB→#60A5FA`、`#16A34A→#4ADE80`、`#8B5CF6→#C4B5FD`，不是在一张图标中混合多个色相；卡片少于四张时按卡片总数均匀抽取。
+
+“主题光感 / 多色光感”使用线型图标和 `glow` 容器，替代旧“深底线型”。容器默认 `34px` 方形、`16px` 图标、`135deg` 同色渐变和同色柔影。容器颜色必须读取每卡 `--icon-solid / --icon-solid-alt`；多色模式按 KPI 分类色分别呈现，不能把全部 KPI 强制为同一主题色。
+
+“主题浅底 / 多色浅底”的线型 glyph 与对应无底线型保持相同视觉粗细；浅底不再使用整体 `84%` 缩放，并在较小标准尺寸上使用轻量 path 轮廓补偿，避免 glyph 缩小后线条变细。面型和反白样式可继续按容器密度控制 glyph 比例。
+
+KPI 图标大小只提供“标准 / 大”两档，默认标准。无底图标的标准/大分别使用 `40px / 48px` 占位盒与 `23px / 28px` glyph；带底图标的标准/大分别使用 `34px / 40px` 容器与 `21px / 23px` glyph。历史 `small` 统一迁移为 `medium / 标准`，不再向用户显示“小 / 中 / 大”三档。
 
 | `sectionStyle` | 表现 |
 |---|---|

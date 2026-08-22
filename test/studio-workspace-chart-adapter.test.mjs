@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chartAriaLabel, normalizeChartSeries, requestChartSvg, visibleChartSeries } from "../studio/workspace-chart-adapter.mjs";
+import { automaticChartPaletteMode, chartAriaLabel, normalizeChartSeries, requestChartSvg, visibleChartSeries } from "../studio/workspace-chart-adapter.mjs";
 
 test("normalizes explicit chart series and numeric values", () => {
   assert.deepEqual(normalizeChartSeries({ title: "趋势", props: { series: [{ name: "收入", values: [1, "2"] }, { values: [3] }] } }), [
@@ -17,6 +17,16 @@ test("filters chart series from persisted legend state and never renders an empt
   const component = { title: "趋势", props: { series: [{ name: "收入", values: [1] }, { name: "订单", values: [2] }] } };
   assert.deepEqual(visibleChartSeries(component, { 收入: false }), [{ name: "订单", values: [2] }]);
   assert.deepEqual(visibleChartSeries(component, { 收入: false, 订单: false }), normalizeChartSeries(component));
+});
+
+test("selects an automatic palette from chart semantics and series count", () => {
+  const series = (count) => ({ props: { series: Array.from({ length: count }, (_, index) => ({ name: `系列 ${index + 1}`, values: [index + 1] })) } });
+  assert.equal(automaticChartPaletteMode(series(1), "bar"), "monochrome");
+  assert.equal(automaticChartPaletteMode(series(2), "grouped-bar"), "bichrome");
+  assert.equal(automaticChartPaletteMode(series(3), "line"), "categorical");
+  assert.equal(automaticChartPaletteMode(series(1), "pie"), "categorical");
+  assert.equal(automaticChartPaletteMode(series(2), "radar"), "categorical");
+  assert.equal(automaticChartPaletteMode(series(1), "funnel"), "categorical");
 });
 
 test("builds accessible labels for every controlled chart type", () => {
@@ -38,6 +48,9 @@ test("builds accessible labels for every controlled chart type", () => {
   assert.equal(chartAriaLabel("构成", "sector-pie"), "构成 · 饼图");
   assert.equal(chartAriaLabel("占比", "pie"), "占比 · 环图");
   assert.equal(chartAriaLabel("规模", "rose"), "规模 · 玫瑰图");
+  assert.equal(chartAriaLabel("能力", "radar"), "能力 · 雷达图");
+  assert.equal(chartAriaLabel("转化", "funnel"), "转化 · 漏斗图");
+  assert.equal(chartAriaLabel("明细", "data-table"), "明细 · 表格");
 });
 
 test("requests a valid SVG and rejects invalid chart responses", async () => {

@@ -9,7 +9,7 @@
 ---
 layer: knowledge
 type: status
-last_verified: 2026-08-11
+last_verified: 2026-08-22
 depends_on: [PROJECT.md]
 ---
 
@@ -21,17 +21,18 @@ depends_on: [PROJECT.md]
 
 ## 当前状态
 
+- 个人账号登录体验已完成产品化：本地 `disabled` 模式免登录；在线 `password` 模式支持注册、登录、完整错误状态、服务重试、密码显隐、Session 恢复和项目深链回跳。退出入口收进项目中心标题栏，主画布不新增浮动账号按钮；密码找回尚无邮件通道，界面明确说明联系维护者。
 - HTML 导入现支持表格与通用页面自动分流：表格进入结构化 Dataset，报告/Dashboard 提取标题、分区、正文和列表，并在生成时统一按当前 Workspace、主题和组件规范重建。通用 HTML 可不填写提示词直接生成；原脚本与样式不会执行或进入成品。
 - Dashboard 独立 Provider 已完成第三阶段：组织管理员可新增、编辑、删除、切换、发现模型和测试连接；组织级档案与凭证分仓持久化，Generation Job 按 organizationId 解析 Provider，最后一个档案删除后回退本地演示。OmniDesk 仅作公开格式迁移兼容。19 项 Provider 定向测试、完整 177 项 Node 基线和 Playwright 18/18 通过。当前 file 凭证仓储仅适合单实例；下一阶段是共享 Profile Repository、Secret Manager/KMS 端口、密钥轮换和治理审计。
 - 已完成可选组织级 Publication 审批：环境变量指定的组织创建 `pending` 发布，外部 share/embed 在批准前隐藏为 404；组织管理员批准后原链接生效。定向 Node 回归覆盖策略解析、状态转换、跨组织拒绝和 token 外链边界
 - Publication 的创建、提交审批、批准和撤回现通过对象内 audit outbox 投递最小项目审计事件。审计故障不回滚业务，恢复后可从审计读取路径完成重投；file/PostgreSQL 适配器均隐藏内部 outbox，事件不含 token、URL、HTML 或 records
 - 配置外部 audit anchor 时，Publication audit outbox 的每次成功投递会同步请求异步链头刷新，锚定失败保持不回滚业务或内部 audit；定向 Node 回归覆盖该链路
 - Playwright 已补 Publication 审批真实 UI 证据：editor 提交 pending 后不显示批准按钮且 link 404；同组织管理员批准后 UI 和同一 link 同步变为已发布/200
-- 项目记录现将发布相关审计事件显示为“发布版本 / 提交发布审批 / 批准发布 / 撤回发布”；审批 Playwright 从编辑者提交、管理员批准一直验证到可读的项目记录
+- 发布相关审计事件仍以 `publication.submitted / publication.approved` 等稳定 action 保留在审计 API；当前个人产品界面已移除项目记录入口，审批 Playwright 直接验证事件合同
 - 当前做到：`M0-M3 阶段门槛已通过；自然语言生成、精修版本、真实数据、刷新调度、发布访问和多格式交付形成闭环。`
 - 当前阻塞：`无硬阻塞；真实联网 smoke test 需要部署环境显式提供模型与 API key，其他平台工作可继续。`
 - 组件能力已收口到统一目录入口：`/api/components/catalog` 返回 6 类内容组件、2 类页面控件和 5 类图表，AI Composer 与 Provider 共用该来源；契约门禁同步核对 Registry、Schema 和 Workspace Runtime，六类组件均有确定性导出证据，`text` 已补 Studio 显式渲染。便携 Skill 仍保持 29 文件。
-- AI 浮层可从能力目录选择“要求首稿包含”的组件并写入提示词；`text` 现可由口径说明、备注或文本组件意图生成，并贯通 Section、布局、provenance、版本和导出。
+- AI 根据自然语言和能力目录自动选择组件，不再展示手工组件选择；`text` 可由口径说明、备注或文本组件意图生成，并贯通 Section、布局、provenance、版本和导出。
 - Workspace 结构协调层现已支持完整 Section 生命周期：动态创建、排序、标题/副标题更新、布局工具绑定和删除，再同步分区内卡片；浏览器回归证明新增“附录”分区进入画布与 revision 导出，恢复原 Workspace 后整区消失。
 - AI Composer 现支持 Section 与 Component 双作用域：选中分区后可改标题/副标题、前移/后移、新增说明分区或删除分区；候选继续走字段级 Command Batch、隔离预览、revision 和整批撤销。删除会同步清理控件、交互、视觉和资源引用，最后一个分区受保护。
 - Dataset 已建立组织硬边界和可选行级策略：服务端固化组织/owner，所有数据 API、刷新任务与 Generation Job 解析先校验组织；`DASHBOARD_DATA_POLICIES_JSON` 可按 actor/角色注入受控语义维度过滤。预览、查询、模型上下文、portable 副本和策略隔离缓存使用同一授权数据视图，跨组织访问与 ID 覆盖失败关闭。
@@ -42,7 +43,20 @@ depends_on: [PROJECT.md]
 
 ## 本次已完成
 
-- 当前 Dashboard 视觉配置已固化为“标准看板”预设，并同步到 Studio、standalone starter、Skill 规范和设计资源目录。浏览器实际恢复预设后确认 `#ff8000 / 14px 正文 / 10px 圆角 / 16px 卡片标题 / 多色图表 / 12px 间距 / 标准密度`，当前项目已保存为版本 `revision-user-1787225111993`。
+- KPI 图标设置已从“样式 + 颜色”自由组合收敛为固定样式单选：无、主题/多色线型、主题/多色面型、主题/多色浅底、主题/多色光感、主题/多色反白；系统预设默认“主题线型”，单卡保留“跟随整组”。底层继续序列化原有三字段，不改变 Workspace 与导出协议；自定义下拉优先使用控件显式 `aria-label`。主题选项预览读取当前主题派生色，多色选项从真实分类色板均匀抽取四色显示彩色 glyph/容器；画布 KPI 也按卡片总数均匀抽取分类色，避免少量卡片只落在相邻冷色。
+- KPI 浅底线型不再继承有底图标的 `84%` 整体缩放；主题浅底和多色浅底通过轻量 path 轮廓补偿与对应无底线型保持相同视觉粗细，容器尺寸仍按带底两档规则解析。
+- KPI 图标大小已统一为“标准 / 大”两档并默认标准：无底使用原中/大尺寸 `40/23px` 与 `48/28px`，带底使用“小号 +2px”的 `34/21px` 和原中号 `40/23px`；历史全局/单卡 `small` 自动迁移为 `medium`。
+- KPI 原“深底线型”已替换为“光感渐变”：继续使用线型图标，容器改为每卡同色渐变与柔光阴影；旧的 `outline + solid` 全局及单卡配置会通过版本标记一次性迁移到 `glow`。
+- KPI 设置已复用现有图标样式组合器重整为渐进式配置，并拆为“分组布局 / 指标图标 / 卡片外观”：图标样式置顶；未开启图标时隐藏颜色、大小、位置和底形状；无底图标仅显示颜色、大小和位置；有底图标再显示底形状。卡片底色在“卡片外观”中独立常显，全局整组与单卡局部使用同一显隐规则。
+- 已从 `fx-ui-report-skill` 的真实样式源码提取并接入三项可选视觉能力：分组标题新增 `marker-glow` 发光短标，右侧横线升级为主题弱线到透明的渐隐线，KPI 新增 `glow` 光感渐变容器。KPI 光感容器复用每卡分类色 token，支持全局与单卡覆盖、预设保存恢复，并保持标准看板默认配置不变。
+- AI 生成可靠性链路已完成：SSE 首帧提供安全的 `job.snapshot` 并保持 10 秒心跳；前端不再把进度连接中断当作生成失败，断线期间使用 4 秒低频 Job 查询补偿，30 秒后仍只提示实时进度暂不可用。取消、SSE 终态、快照终态和 HTTP 终态通过同一幂等收口处理；收到终态事件后客户端主动关流，不再把正常 EOF 闪现为“连接已恢复”
+- Generation Job 重启恢复已补齐租约等待：新 worker 遇到旧进程尚未过期的 `running` lease 会在到期后复查、重新入队并执行，活跃 worker 续租时则继续等待，避免双执行。成功任务在完整候选通过 Workspace、命令物化和来源校验后持久化逐分区 `section.ready`；失败任务不产生该事件，公开摘要只返回完成数和总数
+- AI Composer 已移除定时模拟进度，按 `section.ready` 顺序队列呈现 `1/N` 到页面校验；重连快照直接恢复权威完成数，完整 Workspace 仍只在终态后原子替换画布。修复后完整 `npm run check` 通过：Generation eval `10/10`、平均 `100`，Node `196 passed / 6 PostgreSQL environment skips / 0 failed`，Skill 31 文件可复现
+- 浏览器端到端已验证同一任务依次出现 `section.ready 1/4` 至 `4/4`、校验完成和可接受预览；停服后只显示恢复提示，重启后旧任务等待租约到期接管并最终进入 `preview.ready`。真实远程 Provider 生成成功；终态回归确认正常 EOF 不再闪现“连接已恢复”，候选均已放弃且原项目未变。该进度表示已验证分区的顺序呈现，不是模型内容逐 chunk 写入
+- 后续架构升级可将 Web API 与 AI Worker 拆分为独立执行边界；这不是当前断线恢复、服务重启接管或逐分区进度正确性的前置条件
+- 当前 Dashboard 视觉配置已固化为“标准看板”预设，并同步到 Studio、standalone starter、Skill 规范和设计资源目录。基线为 `#ff8000 / 14px 正文 / 10px 圆角 / 16px 卡片标题 / 智能图表配色 / 12px 间距 / 标准密度`；智能配色按图表类型与系列数量解析，局部显式覆盖继续优先。受控图表资源新增雷达图、漏斗图与表格图表，目录现为 21 种，已贯通 AI 语义、Studio、服务端预览与便携导出。
+- 认证产品入口已从管理员分发访问令牌转向个人账号：本地 `disabled` 模式免登录，在线 `password` 模式提供邮箱密码注册/登录、独立个人空间、scrypt 哈希、HttpOnly Session 和失败限流；旧 `token` 服务端能力仅保留迁移兼容，UI 不再提供令牌输入。
+- 视觉预设交互已统一：系统预设和我的预设在同一下拉中分组展示，自定义项的管理按钮按悬停/聚焦出现，管理命令使用浮层且支持 `Esc` 关闭；浏览器确认当前自定义预设、分组、选中态和禁用更新状态正确。
 
 - 资源中心 M2 已接入：Studio 选中 Workspace 图表卡片后，视觉设置旁入口携带临时目标上下文；资源页可发送受控图表应用意图，Studio 只接受会话一致、目标仍被选中且图表 ID 受控的操作。普通访问继续只读。
 - 资源中心 M3 第一部分已完成：组件 Tab 直接展示 `/api/components/catalog` 的 6 类组件与 2 类页面控件；图标 Tab 直接使用 Phosphor 搜索与资源端点，支持四种粗细并可应用到当前卡片标题。桌面实测 8 个组件、48 个图标、搜索与卡片应用通过；本轮浏览器 viewport override 未作用于现有标签，M3 移动端仍需新标签补充真实证据。分组图标协议已实现，但当前 Dashboard 预设隐藏分组标题，需在可见分组标题预设中补 UI 验收。
@@ -196,7 +210,7 @@ depends_on: [PROJECT.md]
 - M4 Project 所有权与 ACL 已落地：admin 全局管理、owner 管理成员、项目 editor/viewer 分离读写；列表、revision、导出、Publication 和访问审计均按项目过滤
 - Refresh Job `resume()` 改为单实例幂等，消除服务启动与调用方同时恢复造成的重复执行竞态
 - M4 新增可选 token 身份、HttpOnly 内存会话、Origin 校验和 viewer/editor/admin 全局角色；默认本地模式保持兼容
-- Studio 登录门禁、viewer 只读和固定退出入口已通过真实浏览器；standalone 导出不含认证 UI 或角色状态
+- Studio 个人登录门禁、viewer 只读和项目中心内退出入口已通过真实浏览器；standalone 导出不含认证 UI 或角色状态
 - M3 路线范围与三条阶段门槛已逐项审计通过；新增跨 Project/Dataset 回归直接证明刷新不改变 revision、组件 ID、document 或 layout
 - 修复 AI 接受后的延迟自动折叠覆盖用户主动展开，历史恢复回归改用真实可见点击
 - Publication embed 复用共享访问策略和审计；Studio 支持一次性或公开 iframe 代码
@@ -358,7 +372,7 @@ depends_on: [PROJECT.md]
 
 - Studio Provider 已支持停用连接并回退本地演示；重新开启前会真实校验连接。测试会先验证模型列表，再验证最小聊天请求，并区分模型不存在与 Key/权限失败；错误响应不包含密钥或上游正文
 - Provider 编辑现会回显已保存的 API 地址，并在任一表单字段变化后显示“有未保存修改”；API Key 仍只保存在服务端且永不回显。服务层回归覆盖地址跨读取持久化与密钥隔离
-- Provider 第一版已切换为个人设置语义：本地 `local-admin` 保留旧连接作用域，正式用户按自身用户 ID 隔离 AI 连接；项目中心隐藏组织读取，入口显示“我的 AI 设置”。正式登录页仍沿用现有 token 会话，后续可单独产品化视觉
+- Provider 第一版已切换为个人设置语义：本地 `local-admin` 保留旧连接作用域，正式用户按自身用户 ID 隔离 AI 连接；项目中心隐藏组织读取，入口显示“我的 AI 设置”。正式入口使用邮箱密码个人账号，旧 token 仅保留服务端迁移兼容且不再提供产品输入框。
 
 - 受控 REST 和持久化 Refresh Job 已落地：服务端主机白名单、credentialRef、禁重定向、指数退避、活跃任务冲突和重启恢复均有合同测试
 - 当前凭证通过环境 JSON 注入，适合单机原型；企业阶段需接 Secret Manager/KMS、凭证轮换、网络出口策略和审计，不能把环境 JSON 当最终凭证平台

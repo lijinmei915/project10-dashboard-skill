@@ -10,7 +10,7 @@ if (!bridge) throw new Error("DashboardStudioBridge is required");
 const ui = {
   authControl: $("#studioAuthControl"),
   control: $("#studioProjectControl"), label: $("#studioProjectLabel"),
-  projectDialog: $("#projectDialog"), projectClose: $("#projectDialogClose"), projectCancel: $("#projectDialogCancel"), showArchived: $("#projectShowArchived"), projectStatus: $("#projectStatus"), projectList: $("#projectList"), projectListCount: $("#projectListCount"), projectSearch: $("#projectSearch"), projectStatusFilter: $("#projectStatusFilter"), projectSort: $("#projectSort"), projectOwnership: $("#projectOwnership"), projectListView: $("#projectListView"), projectListTab: $("#projectListTab"), projectComposerView: $("#projectComposerView"), projectSettingsView: $("#projectSettingsView"), newAiProject: $("#projectNewAi"), projectAiEdit: $("#projectAiEditTab"),
+  projectDialog: $("#projectDialog"), projectClose: $("#projectDialogClose"), projectCancel: $("#projectDialogCancel"), showArchived: $("#projectShowArchived"), projectStatus: $("#projectStatus"), projectList: $("#projectList"), projectListCount: $("#projectListCount"), projectSearch: $("#projectSearch"), projectSort: $("#projectSort"), projectOwnership: $("#projectOwnership"), projectListView: $("#projectListView"), projectListTab: $("#projectListTab"), projectComposerView: $("#projectComposerView"), projectSettingsView: $("#projectSettingsView"), newAiProject: $("#projectNewAi"), projectAiEdit: $("#projectAiEditTab"),
   organizationControl: $("#organizationControl"), organizationDialog: $("#organizationDialog"), organizationClose: $("#organizationDialogClose"), organizationCancel: $("#organizationDialogCancel"), organizationName: $("#organizationName"), organizationMemberList: $("#organizationMemberList"), organizationStatus: $("#organizationStatus"), organizationSave: $("#organizationSave"), organizationAudit: $("#organizationAudit"), organizationMetricsGrid: $("#organizationMetricsGrid"), organizationMetricsStatus: $("#organizationMetricsStatus"), organizationMetricsFailures: $("#organizationMetricsFailures"), organizationReadinessGrid: $("#organizationReadinessGrid"), organizationReadinessStatus: $("#organizationReadinessStatus"),
   memberDialog: $("#memberDialog"), memberClose: $("#memberDialogClose"), memberCancel: $("#memberDialogCancel"), memberProjectName: $("#memberProjectName"), memberList: $("#memberList"), memberStatus: $("#memberStatus"), memberSave: $("#memberSave"),
   auditDialog: $("#auditDialog"), auditClose: $("#auditDialogClose"), auditCancel: $("#auditDialogCancel"), auditProjectName: $("#auditProjectName"), auditList: $("#auditList"), auditStatus: $("#auditStatus")
@@ -65,7 +65,7 @@ function mountProjectFilterSelect(select) {
   render();
 }
 
-[ui.projectStatusFilter, ui.projectSort, ui.projectOwnership].forEach(mountProjectFilterSelect);
+[ui.projectSort, ui.projectOwnership].forEach(mountProjectFilterSelect);
 
 const providerManagerBody = ui.organizationDialog.querySelector(".provider-manager-body");
 if (providerManagerBody && ui.projectSettingsView) ui.projectSettingsView.append(providerManagerBody);
@@ -77,6 +77,12 @@ function syncControl() {
   ui.label.textContent = "项目 / AI";
   ui.control.title = project ? `${project.name}${project.status === "archived" ? " · 已归档" : ""}` : "项目中心";
 }
+
+function formatProjectUpdatedAt(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "时间未知" : new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date).replace(/\//g, "-");
+}
+
 if (!new URLSearchParams(location.search).has("ci")) document.body.classList.add("studio-project-entry-ready");
 
 function showProjectList() {
@@ -417,33 +423,31 @@ function renderProjects(projects = allProjects) {
   ui.projectListView.querySelector(".project-list-toolbar").hidden = !hasProjects;
   ui.projectListView.querySelector(".project-list-filters").hidden = !hasProjects;
   const query = ui.projectSearch.value.trim().toLowerCase();
-  const status = ui.projectStatusFilter.value;
+  const status = "active";
   const ownership = ui.projectOwnership.value;
   const visible = projects.filter((project) => (!query || project.name.toLowerCase().includes(query)) && (status === "all" || project.status === status) && (ownership === "all" || ["admin", "owner", "editor"].includes(project.accessRole))).sort((left, right) => ui.projectSort.value === "name" ? left.name.localeCompare(right.name, "zh-CN") : String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")));
   ui.projectListCount.textContent = `${visible.length} / ${projects.length}`;
   if (!visible.length) {
-    const empty = document.createElement("p"); empty.className = "data-schema-status"; empty.textContent = projects.length ? "没有符合条件的项目" : (status === "archived" ? "还没有已归档项目" : "还没有进行中的项目"); ui.projectList.replaceChildren(empty); return;
+    const empty = document.createElement("p"); empty.className = "data-schema-status"; empty.textContent = projects.length ? "没有符合条件的项目" : "还没有进行中的项目"; ui.projectList.replaceChildren(empty); return;
   }
   ui.projectList.replaceChildren(...visible.map((project) => {
     const row = document.createElement("div"); row.className = "project-row"; row.dataset.current = String(current?.id === project.id);
     const copy = document.createElement("span"); copy.className = "project-row-copy";
     const title = document.createElement("strong"); title.textContent = project.name;
-    const meta = document.createElement("span"); meta.textContent = `${project.status === "archived" ? "已归档" : "进行中"} · ${project.revisionCount} 个版本 · ${project.accessRole}`;
+    const meta = document.createElement("span"); meta.textContent = `${project.status === "archived" ? "已归档" : "进行中"} · ${project.revisionCount} 个版本 · 最后修改 ${formatProjectUpdatedAt(project.updatedAt)}`;
     copy.append(title, meta);
     const actions = document.createElement("span"); actions.className = "project-row-actions";
     const open = actionButton(current?.id === project.id ? "重新加载" : "打开", () => current?.id === project.id ? reloadProject(project.id) : activateProject(project.id), "default");
-    actions.append(open, actionButton("记录", () => openAudit(project)));
+    actions.append(open);
     const writable = bridge.getActorRole() !== "viewer";
     if (writable) actions.append(actionButton("复制", () => copyProject(project)));
     if (writable && ["admin", "owner", "editor"].includes(project.accessRole) && project.status !== "archived") actions.append(actionButton("重命名", () => renameProject(project)));
-    if (writable && ["admin", "owner"].includes(project.accessRole)) actions.append(actionButton("成员", () => openMembers(project)), actionButton(project.status === "archived" ? "恢复" : "归档", () => toggleArchive(project)));
     row.append(copy, actions); return row;
   }));
 }
 
 async function loadProjects() {
-  const includeArchived = ui.projectStatusFilter.value !== "active";
-  const { projects = [] } = await request(`/api/projects${includeArchived ? "?includeArchived=true" : ""}`, { cache: "no-store" });
+  const { projects = [] } = await request("/api/projects", { cache: "no-store" });
   allProjects = projects; renderProjects(); ui.projectStatus.textContent = `${projects.length} 个项目`;
 }
 
@@ -459,7 +463,6 @@ ui.control.addEventListener("click", openProjectDialog);
 ui.authControl.addEventListener("click", () => { closeProjectDialog(); closeOrganizationDialog(); closeMemberDialog(); closeAuditDialog(); providerSettings.close(); });
 ui.projectClose.addEventListener("click", closeProjectDialog); ui.projectCancel.addEventListener("click", closeProjectDialog);
 ui.projectDialog.addEventListener("click", (event) => { if (event.target === ui.projectDialog) closeProjectDialog(); });
-[ui.projectStatusFilter].forEach((control) => control.addEventListener("change", () => loadProjects().catch((error) => { ui.projectStatus.textContent = error.message; })));
 [ui.projectSearch, ui.projectSort, ui.projectOwnership].forEach((control) => control.addEventListener(control === ui.projectSearch ? "input" : "change", () => renderProjects()));
 ui.newAiProject.addEventListener("click", beginAiProject);
 ui.projectListTab.addEventListener("click", showProjectList);

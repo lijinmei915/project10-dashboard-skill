@@ -38,7 +38,7 @@ This skill keeps dashboard output:
 - `cardTitleIconColor`：普通卡片标题图标配色，可使用 `neutral / accent`；默认中性色，并允许单卡覆盖。
 - `kpiLayout`：指标卡内容排列，可使用 `stacked / horizontal`；默认上下排列，并允许单张 KPI 卡片覆盖。
 - `chartType`：使用稳定机器 ID。当前支持折线、面积、柱图家族、条图家族、直方图、排名图、甘特图和环形图；完整 ID、唯一业务语义与数据形状见 `references/charts.md`，用户明确指定时必须优先采用。
-- `chartPalette`：图表配色方式，可使用 `monochrome / bichrome / categorical`；标准看板默认 `categorical`。单色和双色按主题色相从固定 AntV/G2 色板取最近的一色或两色，彩色使用完整色板。
+- `chartPalette`：图表配色方式，可使用 `auto / monochrome / bichrome / categorical`；标准看板默认 `auto`，单系列使用单色、双系列使用双色、三系列及以上与饼图分类使用多色。显式单色和双色按主题色相从固定 AntV/G2 色板取最近的一色或两色，多色使用完整色板。
 - 图表交互：筛选可放在页面、分组或单个图表标题区；多系列图表默认显示可点击图例，点击仅临时隐藏/显示系列并保存当前状态。
 - `accent`：任意明确的主题色名称或 CSS 色值，例如 `蓝色`、`墨绿`、`#0f766e`。
 

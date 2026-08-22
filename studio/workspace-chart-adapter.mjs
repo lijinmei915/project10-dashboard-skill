@@ -12,7 +12,7 @@ export function normalizeChartSeries(component) {
 }
 
 export function chartAriaLabel(title, type) {
-  const labels = { line: "折线图", "time-series": "时序图", area: "面积图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图" };
+  const labels = { line: "折线图", "time-series": "时序图", area: "面积图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", radar: "雷达图", funnel: "漏斗图", "data-table": "表格", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图" };
   return `${title || "图表"} · ${labels[type] || labels.bar}`;
 }
 
@@ -20,6 +20,14 @@ export function visibleChartSeries(component, visibility = {}) {
   const series = normalizeChartSeries(component);
   const visible = series.filter(({ name }) => visibility[name] !== false);
   return visible.length ? visible : series;
+}
+
+export function automaticChartPaletteMode(component, type) {
+  if (["sector-pie", "pie", "rose", "radar", "funnel"].includes(type)) return "categorical";
+  const seriesCount = normalizeChartSeries(component).length;
+  if (seriesCount <= 1) return "monochrome";
+  if (seriesCount === 2) return "bichrome";
+  return "categorical";
 }
 
 export async function requestChartSvg(payload, fetcher = fetch) {
@@ -55,7 +63,7 @@ export function createWorkspaceChartAdapter({ document: documentRef, dashboard, 
         delete card.dataset.chartRendered;
         return { status: "empty", type };
       }
-      const colors = resolvePalette(card);
+      const colors = resolvePalette(card, component, type);
       let legend = card.querySelector(":scope > .dashboard-chart-legend");
       if (allSeries.length > 1 && component.props?.legend?.visible !== false) {
         if (!legend) { legend = documentRef.createElement("div"); legend.className = "dashboard-chart-legend"; legend.setAttribute("aria-label", "图例"); }
@@ -69,7 +77,7 @@ export function createWorkspaceChartAdapter({ document: documentRef, dashboard, 
         const body = card.querySelector(".chart-render, .bar-chart"); body ? body.before(legend) : card.append(legend);
       } else legend?.remove();
       const width = Math.max(280, Math.min(1200, Math.round(card.getBoundingClientRect().width - 40) || 720));
-      const payload = { type, labels, series, thresholds: component.props?.thresholds || [], mode: getMode(), width, height: 260, palette: colors, legend: false };
+      const payload = { type, labels, series, thresholds: component.props?.thresholds || [], table: component.props?.table || {}, mode: getMode(), width, height: 260, palette: colors, legend: false };
       const cacheKey = JSON.stringify(payload);
       let container = existing;
       if (!container) {

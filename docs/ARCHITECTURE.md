@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: spec
-last_verified: 2026-08-11
+last_verified: 2026-08-22
 depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 ---
 
@@ -86,7 +86,7 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 - `scripts/provider-profile-service.mjs`
   为每个组织持久化独立 Provider 档案、当前连接和凭证；公开档案与密钥写入不同的 `0600` JSON 存储，列表/API 只返回名称、模型、启用状态和凭证是否存在。Generation Job 将固化的 organizationId 传给动态 Provider 解析，避免跨组织串用模型或密钥。file 实现只适合单实例，生产需替换为共享 Profile Repository 与 Secret Manager
 - `scripts/generation-job-service.mjs`
-  为 draft/refine 提供持久化 queued/running/succeeded/failed/canceled 生命周期；任务按组织与发起人隔离，以租约、heartbeat 和 fencing 防止多 worker 重复执行，并把取消信号传给 Provider。持久记录不保存 DataContext 或 Dataset records，执行时重新从服务端 Dataset 构建上下文；成功结果仍只是隔离 preview，不直接提交 revision
+  为 draft/refine 提供持久化 queued/running/succeeded/failed/canceled 生命周期；任务按组织与发起人隔离，以租约、heartbeat 和 fencing 防止多 worker 重复执行，并把取消信号传给 Provider。重启时等待未过期旧租约，过期后才重新入队接管。完整候选校验通过后持久化不含业务内容的逐分区 `section.ready` 和 `preview.ready`，公开摘要只提供完成数/总数；持久记录不保存 DataContext 或 Dataset records，成功结果仍只是隔离 preview，不直接提交 revision
 - `scripts/interaction-runtime.mjs`
   负责页面级筛选栏与视图 Tab 的主题化 HTML、最小 Controller 和可序列化交互状态；不依赖 Studio 或组件库
 - `scripts/data-runtime.mjs`
@@ -115,8 +115,9 @@ depends_on: [PROJECT.md, docs/SKILL_ENGINEERING.md]
 ## Studio 前端边界
 
 - `.dashboard-preset-preview.html` 只承载页面结构、视觉样式和 Studio 模块装配，不再包含内联应用脚本。
+- `studio/auth-session-controller.mjs` 负责 `disabled / password / token / oidc` 四种前端认证状态投影：本地模式直接放行；个人模式处理注册、登录、错误分类、限流提示、服务重试和会话恢复；旧 token 模式只显示迁移提示。控制器不保存凭证，登录成功通过 `dashboard-auth-ready` 重新激活当前路由，使 `/studio/projects/:id` 深链不因门禁丢失。
 - `studio/editor-runtime.js` 是 workspace editor/orchestrator 的 ESM 入口；State Core、Session、Renderers 和 Chart Adapter 分别处理状态协议、介质和渲染。所有浏览器侧 core 调用先经过 `workspace-core-client.mjs`，避免业务模块直接耦合 Skill 路径。布局层由纯规则 `workspace-layout-interaction.mjs` 与 DOM 配置映射 `workspace-layout-controller.mjs` 组成；`workspace-structure-synchronizer.mjs` 依据已验证 Document/Layout 计算并应用卡片创建、删除、跨分区移动、顺序、跨度和类型。Editor Runtime 只保留模板克隆、编辑器绑定、指针监听、占位和动画适配。
-- `studio/project-center.mjs` 独立负责项目列表、切换、显式重新加载、AI-first 新项目、生命周期、成员和审计 UI，以及相关 API 调用。组织管理员在组织设置中可读取 readiness 脱敏投影，并管理公开的 AI Provider 档案状态；界面不接收 endpoint、密钥引用或密钥。新项目只断开当前 Project/revision 身份并打开 AI 工作台，首次接受候选才创建服务端 Project；旧 revision 条件写冲突后，重新加载须由用户确认才恢复服务端最新版本。
+- `studio/project-center.mjs` 独立负责项目列表、切换、显式重新加载、AI-first 新项目和个人 AI 设置入口，以及相关 API 调用。退出登录位于项目中心标题栏，不占用主画布；当前个人产品面不展示成员、归档和审计入口。新项目只断开当前 Project/revision 身份并打开 AI 工作台，首次接受候选才创建服务端 Project；旧 revision 条件写冲突后，重新加载须由用户确认才恢复服务端最新版本。
 - `studio/publication-center.mjs` 独立负责发布、分享、嵌入、多格式下载、访问统计和撤回；只从 bridge 获取已保存的 projectId/revisionId，不读取编辑 DOM。
 - `studio/data-source-center.mjs` 独立负责 CSV/JSON/Excel 导入、REST 连接、Semantic Model、刷新任务和调度 UI；只通过 bridge 读写 clone 后的当前 Dataset，不修改 workspace。
 - `studio/studio-api-client.mjs` 是无状态 HTTP 边界，统一 JSON 解析、标准错误载体和 `GET/POST/PUT/PATCH` 请求构造；模块不持有身份、凭证或界面状态，领域模块可按需注入错误文案策略。
@@ -151,7 +152,7 @@ AI 首稿的完整阶段、状态机、provider 与 revision 边界见 `docs/arc
 - `echarts` 只在 Agent/Studio 服务端执行；默认成品固化 SVG，不加载 ECharts 运行时；筛选交互所需的重新绘制由内联最小 SVG 更新器完成
 - 预览仍为单文件 HTML，没有前端构建步骤
 - Studio 默认通过 Generation Job API 创建、轮询、取消和恢复 draft/refine；同步 `draft / refine` 仅保留兼容。`commit / undo / history / restore` 继续处理不可变版本事务；provider 和任务 worker 都不直接写 Project store
-- Generation Job 与 Refresh Job 共用受类型隔离的 Job Repository，但独立执行协议；生成 worker 在执行时重建 DataContext，只持久化 request、基线 workspace、状态、租约和最终 run。PostgreSQL 双连接池 conformance 验证竞争租约、过期恢复和跨实例取消 fencing，数据库不保存 DataContext、Dataset records 或连接凭证
+- Generation Job 与 Refresh Job 共用受类型隔离的 Job Repository，但独立执行协议；生成 worker 在执行时重建 DataContext，只持久化 request、基线 workspace、状态、租约、安全阶段事件和最终 run。SSE 首帧返回权威 `job.snapshot`、每 10 秒发送 heartbeat，并从 `Last-Event-ID` 后续传；断线期间客户端用低频 HTTP 摘要兜底。PostgreSQL 双连接池 conformance 验证竞争租约、过期恢复和跨实例取消 fencing，数据库不保存 DataContext、Dataset records 或连接凭证
 - Generation Job 终态额外保存不含内容的 queue/execution/total 毫秒数与 repairAttempts；组织管理员指标 API 在组织边界内聚合成功率、失败码和延迟分位数。指标不返回任务/用户身份、prompt、workspace、候选或错误正文，当前复用 Job Repository 而非独立长期 telemetry warehouse
 - 组织设置将上述聚合投影为只读“AI 运行概览”，展示近 24 小时候选可用率、生成成功率、修复率、已评审数、p50/p95 和失败分类；加载失败与成员编辑隔离，viewer 不显示入口且服务端仍返回 `403`。该治理视图不属于 Dashboard workspace、standalone 或 Skill
 - 组织设置将既有平台 readiness 投影为只读“平台运行状态”，显示脱敏的存储、身份、身份映射、执行、审计锚定和数据权限摘要。状态读取失败只影响该网格，不影响成员编辑；该视图不新增浏览器配置权，也不进入 Dashboard workspace、standalone 或 Skill

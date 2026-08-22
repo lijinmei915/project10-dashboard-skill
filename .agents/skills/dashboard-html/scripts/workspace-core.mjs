@@ -4,7 +4,7 @@ const PALETTE_VERSIONS = new Set(["1.0.0", "1.2.0"]);
 const PAGE_TYPES = new Set(["dashboard", "report"]);
 const LANGUAGES = new Set(["zh", "en"]);
 const MODES = new Set(["light", "dark"]);
-export const CHART_TYPES = new Set(["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"]);
+export const CHART_TYPES = new Set(["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"]);
 const COMMANDS = new Set(["set", "unset", "insert", "remove", "move", "replace"]);
 export const COMPONENT_RULES = Object.freeze({
   summary: ["body"],

@@ -1,4 +1,5 @@
 import { diffWorkspaces } from "/studio/workspace-core-client.mjs";
+import { generationProgressStates, normalizeGenerationProgress } from "/studio/generation-progress-model.mjs";
 
 const $ = (selector) => document.querySelector(selector);
 const bridge = window.DashboardStudioBridge;
@@ -7,13 +8,13 @@ if (!bridge) throw new Error("DashboardStudioBridge is required");
 
 const ui = {
   composer: $("#aiComposer"), toggle: $("#aiComposerToggle"), launcherLabel: $("#aiComposerLauncherLabel"), title: $("#aiComposerTitle"), close: $("#aiComposerClose"), panel: $("#aiComposerPanel"),
-  scope: $("#aiScope"), scopeName: $("#aiScopeName"), guide: $("#aiPromptGuide"), componentCapability: $("#aiComponentCapability"), componentTemplate: $("#aiComponentTemplate"), draftTemplates: $("#aiDraftTemplates"), refineTemplates: $("#aiRefineTemplates"), chartRefineTemplates: $("#aiChartRefineTemplates"), prompt: $("#aiPromptInput"), dataSource: $("#aiDataSource"),
+  scope: $("#aiScope"), scopeName: $("#aiScopeName"), guide: $("#aiPromptGuide"), componentCapability: $("#aiComponentCapability"), componentTemplate: $("#aiComponentTemplate"), draftTemplates: $("#aiDraftTemplates"), refineTemplates: $("#aiRefineTemplates"), chartRefineTemplates: $("#aiChartRefineTemplates"), prompt: $("#aiPromptInput"), dataSource: $("#aiDataSource"), reportBody: $(".report-body"),
   generate: $("#aiGenerateButton"), cancel: $("#aiCancelButton"), accept: $("#aiAcceptButton"), undo: $("#aiUndoButton"), review: $("#aiReview"), reviewTitle: $("#aiReviewTitle"), reviewMeta: $("#aiReviewMeta"), reviewDiff: $("#aiReviewDiff"), historyToggle: $("#aiHistoryToggle"), history: $("#aiHistory"), historyCount: $("#aiHistoryCount"), historyList: $("#aiHistoryList"), historyCompare: $("#aiHistoryCompare"), historyCompareTitle: $("#aiHistoryCompareTitle"), historyCompareMeta: $("#aiHistoryCompareMeta"), historyCompareList: $("#aiHistoryCompareList"), historyCompareClose: $("#aiHistoryCompareClose"), status: $("#aiGenerationStatus"), promptCount: $("#aiPromptCount"), pageTypeControls: $("#aiPageTypeControls"), dataSourceName: $("#aiDataSourceName"), dataPortable: $("#aiDataPortable"), canvasBar: $("#canvasGenerationBar"), canvasTitle: $("#canvasGenerationTitle"), canvasMessage: $("#canvasGenerationMessage"), canvasStop: $("#canvasGenerationStop"), canvasAccept: $("#canvasGenerationAccept"), canvasDismiss: $("#canvasGenerationDismiss"), canvasReopen: $("#canvasGenerationReopen")
 };
 const composerHome = ui.composer.parentNode;
 const composerHomeNextSibling = ui.composer.nextSibling;
 const generateHome = ui.generate.parentNode;
-const chartLabels = { line: "折线图", "time-series": "时序图", area: "面积图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", categorical: "多色" };
+const chartLabels = { line: "折线图", "time-series": "时序图", area: "面积图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", radar: "雷达图", funnel: "漏斗图", "data-table": "表格", categorical: "多色" };
 
 let serviceChecked = false;
 let pendingRun = null;
@@ -22,11 +23,13 @@ let refinementTarget = null;
 let chartCatalogLoaded = false;
 let activeGenerationJobId = null;
 let activeGenerationEventSource = null;
+let activeGenerationStreamAbort = null;
 let pendingGenerationJobId = null;
 let generationRequestToken = 0;
 let activeGenerationPageType = "dashboard";
 let canvasGenerationActive = false;
 let progressiveRevealToken = 0;
+let streamingPreviewState = null;
 const generationJobStorageKey = "dashboard-generation-job-v1";
 
 function rememberGenerationJob() {
@@ -65,6 +68,86 @@ function syncCanvasGeneration() {
 function setState(state) {
   ui.composer.dataset.state = state;
   syncCanvasGeneration();
+}
+
+function stopStreamingPreview() {
+  streamingPreviewState = null;
+  ui.reportBody?.classList.remove("ai-streaming-mode");
+  ui.reportBody?.querySelector(".ai-streaming-preview")?.remove();
+}
+
+function createStreamingBlock(title, kind = "section") {
+  const block = document.createElement("article");
+  block.className = "ai-streaming-block";
+  block.dataset.state = "pending";
+  block.dataset.kind = kind;
+  const blockHead = document.createElement("div");
+  blockHead.className = "ai-streaming-block-head";
+  const blockTitle = document.createElement("strong");
+  blockTitle.textContent = title;
+  const blockState = document.createElement("span");
+  blockState.className = "ai-streaming-block-state";
+  const spinner = document.createElement("span");
+  spinner.className = "ai-streaming-spinner";
+  spinner.setAttribute("aria-hidden", "true");
+  const stateText = document.createElement("span");
+  blockState.append(spinner, stateText);
+  blockHead.append(blockTitle, blockState);
+  const lines = document.createElement("div");
+  lines.className = "ai-streaming-lines";
+  lines.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
+  block.append(blockHead, lines);
+  return { block, stateText, kind };
+}
+
+function renderStreamingBlocks(state, sectionCount) {
+  state.blocks.forEach(({ block }) => block.remove());
+  state.blocks = Array.from({ length: sectionCount }, (_, index) => createStreamingBlock(state.titles[index] || `内容区 ${index + 1}`));
+  state.blocks.push(createStreamingBlock("页面校验", "validation"));
+  state.preview.append(...state.blocks.map(({ block }) => block));
+  state.sectionCount = sectionCount;
+}
+
+function applyStreamingProgress(progress, { completed = false } = {}) {
+  const state = streamingPreviewState;
+  if (!state) return;
+  const normalized = normalizeGenerationProgress(progress, state.sectionCount);
+  if (normalized.sectionCount !== state.sectionCount) renderStreamingBlocks(state, normalized.sectionCount);
+  const model = generationProgressStates(normalized, { completed });
+  state.blocks.forEach(({ block, stateText, kind }, index) => {
+    const blockState = kind === "validation" ? model.validation : model.sections[index];
+    block.dataset.state = blockState;
+    stateText.textContent = blockState === "done" ? "已完成" : blockState === "generating" ? (kind === "validation" ? "正在校验" : "正在生成") : (kind === "validation" ? "等待校验" : "等待生成");
+  });
+  state.status.textContent = completed
+    ? "页面校验完成"
+    : model.sectionsReady === 0
+      ? "正在生成页面内容..."
+      : model.sectionsReady < model.sectionCount
+        ? `已完成 ${model.sectionsReady}/${model.sectionCount} 个内容区`
+        : "正在校验页面...";
+}
+
+function startStreamingPreview(workspace) {
+  stopStreamingPreview();
+  if (!ui.reportBody || !workspace?.document?.sections?.length) return;
+  const preview = document.createElement("div");
+  preview.className = "ai-streaming-preview";
+  preview.setAttribute("aria-live", "polite");
+  const header = document.createElement("div");
+  header.className = "ai-streaming-preview-header";
+  const heading = document.createElement("strong");
+  heading.textContent = "正在逐块生成页面";
+  const status = document.createElement("span");
+  status.textContent = "准备生成内容...";
+  header.append(heading, status);
+  preview.append(header);
+  ui.reportBody.append(preview);
+  ui.reportBody.classList.add("ai-streaming-mode");
+  const titles = workspace.document.sections.slice(0, 12).map((section, index) => section.title || `内容区 ${index + 1}`);
+  streamingPreviewState = { preview, status, titles, blocks: [], sectionCount: titles.length };
+  renderStreamingBlocks(streamingPreviewState, titles.length);
+  applyStreamingProgress({ sectionsReady: 0, sectionCount: titles.length });
 }
 
 function friendlyGenerationError(error, responseStatus = 0) {
@@ -228,14 +311,108 @@ async function readGenerationJob(jobId) {
 
 function streamGenerationJob(jobId, token) {
   return new Promise((resolve, reject) => {
+    activeGenerationStreamAbort?.();
     activeGenerationEventSource?.close();
     const source = new EventSource(`/api/generation/jobs/${encodeURIComponent(jobId)}/events`);
     activeGenerationEventSource = source;
-    const finish = async () => {
+    let settled = false;
+    let disconnectedAt = null;
+    let reconnectNoticeTimer = null;
+    let restoreMessageTimer = null;
+    let fallbackTimer = null;
+    let lastStageMessage = "生成任务已排队...";
+    let latestProgress = normalizeGenerationProgress(null, streamingPreviewState?.sectionCount || 0);
+    let progressSequence = Promise.resolve();
+    let queryPromise = null;
+    let finishPromise = null;
+    let completionQueued = false;
+    let terminalEventObserved = false;
+    const isCurrent = () => token === generationRequestToken && activeGenerationJobId === jobId;
+    const clearRecoveryTimers = () => {
+      if (reconnectNoticeTimer !== null) window.clearTimeout(reconnectNoticeTimer);
+      if (restoreMessageTimer !== null) window.clearTimeout(restoreMessageTimer);
+      if (fallbackTimer !== null) window.clearInterval(fallbackTimer);
+      reconnectNoticeTimer = null;
+      restoreMessageTimer = null;
+      fallbackTimer = null;
+    };
+    const cleanup = () => {
+      clearRecoveryTimers();
       source.close();
       if (activeGenerationEventSource === source) activeGenerationEventSource = null;
-      if (token !== generationRequestToken || activeGenerationJobId !== jobId) return resolve(null);
-      try { resolve(await readGenerationJob(jobId)); } catch (error) { reject(error); }
+      if (activeGenerationStreamAbort === abort) activeGenerationStreamAbort = null;
+    };
+    const observeTerminalEvent = () => {
+      terminalEventObserved = true;
+      clearRecoveryTimers();
+      source.close();
+    };
+    const settle = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      handler(value);
+    };
+    const abort = () => settle(resolve, null);
+    activeGenerationStreamAbort = abort;
+    const stageMessages = {
+      queued: "生成任务已排队...",
+      starting: "正在分析需求与数据...",
+      generating: "正在生成页面内容...",
+      validating: "正在校验并组装页面..."
+    };
+    const applyActiveStage = (stage, status) => {
+      const message = stageMessages[stage] || (status === "running" ? lastStageMessage : stageMessages.queued);
+      lastStageMessage = message;
+      if (isCurrent() && disconnectedAt === null) ui.status.textContent = message;
+    };
+    const queueProgress = (progress, { completed = false, immediate = false } = {}) => {
+      const queuedProgress = normalizeGenerationProgress(progress, latestProgress.sectionCount);
+      latestProgress = queuedProgress;
+      if (completed) completionQueued = true;
+      progressSequence = progressSequence.then(async () => {
+        if (settled || !isCurrent()) return;
+        applyStreamingProgress(queuedProgress, { completed });
+        if (!immediate) await wait(220);
+      });
+      return progressSequence;
+    };
+    const finishJob = (job) => {
+      if (finishPromise) return finishPromise;
+      finishPromise = (async () => {
+        if (job.status === "succeeded" && !completionQueued) queueProgress(job.progress, { completed: true });
+        await progressSequence;
+        settle(resolve, job);
+      })();
+      return finishPromise;
+    };
+    const queryJob = () => {
+      if (!queryPromise) queryPromise = readGenerationJob(jobId).finally(() => { queryPromise = null; });
+      return queryPromise;
+    };
+    const reconcile = async () => {
+      if (settled) return;
+      if (!isCurrent()) return abort();
+      try {
+        const job = await queryJob();
+        latestProgress = normalizeGenerationProgress(job.progress, latestProgress.sectionCount);
+        if (["succeeded", "failed", "canceled"].includes(job.status)) return await finishJob(job);
+        applyStreamingProgress(latestProgress);
+        applyActiveStage(job.status === "queued" ? "queued" : "generating", job.status);
+      } catch (error) {
+        if ([401, 403, 404].includes(error.responseStatus)) settle(reject, error);
+      }
+    };
+    const startFallback = () => {
+      if (fallbackTimer !== null || settled) return;
+      void reconcile();
+      fallbackTimer = window.setInterval(() => {
+        if (!isCurrent()) return abort();
+        if (disconnectedAt !== null && Date.now() - disconnectedAt >= 30_000) {
+          ui.status.textContent = "暂时无法接收实时进度，任务仍在后台运行";
+        }
+        void reconcile();
+      }, 4_000);
     };
     const stages = {
       "job.queued": "生成任务已排队...",
@@ -243,13 +420,70 @@ function streamGenerationJob(jobId, token) {
       "generation.generating": "正在生成页面内容..."
     };
     Object.entries(stages).forEach(([type, message]) => source.addEventListener(type, () => {
-      if (token !== generationRequestToken || activeGenerationJobId !== jobId) return source.close();
-      ui.status.textContent = message;
+      if (!isCurrent()) return abort();
+      lastStageMessage = message;
+      if (disconnectedAt === null) ui.status.textContent = message;
     }));
-    ["preview.ready", "job.failed", "job.canceled"].forEach((type) => source.addEventListener(type, finish, { once: true }));
+    source.addEventListener("section.ready", (event) => {
+      if (!isCurrent()) return abort();
+      let progressEvent;
+      try { progressEvent = JSON.parse(event.data); } catch { return; }
+      const progress = { sectionsReady: progressEvent?.sectionIndex, sectionCount: progressEvent?.sectionCount };
+      void queueProgress(progress);
+      lastStageMessage = "正在校验并组装页面...";
+      if (disconnectedAt === null) ui.status.textContent = lastStageMessage;
+    });
+    source.addEventListener("job.snapshot", (event) => {
+      if (!isCurrent()) return abort();
+      let snapshot;
+      try { snapshot = JSON.parse(event.data); } catch { return; }
+      latestProgress = normalizeGenerationProgress(snapshot?.progress, latestProgress.sectionCount);
+      if (snapshot?.terminal || ["succeeded", "failed", "canceled"].includes(snapshot?.status)) {
+        observeTerminalEvent();
+        if (snapshot?.status === "succeeded") void queueProgress(latestProgress, { completed: true, immediate: true });
+        return void reconcile();
+      }
+      applyStreamingProgress(latestProgress);
+      applyActiveStage(snapshot?.stage, snapshot?.status);
+    });
+    source.addEventListener("preview.ready", () => {
+      observeTerminalEvent();
+      void queueProgress(latestProgress, { completed: true });
+      void reconcile();
+    }, { once: true });
+    ["job.failed", "job.canceled"].forEach((type) => source.addEventListener(type, () => {
+      observeTerminalEvent();
+      void reconcile();
+    }, { once: true }));
+    source.onopen = () => {
+      if (!isCurrent()) return abort();
+      if (terminalEventObserved) return;
+      const recovered = disconnectedAt !== null;
+      disconnectedAt = null;
+      if (reconnectNoticeTimer !== null) window.clearTimeout(reconnectNoticeTimer);
+      if (fallbackTimer !== null) window.clearInterval(fallbackTimer);
+      reconnectNoticeTimer = null;
+      fallbackTimer = null;
+      if (!recovered) return;
+      ui.status.textContent = "进度连接已恢复，任务仍在后台生成";
+      restoreMessageTimer = window.setTimeout(() => {
+        restoreMessageTimer = null;
+        if (isCurrent() && disconnectedAt === null) ui.status.textContent = lastStageMessage;
+      }, 1_000);
+    };
     source.onerror = () => {
-      if (token !== generationRequestToken || activeGenerationJobId !== jobId) return source.close();
-      ui.status.textContent = "进度连接中断，正在自动恢复...";
+      if (!isCurrent()) return abort();
+      if (terminalEventObserved || settled) return;
+      if (disconnectedAt === null) disconnectedAt = Date.now();
+      if (restoreMessageTimer !== null) window.clearTimeout(restoreMessageTimer);
+      restoreMessageTimer = null;
+      if (reconnectNoticeTimer === null) {
+        reconnectNoticeTimer = window.setTimeout(() => {
+          reconnectNoticeTimer = null;
+          if (isCurrent() && disconnectedAt !== null) ui.status.textContent = "进度正在恢复，任务仍在后台生成...";
+        }, 1_500);
+      }
+      startFallback();
     };
   });
 }
@@ -258,6 +492,8 @@ async function cancelActiveGeneration() {
   const jobId = activeGenerationJobId;
   if (!jobId) return;
   generationRequestToken += 1;
+  activeGenerationStreamAbort?.();
+  activeGenerationStreamAbort = null;
   activeGenerationEventSource?.close();
   activeGenerationEventSource = null;
   activeGenerationJobId = null;
@@ -267,6 +503,7 @@ async function cancelActiveGeneration() {
     const response = await fetch(`/api/generation/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" } });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok && response.status !== 409) throw Object.assign(new Error(payload.error || "停止生成失败"), { responseStatus: response.status });
+    stopStreamingPreview();
     if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
     baselineWorkspace = null;
     refinementTarget = null;
@@ -306,6 +543,7 @@ async function revealValidatedSections(run) {
 
 async function presentCompletedGeneration(run) {
   const refinement = ["section", "component"].includes(run.request.scope?.kind);
+  stopStreamingPreview();
   ui.generate.textContent = refinement ? "预览修改" : "生成首稿";
   serviceChecked = true;
   pendingRun = run;
@@ -342,6 +580,7 @@ async function resumeGenerationJob() {
   activeGenerationJobId = remembered.id;
   activeGenerationPageType = remembered.pageType || "dashboard";
   canvasGenerationActive = true;
+  startStreamingPreview(baselineWorkspace);
   const token = ++generationRequestToken;
   setState("working");
   ui.generate.textContent = "停止生成";
@@ -352,6 +591,8 @@ async function resumeGenerationJob() {
     activeGenerationJobId = null;
     forgetGenerationJob();
     if (job.status === "canceled") {
+      stopStreamingPreview();
+      if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
       canvasGenerationActive = false;
       setState("idle");
       ui.status.textContent = "生成任务已取消，当前画布未改变";
@@ -363,6 +604,8 @@ async function resumeGenerationJob() {
   } catch (error) {
     activeGenerationJobId = null;
     forgetGenerationJob();
+    stopStreamingPreview();
+    if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
     setState("error");
     ui.status.textContent = friendlyGenerationError(error, error.responseStatus);
   } finally {
@@ -412,6 +655,7 @@ async function requestCandidate() {
     if (!response.ok || !payload.job?.id) throw new Error(payload.issues?.[0]?.message || payload.error || "生成任务创建失败");
     activeGenerationJobId = payload.job.id;
     canvasGenerationActive = true;
+    startStreamingPreview(baselineWorkspace);
     rememberGenerationJob();
     syncCanvasGeneration();
     window.dispatchEvent(new CustomEvent("dashboard-generation-job-started", { detail: { jobId: payload.job.id, pageType: selectedPageType } }));
@@ -422,6 +666,8 @@ async function requestCandidate() {
     activeGenerationJobId = null;
     forgetGenerationJob();
     if (job.status === "canceled") {
+      stopStreamingPreview();
+      if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
       canvasGenerationActive = false;
       setState("idle");
       return;
@@ -433,6 +679,7 @@ async function requestCandidate() {
     activeGenerationJobId = null;
     forgetGenerationJob();
     pendingRun = null;
+    stopStreamingPreview();
     if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
     refinementTarget = null;
     setState("error");
@@ -445,6 +692,7 @@ async function requestCandidate() {
 
 async function cancelCandidate() {
   progressiveRevealToken += 1;
+  stopStreamingPreview();
   const refinement = ["section", "component"].includes(pendingRun?.request?.scope?.kind);
   if (baselineWorkspace) bridge.applyAiPreview(baselineWorkspace, refinementTarget);
   pendingRun = null;

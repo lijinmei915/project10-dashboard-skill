@@ -102,7 +102,7 @@ if (new Set(palette.categorical).size !== palette.categorical.length || palette.
 palette.categorical.forEach((color, index) => {
   if (!starter.includes(`--chart-${index + 1}: ${color};`)) throw new Error(`Starter chart token ${index + 1} differs from palette`);
 });
-if (preview && (!preview.includes('type="module" src="/studio/editor-runtime.js"') || !editorRuntime?.includes(`const DASHBOARD_CATEGORICAL_PALETTE = ${JSON.stringify(palette.categorical)};`))) {
+if (preview && (!/type="module" src="\/studio\/editor-runtime\.js(?:\?[^"#]*)?"/.test(preview) || !editorRuntime?.includes(`const DASHBOARD_CATEGORICAL_PALETTE = ${JSON.stringify(palette.categorical)};`))) {
   throw new Error("Preview categorical palette differs from palette.v1.json");
 }
 for (const rule of ["色相固定，色阶动态", "sRGB 色域裁切", "动态算法必须版本化", "非数据身份 token"]) {

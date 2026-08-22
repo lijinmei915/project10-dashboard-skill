@@ -2,7 +2,7 @@ import { composeWorkspaceSnapshot, normalizeWorkspaceSnapshot, workspaceSlices }
 import { createWorkspaceSession, PROJECT_STATE_SCRIPT_ID } from "/studio/workspace-session.mjs";
 import { createWorkspaceRenderer } from "/studio/workspace-renderer.mjs";
 import { createWorkspaceControlRenderer } from "/studio/workspace-control-renderer.mjs";
-import { createWorkspaceChartAdapter } from "/studio/workspace-chart-adapter.mjs";
+import { automaticChartPaletteMode, createWorkspaceChartAdapter } from "/studio/workspace-chart-adapter.mjs";
 import { LAYOUT_SPAN_STEPS, layoutDropSide, nearestLayoutSpan, reorderCanvasIds, shouldInsertBefore, shouldStartPointerDrag } from "/studio/workspace-layout-interaction.mjs";
 import { createWorkspaceLayoutController } from "/studio/workspace-layout-controller.mjs";
 import { createWorkspaceStructureSynchronizer } from "/studio/workspace-structure-synchronizer.mjs";
@@ -14,7 +14,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       document.documentElement.dataset.runtimeError = `${event.message} @ ${event.lineno}:${event.colno}`;
     });
     const presets = {
-      "fx-orange": { label: "标准看板", accent: "#ff8000", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "title", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, radius: 10, cardGap: 12, cardTitleFont: 16, cardSubtitle: "none", chartPalette: "categorical", font: 14, shadow: "weak", spacing: "standard", light: { page: "#f5f7fa", surface: "#ffffff", mutedSurface: "#f8fafc", text: "#172033", secondary: "#667085", muted: "#98a2b3", line: "rgba(15, 23, 42, .08)" } },
+      "fx-orange": { label: "标准看板", accent: "#ff8000", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "title", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, radius: 10, cardGap: 12, cardTitleFont: 16, cardSubtitle: "none", chartPalette: "auto", font: 14, shadow: "weak", spacing: "standard", light: { page: "#f5f7fa", surface: "#ffffff", mutedSurface: "#f8fafc", text: "#172033", secondary: "#667085", muted: "#98a2b3", line: "rgba(15, 23, 42, .08)" } },
       "enterprise-blue": { label: "企业分析", accent: "#2563eb", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 8, cardGap: 12, font: 14, shadow: "none", spacing: "standard", light: { page: "#f4f7fb", surface: "#ffffff", mutedSurface: "#f7faff", text: "#172033", secondary: "#60708a", muted: "#91a0b5", line: "rgba(37, 99, 235, .14)" } },
       "report-light": { label: "阅读简洁", accent: "#147d72", mode: "light", header: "plain", headerAlign: "center", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "none", sectionSurface: "none", sectionFont: 16, radius: 6, cardGap: 16, font: 15, shadow: "none", spacing: "relaxed", light: { page: "#f7f5ef", surface: "#fffefa", mutedSurface: "#f1eee6", text: "#20251f", secondary: "#6d746b", muted: "#92998d", line: "rgba(32, 37, 31, .10)" } },
       "operations-dark": { label: "运营深色", accent: "#ff9b54", mode: "dark", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 6, cardGap: 8, font: 13, shadow: "medium", spacing: "compact", light: { page: "#f4f6f8", surface: "#ffffff", mutedSurface: "#f7f8fa", text: "#172033", secondary: "#64748b", muted: "#94a3b8", line: "rgba(15, 23, 42, .09)" } },
@@ -45,7 +45,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           cardSubtitle: "none",
           cardTitleStyle: "none",
           cardTitleLeading: "none",
-          chartPalette: "categorical",
+          chartPalette: "auto",
           font: 14,
           shadow: "weak",
           spacing: "standard"
@@ -143,10 +143,14 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     const designPresetResetControl = document.querySelector("#designPresetResetControl");
     const studioAuthGate = document.querySelector("#studioAuthGate");
     const studioAuthForm = document.querySelector("#studioAuthForm");
-    const studioAuthToken = document.querySelector("#studioAuthToken");
+    const studioAuthEmail = document.querySelector("#studioAuthEmail");
+    const studioAuthPassword = document.querySelector("#studioAuthPassword");
+    const studioAuthName = document.querySelector("#studioAuthName");
+    const studioAuthNameField = document.querySelector("#studioAuthNameField");
     const studioAuthSubmit = document.querySelector("#studioAuthSubmit");
     const studioAuthStatus = document.querySelector("#studioAuthStatus");
-    const studioAuthTokenToggle = document.querySelector("#studioAuthTokenToggle");
+    const studioAuthPasswordToggle = document.querySelector("#studioAuthPasswordToggle");
+    const studioAuthSwitch = document.querySelector("#studioAuthSwitch");
     const studioAuthExternal = document.querySelector("#studioAuthExternal");
     const studioAuthProviders = document.querySelector("#studioAuthProviders");
     const studioAuthControl = document.querySelector("#studioAuthControl");
@@ -310,6 +314,32 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       { value: "colorful", label: "多色" },
       { value: "gradient-colorful", label: "多色渐变" }
     ];
+    const kpiStylePresets = Object.freeze({
+      none: { kpiIcon: "none", kpiIconContainer: "none", color: "accent" },
+      "line-theme": { kpiIcon: "outline", kpiIconContainer: "none", color: "accent" },
+      "line-multi": { kpiIcon: "outline", kpiIconContainer: "none", color: "colorful" },
+      "filled-theme": { kpiIcon: "filled", kpiIconContainer: "none", color: "accent" },
+      "filled-multi": { kpiIcon: "filled", kpiIconContainer: "none", color: "colorful" },
+      "soft-theme": { kpiIcon: "outline", kpiIconContainer: "soft", color: "accent" },
+      "soft-multi": { kpiIcon: "outline", kpiIconContainer: "soft", color: "colorful" },
+      "glow-theme": { kpiIcon: "outline", kpiIconContainer: "glow", color: "accent" },
+      "glow-multi": { kpiIcon: "outline", kpiIconContainer: "glow", color: "colorful" },
+      "solid-theme": { kpiIcon: "filled", kpiIconContainer: "solid", color: "accent" },
+      "solid-multi": { kpiIcon: "filled", kpiIconContainer: "solid", color: "colorful" }
+    });
+    const sharedKpiStyleOptions = [
+      { value: "none", label: "无" },
+      { value: "line-theme", label: "主题线型", group: "无底" },
+      { value: "line-multi", label: "多色线型", group: "无底" },
+      { value: "filled-theme", label: "主题面型", group: "无底" },
+      { value: "filled-multi", label: "多色面型", group: "无底" },
+      { value: "soft-theme", label: "主题浅底", group: "浅底" },
+      { value: "soft-multi", label: "多色浅底", group: "浅底" },
+      { value: "glow-theme", label: "主题光感", group: "光感" },
+      { value: "glow-multi", label: "多色光感", group: "光感" },
+      { value: "solid-theme", label: "主题反白", group: "反白" },
+      { value: "solid-multi", label: "多色反白", group: "反白" }
+    ];
 
     function iconOptionsMarkup(options) {
       const groups = new Map();
@@ -325,10 +355,9 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
 
     function setupKpiStyleComposer(container, local = false) {
       const scopePrefix = local ? "cardKpi" : "kpi";
-      const decorationOptions = [
+      const styleOptions = [
         ...(local ? [{ value: "inherit", label: "跟随整组" }] : []),
-        { value: "none", label: "无", group: "无底" },
-        ...sharedIconDecorationOptions
+        ...sharedKpiStyleOptions
       ];
       const colorOptions = [
         ...(local ? [{ value: "inherit", label: "跟随整组" }] : []),
@@ -336,7 +365,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         ...sharedIconColorOptions
       ];
       container.className = "control-group kpi-style-composer";
-      container.innerHTML = `<span>图标样式</span><span class="card-title-icon-composer"><select class="control-select" id="${scopePrefix}DecorationControl" aria-label="KPI 图标样式">${iconOptionsMarkup(decorationOptions)}</select><select class="control-select" id="${scopePrefix}StyleColorControl" aria-label="KPI 图标颜色">${iconOptionsMarkup(colorOptions)}</select></span>`;
+      container.innerHTML = `<span>图标样式</span><span class="card-title-icon-composer"><select class="control-select" id="${scopePrefix}DecorationControl" aria-label="KPI 图标样式">${iconOptionsMarkup(styleOptions)}</select><span hidden><select class="control-select" id="${scopePrefix}StyleColorControl" aria-label="KPI 图标颜色">${iconOptionsMarkup(colorOptions)}</select></span></span>`;
     }
 
     cardTitleDecorationControl.innerHTML = iconOptionsMarkup(sharedIconDecorationOptions);
@@ -352,7 +381,24 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     const groupKpiIconComposer = kpiIconControl.closest(".kpi-icon-composer");
     const groupKpiLayoutField = kpiLayoutControl.closest(".control-group");
     const groupKpiBackgroundField = kpiCardBackgroundControl.closest(".control-group");
-    kpiStyleSamples.before(groupKpiIconComposer, groupKpiLayoutField, groupKpiBackgroundField);
+    kpiStyleSamples.after(groupKpiIconComposer, groupKpiLayoutField, groupKpiBackgroundField);
+    function createContextGroupLabel(text, className = "") {
+      const label = document.createElement("div");
+      label.className = `context-settings-group-label ${className}`.trim();
+      label.textContent = text;
+      label.hidden = true;
+      return label;
+    }
+    const sectionLayoutGroupLabel = createContextGroupLabel("分组布局");
+    const groupKpiIconGroupLabel = createContextGroupLabel("指标图标", "kpi-icon-group-label");
+    const groupKpiCardGroupLabel = createContextGroupLabel("卡片外观", "kpi-card-group-label");
+    const cardKpiIconGroupLabel = createContextGroupLabel("指标图标", "kpi-icon-group-label");
+    const cardKpiCardGroupLabel = createContextGroupLabel("卡片外观", "kpi-card-group-label");
+    sectionWidthField.before(sectionLayoutGroupLabel);
+    kpiStyleSamples.before(groupKpiIconGroupLabel);
+    groupKpiBackgroundField.before(groupKpiCardGroupLabel);
+    cardKpiStyleSamples.before(cardKpiIconGroupLabel);
+    cardKpiBackgroundField.before(cardKpiCardGroupLabel);
     [cardKpiIconOverrideControl, cardKpiWeightControl, cardIconColorControl, cardKpiContainerControl, cardKpiShapeControl, cardKpiSizeControl, cardKpiLayoutControl].forEach((control) => {
       control.options[0].textContent = "跟随整组";
     });
@@ -553,6 +599,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       const menuWidth = 190;
       const left = Math.max(0, Math.min(rowRect.width - menuWidth, triggerRect.right - rowRect.left - menuWidth));
       customPresetRow.style.setProperty("--custom-preset-menu-left", `${left}px`);
+      customPresetRow.style.setProperty("--custom-preset-menu-top", `${triggerRect.bottom - rowRect.top + 4}px`);
       customPresetUpdate.disabled = state.preset !== presetId || !isCurrentCustomPresetModified();
       customPresetPopover.hidden = false;
     }
@@ -582,25 +629,45 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       closeCustomPresetMenu();
       customPresetList.replaceChildren();
       const selectedPreset = getCustomPreset(state.preset);
-      const dropdown = document.createElement("div"); dropdown.className = "custom-select custom-preset-dropdown"; dropdown.dataset.open = "false";
+      const presetView = presetViews[state.pageType] || presetViews.dashboard;
+      const selectedLabel = selectedPreset?.name || presetView.labels[state.preset] || presets[state.preset]?.label || "选择视觉预设";
+      const dropdown = document.createElement("div"); dropdown.id = "presetControls"; dropdown.className = "custom-select visual-preset-select"; dropdown.dataset.open = "false";
       const trigger = document.createElement("button"); trigger.type = "button"; trigger.className = "custom-select-trigger"; trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
-      const triggerLabel = document.createElement("span"); triggerLabel.textContent = selectedPreset ? `${selectedPreset.name}${modified ? " · 已修改" : ""}` : "自定义预设";
+      const triggerLabel = document.createElement("span"); triggerLabel.textContent = `${selectedLabel}${modified ? " · 已修改" : ""}`;
       const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg"); chevron.classList.add("custom-select-chevron"); chevron.setAttribute("viewBox", "0 0 24 24"); chevron.setAttribute("aria-hidden", "true"); chevron.innerHTML = "<path d=\"m6 9 6 6 6-6\"/>";
       trigger.append(triggerLabel, chevron);
       const list = document.createElement("div"); list.className = "custom-select-listbox"; list.setAttribute("role", "listbox");
+
+      const closeDropdown = () => { dropdown.dataset.open = "false"; trigger.setAttribute("aria-expanded", "false"); };
+      const groupLabel = (text) => { const label = document.createElement("div"); label.className = "visual-preset-group-label"; label.textContent = text; return label; };
+      const presetOption = (presetId, label) => {
+        const option = document.createElement("button"); option.type = "button"; option.className = "custom-select-option visual-preset-option"; option.dataset.preset = presetId; option.setAttribute("role", "option"); option.setAttribute("aria-selected", String(state.preset === presetId));
+        const name = document.createElement("span"); name.textContent = label;
+        const check = document.createElementNS("http://www.w3.org/2000/svg", "svg"); check.classList.add("custom-select-check"); check.setAttribute("viewBox", "0 0 24 24"); check.setAttribute("aria-hidden", "true"); check.innerHTML = "<path d=\"m5 12 4 4L19 6\"/>";
+        option.append(name, check);
+        option.addEventListener("click", () => { closeDropdown(); selectPreset(presetId); });
+        return option;
+      };
+
+      list.append(groupLabel("系统预设"));
+      const builtInIds = [...presetView.allowed];
+      if (presets[state.preset] && !builtInIds.includes(state.preset)) builtInIds.push(state.preset);
+      builtInIds.forEach((presetId) => list.append(presetOption(presetId, presetView.labels[presetId] || presets[presetId].label)));
+
+      if (customPresets.length) list.append(groupLabel("我的预设"));
       customPresets.forEach((preset) => {
-        const option = document.createElement("button"); option.type = "button"; option.className = "custom-select-option"; option.setAttribute("role", "option"); option.setAttribute("aria-selected", String(state.preset === preset.id));
-        const name = document.createElement("span"); name.textContent = preset.name;
-        const check = document.createElementNS("http://www.w3.org/2000/svg", "svg"); check.classList.add("custom-select-check"); check.setAttribute("viewBox", "0 0 24 24"); check.innerHTML = "<path d=\"m5 12 4 4L19 6\"/>";
-        option.append(name, check); option.addEventListener("click", () => selectPreset(preset.id)); list.append(option);
+        const row = document.createElement("div"); row.className = "visual-preset-custom-row";
+        const option = presetOption(preset.id, preset.name);
+        const more = document.createElement("button"); more.type = "button"; more.className = "custom-preset-more"; more.dataset.customPresetMore = preset.id; more.setAttribute("aria-label", `管理预设 ${preset.name}`); more.setAttribute("aria-haspopup", "menu"); more.setAttribute("aria-expanded", "false"); more.textContent = "···";
+        more.addEventListener("click", (event) => { event.stopPropagation(); if (customPresetActionTargetId === preset.id && !customPresetPopover.hidden) closeCustomPresetMenu({ focus: true }); else openCustomPresetMenu(preset.id, more); });
+        row.append(option, more); list.append(row);
       });
-      const create = document.createElement("button"); create.type = "button"; create.className = "custom-select-option custom-preset-create"; create.textContent = "+ 新建自定义预设"; create.addEventListener("click", () => openCustomPresetDialog("create")); list.append(create);
+      const create = document.createElement("button"); create.type = "button"; create.className = "custom-select-option custom-preset-create"; create.textContent = "+ 将当前配置保存为新预设"; create.addEventListener("click", () => { closeDropdown(); openCustomPresetDialog("create"); }); list.append(create);
       dropdown.append(trigger, list);
       trigger.addEventListener("click", () => { const open = dropdown.dataset.open !== "true"; dropdown.dataset.open = String(open); trigger.setAttribute("aria-expanded", String(open)); });
-      dropdown.addEventListener("focusout", () => requestAnimationFrame(() => { if (!dropdown.contains(document.activeElement)) { dropdown.dataset.open = "false"; trigger.setAttribute("aria-expanded", "false"); } }));
-      const more = document.createElement("button"); more.type = "button"; more.className = "custom-preset-more"; more.dataset.customPresetMore = selectedPreset?.id || ""; more.setAttribute("aria-label", selectedPreset ? `管理预设 ${selectedPreset.name}` : "管理自定义预设"); more.setAttribute("aria-haspopup", "menu"); more.setAttribute("aria-expanded", "false"); more.textContent = "···"; more.hidden = !selectedPreset;
-      more.addEventListener("click", () => { if (!selectedPreset) return; if (customPresetActionTargetId === selectedPreset.id && !customPresetPopover.hidden) closeCustomPresetMenu({ focus: true }); else openCustomPresetMenu(selectedPreset.id, more); });
-      customPresetList.append(dropdown, more);
+      trigger.addEventListener("keydown", (event) => { if (!["ArrowDown", "ArrowUp"].includes(event.key)) return; event.preventDefault(); dropdown.dataset.open = "true"; trigger.setAttribute("aria-expanded", "true"); requestAnimationFrame(() => list.querySelector('[role="option"]')?.focus()); });
+      dropdown.addEventListener("focusout", () => requestAnimationFrame(() => { if (!dropdown.contains(document.activeElement) && customPresetPopover.hidden) closeDropdown(); }));
+      customPresetList.append(dropdown);
     }
 
     function setSaveStatus(message) {
@@ -820,13 +887,14 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
 
     function effectiveChartType(card, component = workspaceComponentModelById(card?.dataset.itemId)) {
       const type = component?.props?.chartType || state.cardOverrides?.[card?.dataset.itemId]?.chartType || card?.dataset.chartType || "bar";
-      return ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"].includes(type) ? type : "bar";
+      return ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"].includes(type) ? type : "bar";
     }
 
-    function chartPaletteForCard(card) {
+    function chartPaletteForCard(card, component, type) {
       const styles = getComputedStyle(card);
       const read = (name, fallback) => styles.getPropertyValue(name).trim() || fallback;
-      const mode = card.dataset.chartPalette || dashboard.dataset.chartPalette || "monochrome";
+      const configuredMode = card.dataset.chartPalette || dashboard.dataset.chartPalette || "auto";
+      const mode = configuredMode === "auto" ? automaticChartPaletteMode(component, type) : configuredMode;
       if (mode === "categorical") return Array.from({ length: 8 }, (_, index) => read(`--chart-${index + 1}`, DASHBOARD_CATEGORICAL_PALETTE[index]));
       if (mode === "bichrome") return [read("--chart-bi-1", DASHBOARD_CATEGORICAL_PALETTE[0]), read("--chart-bi-2", DASHBOARD_CATEGORICAL_PALETTE[1])];
       const accent = read("--chart-accent", DASHBOARD_CATEGORICAL_PALETTE[0]);
@@ -871,7 +939,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function setSelectedChartType(type) {
-      if (!selectedCardId || !["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"].includes(type)) return;
+      if (!selectedCardId || !["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"].includes(type)) return;
       const component = workspaceComponentModelById(selectedCardId);
       if (!component || component.type !== "chart") {
         state.cardOverrides ||= {};
@@ -888,7 +956,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         delete state.cardOverrides[selectedCardId].chartType;
         if (!Object.keys(state.cardOverrides[selectedCardId]).length) delete state.cardOverrides[selectedCardId];
       }
-      if (["pie", "sector-pie", "rose"].includes(type) && !state.cardOverrides?.[selectedCardId]?.chartPalette) {
+      if (["pie", "sector-pie", "rose", "radar", "funnel"].includes(type) && !state.cardOverrides?.[selectedCardId]?.chartPalette) {
         state.cardOverrides ||= {};
         state.cardOverrides[selectedCardId] = { ...(state.cardOverrides[selectedCardId] || {}), chartPalette: "categorical" };
       }
@@ -1140,6 +1208,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function setCardContextFields(type) {
+      sectionLayoutGroupLabel.hidden = true;
+      groupKpiIconGroupLabel.hidden = true;
+      groupKpiCardGroupLabel.hidden = true;
+      cardKpiIconGroupLabel.hidden = true;
+      cardKpiCardGroupLabel.hidden = true;
       sectionWidthField.hidden = true;
       sectionLayoutField.hidden = true;
       sectionKpiControlsField.hidden = true;
@@ -1207,6 +1280,9 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           syncCustomSelect(sectionWidthControl);
           const sectionGroup = section.querySelector(":scope > .layout-group");
           sectionLayoutField.hidden = !sectionGroup || (state.pageType === "dashboard" && !isGrouped);
+          sectionLayoutGroupLabel.hidden = sectionWidthField.hidden && sectionLayoutField.hidden;
+          groupKpiIconGroupLabel.hidden = !isKpiGroup;
+          groupKpiCardGroupLabel.hidden = !isKpiGroup;
           if (sectionGroup) {
             sectionLayoutControl.value = sectionGroup.dataset.layout || "responsive";
             syncCustomSelect(sectionLayoutControl);
@@ -1250,6 +1326,8 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       cardContextHint.textContent = cardContextEmptyMessage(card, type);
       cardOverrideReset.hidden = !Object.keys(override).length;
       setCardContextFields(type === "kpi" ? "kpi" : type === "chart" ? "chart" : hasTitleIcon ? "generic" : "none");
+      cardKpiIconGroupLabel.hidden = type !== "kpi";
+      cardKpiCardGroupLabel.hidden = type !== "kpi";
       cardTitleIconField.hidden = !hasTitleIcon;
       cardSubtitleField.hidden = !subtitle;
       cardIconColorField.hidden = type !== "kpi" || effectiveKpiIcon === "none";
@@ -1301,7 +1379,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         return;
       }
       const validation = validateChartApplication(event.data, {
-        chartTypes: ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"],
+        chartTypes: ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"],
         selectedTarget: target,
         session: resourceSession
       });
@@ -1417,7 +1495,8 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (source.kpiIcon === "none") return "none";
       const form = source.kpiIcon === "filled" ? "filled" : "line";
       const container = ["outline", "soft"].includes(source.kpiIconContainer) ? "soft"
-        : ["solid", "gradient", "bigradient"].includes(source.kpiIconContainer) ? "solid" : "none";
+        : ["solid", "gradient", "bigradient"].includes(source.kpiIconContainer) ? "solid"
+          : source.kpiIconContainer === "glow" ? "glow" : "none";
       return `${form}${container === "none" ? "" : `-${container}`}`;
     }
 
@@ -1427,7 +1506,32 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (decoration === "inherit") return;
       target.kpiIcon = decoration === "none" ? "none" : decoration.startsWith("filled") ? "filled" : "outline";
       target.kpiIconWeight = "regular";
-      target.kpiIconContainer = decoration.endsWith("-soft") ? "soft" : decoration.endsWith("-solid") ? "solid" : "none";
+      target.kpiIconContainer = decoration.endsWith("-soft") ? "soft"
+        : decoration.endsWith("-solid") ? "solid"
+          : decoration.endsWith("-glow") ? "glow" : "none";
+    }
+
+    function deriveKpiStyleSelection(source) {
+      if (source.kpiIcon === "none") return "none";
+      const color = source.iconColor || source.kpiIconColor || "accent";
+      const colorFamily = ["auto", "colorful", "gradient-colorful"].includes(color) ? "multi" : "theme";
+      if (source.kpiIconContainer === "glow") return `glow-${colorFamily}`;
+      if (["outline", "soft"].includes(source.kpiIconContainer)) return `soft-${colorFamily}`;
+      if (["solid", "gradient", "bigradient"].includes(source.kpiIconContainer)) {
+        return source.kpiIcon === "filled" ? `solid-${colorFamily}` : `glow-${colorFamily}`;
+      }
+      return `${source.kpiIcon === "filled" ? "filled" : "line"}-${colorFamily}`;
+    }
+
+    function applyKpiStyleSelection(target, selection, local = false) {
+      if (local) ["kpiIcon", "kpiIconWeight", "kpiIconContainer", "iconColor"].forEach((key) => delete target[key]);
+      if (selection === "inherit") return;
+      const preset = kpiStylePresets[selection] || kpiStylePresets["line-theme"];
+      target.kpiIcon = preset.kpiIcon;
+      target.kpiIconWeight = "regular";
+      target.kpiIconContainer = preset.kpiIconContainer;
+      if (local) target.iconColor = preset.color;
+      else target.kpiIconColor = preset.color;
     }
 
     function applyCardTitleStyle(style, target) {
@@ -1489,38 +1593,51 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function syncKpiStyleSamples() {
-      const globalHasBackground = state.kpiIconContainer !== "none";
-      kpiShapeControl.disabled = !globalHasBackground;
-      kpiDecorationControl.value = deriveKpiDecoration(state);
+      const globalDecoration = deriveKpiDecoration(state);
+      const globalStyle = deriveKpiStyleSelection(state);
+      const globalHasIcon = globalDecoration !== "none";
+      const globalHasBackground = /-(soft|solid|glow)$/.test(globalDecoration);
+      kpiDecorationControl.value = globalStyle;
       kpiStyleColorControl.value = state.kpiIconColor;
-      kpiStyleColorControl.disabled = false;
+      kpiStyleSamples.dataset.iconEnabled = String(globalHasIcon);
+      const globalColorSelect = customSelects.get(kpiStyleColorControl);
+      if (globalColorSelect) globalColorSelect.root.hidden = !globalHasIcon;
+      kpiSizeField.hidden = !globalHasIcon;
+      kpiShapeField.hidden = !globalHasBackground;
+      kpiLayoutControl.closest(".control-group").hidden = !globalHasIcon;
       syncInheritedOptionLabels();
       if (!selectedCardId) {
         syncCustomSelects();
         return;
       }
       const override = state.cardOverrides?.[selectedCardId] || {};
-      const hasDecorationOverride = ["kpiIcon", "kpiIconWeight", "kpiIconContainer"].some((key) => key in override);
-      const localSource = { kpiIcon: override.kpiIcon || state.kpiIcon, kpiIconContainer: override.kpiIconContainer || state.kpiIconContainer };
-      const localDecoration = hasDecorationOverride ? deriveKpiDecoration(localSource) : "inherit";
-      const localContainer = override.kpiIconContainer || state.kpiIconContainer;
-      cardKpiShapeControl.disabled = localContainer === "none";
-      cardKpiDecorationControl.value = localDecoration;
+      const hasStyleOverride = ["kpiIcon", "kpiIconWeight", "kpiIconContainer", "iconColor"].some((key) => key in override);
+      const localSource = { kpiIcon: override.kpiIcon || state.kpiIcon, kpiIconContainer: override.kpiIconContainer || state.kpiIconContainer, iconColor: override.iconColor || state.kpiIconColor };
+      const localStyle = hasStyleOverride ? deriveKpiStyleSelection(localSource) : "inherit";
+      const effectiveLocalDecoration = localStyle === "inherit" ? globalDecoration : deriveKpiDecoration(localSource);
+      const localHasIcon = effectiveLocalDecoration !== "none";
+      const localHasBackground = /-(soft|solid|glow)$/.test(effectiveLocalDecoration);
+      cardKpiDecorationControl.value = localStyle;
       cardKpiStyleColorControl.value = override.iconColor || "inherit";
-      cardKpiStyleColorControl.disabled = false;
+      cardKpiStyleSamples.dataset.iconEnabled = String(localHasIcon);
+      const localColorSelect = customSelects.get(cardKpiStyleColorControl);
+      if (localColorSelect) localColorSelect.root.hidden = !localHasIcon;
+      cardKpiSizeField.hidden = !localHasIcon;
+      cardKpiShapeField.hidden = !localHasBackground;
+      cardKpiLayoutField.hidden = !localHasIcon;
       syncCustomSelects();
     }
 
-    function applyGlobalKpiDecoration(decoration) {
-      applyKpiDecoration(state, decoration);
+    function applyGlobalKpiDecoration(selection) {
+      applyKpiStyleSelection(state, selection);
       applyState();
     }
 
-    function applyCardKpiDecoration(decoration) {
+    function applyCardKpiDecoration(selection) {
       if (!selectedCardId) return;
       state.cardOverrides ||= {};
       const override = { ...(state.cardOverrides[selectedCardId] || {}) };
-      applyKpiDecoration(override, decoration, true);
+      applyKpiStyleSelection(override, selection, true);
       if (Object.keys(override).length) state.cardOverrides[selectedCardId] = override;
       else delete state.cardOverrides[selectedCardId];
       applyCardOverrides();
@@ -1561,7 +1678,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         const override = state.cardOverrides[card.dataset.itemId];
         if (!override) return;
         if (["monochrome", "bichrome", "categorical"].includes(override.chartPalette)) card.dataset.chartPalette = override.chartPalette;
-        if (["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose"].includes(override.chartType)) card.dataset.chartType = override.chartType;
+        if (["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"].includes(override.chartType)) card.dataset.chartType = override.chartType;
         if (cardTitleStylePresets[override.cardTitleStyle]) {
           const titleStyle = cardTitleStylePresets[override.cardTitleStyle];
           card.dataset.cardTitleIcon = titleStyle.cardTitleIcon;
@@ -1588,9 +1705,9 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         }
         if (["none", "outline", "filled"].includes(override.kpiIcon)) card.dataset.kpiIcon = override.kpiIcon;
         if (["thin", "regular", "bold"].includes(override.kpiIconWeight)) card.dataset.kpiIconWeight = override.kpiIconWeight;
-        if (["none", "outline", "soft", "solid", "gradient", "bigradient"].includes(override.kpiIconContainer)) card.dataset.kpiIconContainer = override.kpiIconContainer;
+        if (["none", "outline", "soft", "solid", "gradient", "bigradient", "glow"].includes(override.kpiIconContainer)) card.dataset.kpiIconContainer = override.kpiIconContainer;
         if (["rect", "circle"].includes(override.kpiIconShape)) card.dataset.kpiIconShape = override.kpiIconShape;
-        if (["small", "medium", "large"].includes(override.kpiIconSize)) card.dataset.kpiIconSize = override.kpiIconSize;
+        if (["medium", "large"].includes(override.kpiIconSize)) card.dataset.kpiIconSize = override.kpiIconSize;
         if (["default", "white", "single", "multi"].includes(override.kpiCardBackground)) card.dataset.kpiCardBackground = override.kpiCardBackground;
         if (override.kpiLayout === "stacked") override.kpiLayout = "right-top";
         if (override.kpiLayout === "horizontal") override.kpiLayout = "left-top";
@@ -1646,8 +1763,29 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (!kpiColorContext) return;
       const cards = [...dashboard.querySelectorAll('.metric[data-item-id]')];
       cards.forEach((card, index) => {
-        ["--icon-accent", "--icon-accent-alt", "--icon-soft", "--icon-solid", "--icon-solid-alt", "--icon-on-solid", "--kpi-card-palette"].forEach((name) => card.style.removeProperty(name));
-        const paletteSeed = kpiColorContext.palette[index % kpiColorContext.palette.length];
+        ["--icon-accent", "--icon-accent-alt", "--icon-soft", "--icon-solid", "--icon-solid-alt", "--icon-on-solid", "--kpi-card-palette", "--kpi-icon-box", "--kpi-icon-glyph", "--kpi-icon-offset", "--kpi-icon-shift-y"].forEach((name) => card.style.removeProperty(name));
+        const resolvedContainer = card.dataset.kpiIconContainer || state.kpiIconContainer;
+        const resolvedSize = card.dataset.kpiIconSize || state.kpiIconSize;
+        const resolvedIcon = card.dataset.kpiIcon || state.kpiIcon;
+        const hasIconBackground = !["none", "outline"].includes(resolvedContainer);
+        card.dataset.resolvedKpiIcon = resolvedIcon;
+        card.dataset.resolvedKpiIconBackground = String(hasIconBackground);
+        const sizeTokens = hasIconBackground
+          ? resolvedSize === "large"
+            ? { box: 40, glyph: 23, offset: 50, shiftY: -11 }
+            : { box: 34, glyph: 21, offset: 44, shiftY: -8 }
+          : resolvedSize === "large"
+            ? { box: 48, glyph: 28, offset: 58, shiftY: -15 }
+            : { box: 40, glyph: 23, offset: 50, shiftY: -11 };
+        card.style.setProperty("--kpi-icon-box", `${sizeTokens.box}px`);
+        card.style.setProperty("--kpi-icon-glyph", `${sizeTokens.glyph}px`);
+        card.style.setProperty("--kpi-icon-offset", `${sizeTokens.offset}px`);
+        card.style.setProperty("--kpi-icon-shift-y", `${sizeTokens.shiftY}px`);
+        const paletteIndex = cards.length > 1
+          ? Math.floor(index * kpiColorContext.gradients.length / cards.length)
+          : 0;
+        const gradient = kpiColorContext.gradients[paletteIndex];
+        const paletteSeed = gradient.start;
         const paletteTokens = deriveIconTokens(paletteSeed, state.mode, kpiColorContext.surface);
         card.style.setProperty("--kpi-card-palette", paletteSeed);
         const colorMode = resolveKpiIconColorMode(card);
@@ -1655,10 +1793,10 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         if (!["colorful", "gradient-colorful"].includes(colorMode)) return;
         const tokens = paletteTokens;
         card.style.setProperty("--icon-accent", paletteSeed);
-        card.style.setProperty("--icon-accent-alt", kpiColorContext.palette[(index + 1) % kpiColorContext.palette.length]);
+        card.style.setProperty("--icon-accent-alt", gradient.end);
         card.style.setProperty("--icon-soft", tokens.soft);
-        card.style.setProperty("--icon-solid", tokens.solid);
-        card.style.setProperty("--icon-solid-alt", deriveIconGradientAlternate(paletteSeed, state.mode, kpiColorContext.surface));
+        card.style.setProperty("--icon-solid", gradient.start);
+        card.style.setProperty("--icon-solid-alt", gradient.end);
         card.style.setProperty("--icon-on-solid", tokens.onSolid);
       });
     }
@@ -2584,7 +2722,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           container = replacement;
         }
 
-        const visibleLabel = [...container.children].find((child) => child.tagName === "SPAN")?.textContent || select.getAttribute("aria-label") || "选择";
+        const visibleLabel = select.getAttribute("aria-label") || [...container.children].find((child) => child.tagName === "SPAN")?.textContent || "选择";
         const root = document.createElement("div");
         const trigger = document.createElement("button");
         const triggerPreview = document.createElement("span");
@@ -2653,10 +2791,26 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           if (["cardTitleDecorationControl", "kpiDecorationControl", "cardKpiDecorationControl"].includes(select.id)
             && !["none", "inherit"].includes(nativeOption.value)) {
             const preview = document.createElement("span");
-            const isFilled = nativeOption.value.startsWith("filled");
+            const kpiPreset = kpiStylePresets[nativeOption.value];
+            const isFilled = kpiPreset ? kpiPreset.kpiIcon === "filled" : nativeOption.value.startsWith("filled");
             preview.className = "card-title-decoration-option-preview custom-select-option-preview";
-            preview.dataset.container = nativeOption.value.endsWith("-soft") ? "soft" : nativeOption.value.endsWith("-solid") ? "solid" : "none";
-            preview.innerHTML = `<svg viewBox="0 0 256 256" aria-hidden="true">${phosphorKpiIcons["chart-line-up"][isFilled ? "fill" : "regular"]}</svg>`;
+            if (kpiPreset) preview.dataset.colorMode = kpiPreset.color;
+            preview.dataset.container = kpiPreset?.kpiIconContainer || (nativeOption.value.endsWith("-soft") ? "soft"
+              : nativeOption.value.endsWith("-solid") ? "solid"
+                : nativeOption.value.endsWith("-glow") ? "glow" : "none");
+            const previewGradientId = `kpi-style-gradient-${select.id}-${optionIndex}`;
+            const colorfulGradient = kpiPreset?.color === "colorful"
+              ? `<defs><linearGradient id="${previewGradientId}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" style="stop-color:var(--kpi-colorful-preview-1, #5b8ff9)"/><stop offset=".25" style="stop-color:var(--kpi-colorful-preview-1, #5b8ff9)"/><stop offset=".25" style="stop-color:var(--kpi-colorful-preview-2, #43c59e)"/><stop offset=".5" style="stop-color:var(--kpi-colorful-preview-2, #43c59e)"/><stop offset=".5" style="stop-color:var(--kpi-colorful-preview-3, #f3a83b)"/><stop offset=".75" style="stop-color:var(--kpi-colorful-preview-3, #f3a83b)"/><stop offset=".75" style="stop-color:var(--kpi-colorful-preview-4, #de72b4)"/><stop offset="1" style="stop-color:var(--kpi-colorful-preview-4, #de72b4)"/></linearGradient></defs>`
+              : "";
+            if (kpiPreset?.color === "colorful" && kpiPreset.kpiIconContainer === "glow") {
+              preview.dataset.distributedGradient = "true";
+              preview.innerHTML = [1, 2, 3, 4].map((index) => `<span class="kpi-distributed-gradient-chip" style="--chip-start:var(--kpi-colorful-preview-${index});--chip-end:var(--kpi-colorful-preview-alt-${index})"></span>`).join("");
+            } else {
+              preview.innerHTML = `<svg viewBox="0 0 256 256" aria-hidden="true">${colorfulGradient}${phosphorKpiIcons["chart-line-up"][isFilled ? "fill" : "regular"]}</svg>`;
+            }
+            if (kpiPreset?.color === "colorful" && !["solid", "glow"].includes(kpiPreset.kpiIconContainer)) {
+              preview.querySelectorAll("svg > path").forEach((path) => { path.style.fill = `url(#${previewGradientId})`; });
+            }
             option.prepend(preview);
           }
           if (["cardTitleColorControl", "kpiStyleColorControl", "cardKpiStyleColorControl"].includes(select.id)
@@ -2981,17 +3135,23 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     function deriveIconGradientAlternate(seed, mode, surface) {
       const source = hexToHsl(seed);
       if (source.s < 8) return mode === "dark" ? "#71717a" : "#3f3f46";
-      const adjacent = hslToHex(source.h - 22, Math.min(84, Math.max(60, source.s * .94)), Math.max(34, Math.min(56, source.l)));
-      return deriveIconTokens(adjacent, mode, surface).solid;
+      const reference = FX_UI_KPI_GRADIENTS.find(({ start }) => start.toLowerCase() === seed.toLowerCase());
+      if (reference) return reference.end;
+      return hslToHex(source.h, Math.min(94, Math.max(56, source.s * .88)), Math.min(82, Math.max(60, source.l + 18)));
     }
 
     function deriveIconGradientAlternateAccent(seed, mode, surface) {
       const source = hexToHsl(seed);
       if (source.s < 8) return mode === "dark" ? "#d4d4d8" : "#3f3f46";
-      const adjacent = hslToHex(source.h - 22, Math.min(84, Math.max(60, source.s * .94)), Math.max(34, Math.min(56, source.l)));
-      return deriveIconTokens(adjacent, mode, surface).accent;
+      return deriveIconGradientAlternate(seed, mode, surface);
     }
 
+    const FX_UI_KPI_GRADIENTS = Object.freeze([
+      { start: "#FF8000", end: "#FFB347" },
+      { start: "#2563EB", end: "#60A5FA" },
+      { start: "#16A34A", end: "#4ADE80" },
+      { start: "#8B5CF6", end: "#C4B5FD" }
+    ]);
     const DASHBOARD_CATEGORICAL_PALETTE = ["#5b8ff9","#45b8d8","#43c59e","#96bf45","#f3a83b","#f06b72","#de72b4","#9270e8"];
 
     function deriveChartPalette(seed) {
@@ -3136,12 +3296,6 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function updatePresetOptions() {
-      const view = presetViews[state.pageType] || presetViews.dashboard;
-      document.querySelectorAll("#presetControls [data-preset]").forEach((button) => {
-        const presetName = button.dataset.preset;
-        button.textContent = view.labels[presetName] || presets[presetName].label;
-        button.hidden = !view.allowed.includes(presetName) && presetName !== state.preset;
-      });
       renderCustomPresetTabs();
     }
 
@@ -3163,13 +3317,21 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (!["none", "line", "filled", "line-soft", "filled-soft", "line-solid", "filled-solid"].includes(state.cardTitleDecoration)) state.cardTitleDecoration = "none";
       if (!["neutral", "accent", "gradient-accent", "colorful", "gradient-colorful"].includes(state.cardTitleColor)) state.cardTitleColor = "neutral";
       applyCardTitleControls(state, state.cardTitleDecoration, state.cardTitleColor);
-      if (!["monochrome", "bichrome", "categorical"].includes(state.chartPalette)) state.chartPalette = "monochrome";
+      if (!["auto", "monochrome", "bichrome", "categorical"].includes(state.chartPalette)) state.chartPalette = "auto";
       if (state.kpiLayout === "stacked") state.kpiLayout = "right-top";
       if (state.kpiLayout === "horizontal") state.kpiLayout = "left-top";
       if (!["left-top", "left-middle", "right-top", "right-middle"].includes(state.kpiLayout)) state.kpiLayout = "right-top";
       if (state.kpiIcon === "duotone") state.kpiIcon = "filled";
       if (!["none", "outline", "filled"].includes(state.kpiIcon)) state.kpiIcon = "none";
       if (!["thin", "regular", "bold"].includes(state.kpiIconWeight)) state.kpiIconWeight = "regular";
+      if (state.kpiGlowStyleVersion !== 1) {
+        if (state.kpiIcon === "outline" && state.kpiIconContainer === "solid") state.kpiIconContainer = "glow";
+        Object.values(state.cardOverrides || {}).forEach((override) => {
+          const effectiveIcon = override.kpiIcon || state.kpiIcon;
+          if (effectiveIcon === "outline" && override.kpiIconContainer === "solid") override.kpiIconContainer = "glow";
+        });
+        state.kpiGlowStyleVersion = 1;
+      }
       Object.values(state.cardOverrides || {}).forEach((override) => {
         if (override.kpiIcon === "duotone") override.kpiIcon = "filled";
         if (!cardTitleStylePresets[override.cardTitleStyle] && ["none", "line", "soft", "solid"].includes(override.cardTitleIcon)) {
@@ -3185,9 +3347,12 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         state.kpiIconFollowCardVersion = 1;
       }
       if (!["auto", "neutral", "accent", "colorful", "gradient-neutral", "gradient-accent", "gradient-colorful"].includes(state.kpiIconColor)) state.kpiIconColor = "auto";
-      if (!["none", "outline", "soft", "solid", "gradient", "bigradient"].includes(state.kpiIconContainer)) state.kpiIconContainer = "none";
+      if (!["none", "outline", "soft", "solid", "gradient", "bigradient", "glow"].includes(state.kpiIconContainer)) state.kpiIconContainer = "none";
       if (!["rect", "circle"].includes(state.kpiIconShape)) state.kpiIconShape = "rect";
-      if (!["small", "medium", "large"].includes(state.kpiIconSize)) state.kpiIconSize = "medium";
+      if (state.kpiIconSize === "small" || !["medium", "large"].includes(state.kpiIconSize)) state.kpiIconSize = "medium";
+      Object.values(state.cardOverrides || {}).forEach((override) => {
+        if (override.kpiIconSize === "small") override.kpiIconSize = "medium";
+      });
       if (!["default", "white", "single", "multi"].includes(state.kpiCardBackground)) state.kpiCardBackground = "default";
       if (!["none", "weak", "medium", "strong"].includes(state.shadow)) state.shadow = "weak";
       if (!["none", "grid", "grain", "diagonal"].includes(state.pageTexture)) state.pageTexture = "none";
@@ -3226,7 +3391,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       state.headerTitleFont = Math.max(20, Math.min(48, Number(state.headerTitleFont) || 32));
       if (!["title", "subtitle", "bilingual"].includes(state.sectionCopy)) state.sectionCopy = "title";
       if (state.sectionLeading === "accent") state.sectionLeading = "marker";
-      if (!["none", "marker", "number", "icon"].includes(state.sectionLeading)) state.sectionLeading = "none";
+      if (!["none", "marker", "marker-glow", "number", "icon"].includes(state.sectionLeading)) state.sectionLeading = "none";
       const legacySectionIconStyles = {
         "line-neutral": ["line", "neutral"],
         "line-accent": ["line", "accent"],
@@ -3279,7 +3444,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         : state.cardTitleIconColor === "colorful"
           ? { accent: chartPalette.categorical[0], soft: mixHex(chartPalette.categorical[0], resolvedSurface, state.mode === "dark" ? .16 : .10), onSolid: "#ffffff" }
           : iconTokens;
-      kpiColorContext = { surface: resolvedSurface, palette: chartPalette.categorical };
+      kpiColorContext = { surface: resolvedSurface, gradients: FX_UI_KPI_GRADIENTS };
       const resolvedHeaderSolidColor = state.headerSolidLinkedToMode ? resolvedSurface : state.headerSolidColor;
       let headerBackground = state.headerBackgroundType === "none" ? "transparent" : resolvedSurface;
       let headerText = state.headerBackgroundType === "none" ? pageText : deriveReadableText(resolvedSurface);
@@ -3343,6 +3508,12 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       designDrawer.style.setProperty("--card-title-accent-alt-preview", iconGradientAlternateAccent);
       designDrawer.style.setProperty("--card-title-colorful-preview", chartPalette.categorical[0]);
       designDrawer.style.setProperty("--card-title-colorful-alt-preview", chartPalette.categorical[1]);
+      designDrawer.style.setProperty("--kpi-theme-preview", iconTokens.solid);
+      designDrawer.style.setProperty("--kpi-theme-alt-preview", iconGradientAlternate);
+      FX_UI_KPI_GRADIENTS.forEach((gradient, index) => {
+        designDrawer.style.setProperty(`--kpi-colorful-preview-${index + 1}`, gradient.start);
+        designDrawer.style.setProperty(`--kpi-colorful-preview-alt-${index + 1}`, gradient.end);
+      });
       document.body.style.background = state.pageType === "report"
         ? (state.pageBackground === "accent-soft" ? softThemeSurfaces.outer : surfaceTokens.outer)
         : resolvedPageBackground;
@@ -3427,9 +3598,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       kpiContainerControl.value = state.kpiIconContainer;
       kpiContainerField.hidden = state.kpiIcon === "none";
       kpiShapeControl.value = state.kpiIconShape;
-      kpiShapeField.hidden = false;
       kpiSizeControl.value = state.kpiIconSize;
-      kpiSizeField.hidden = false;
       kpiLayoutControl.value = state.kpiLayout;
       chartPaletteControl.value = state.chartPalette;
       headerControl.value = state.headerBackgroundType;
@@ -3484,7 +3653,6 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (workspaceDocument) applyWorkspaceDocument(workspaceDocument);
       applyCardOverrides();
       updatePresetOptions();
-      setPressed("presetControls", state.preset);
       setPressed("pageTypeControls", state.pageType);
       setPressed("languageControls", state.language);
       setPressed("modeControls", state.mode);
@@ -3510,14 +3678,10 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       const language = state.language || "zh";
       const pageType = state.pageType || "dashboard";
       const preset = { ...basePreset, ...(pagePresetDefaults[pageType]?.[name] || {}) };
-      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: preset.headerBackgroundType ?? (pageType === "report" ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid"), headerBackgroundDefaultVersion: 2, headerAlign: preset.headerAlign ?? (pageType === "report" ? "center" : "left"), headerTitleFont: preset.headerTitleFont ?? 32, subtitle: preset.subtitle ?? "none", headerMetaStyle: preset.headerMetaStyle ?? (pageType === "dashboard" ? "plain" : "surface"), headerMetaDefaultVersion: 2, headerMetaSeparator: preset.headerMetaSeparator ?? "dot", headerDecoration: preset.headerDecoration ?? "none", headerSolidLinkedToMode: true, pageBackground: preset.pageBackground ?? "neutral", customPageBackground: preset.light.page, pageTexture: preset.pageTexture ?? "none", contentWidth: preset.contentWidth ?? "auto", sectionVisibility: preset.sectionVisibility ?? "auto", sectionLeading: preset.sectionLeading ?? "none", sectionIconStyle: "line", sectionIconColor: "accent", sectionIcons: {}, sectionCopy: preset.sectionCopy ?? "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider ?? "none", sectionSurface: preset.sectionSurface ?? "none", sectionFont: preset.sectionFont ?? 15, sectionWeight: 700, frame: preset.frame ?? "none", kpiIcon: preset.kpiIcon ?? "none", kpiIconWeight: "regular", kpiIconColor: "auto", kpiIconFollowCardVersion: 1, kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: preset.chartPalette ?? "monochrome", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below", cardTitleStyle: preset.cardTitleStyle ?? "none", cardTitleLeading: preset.cardTitleLeading ?? "none", cardTitleDecoration: "line", cardTitleColor: "neutral", cardTitleIcon: "none", cardTitleIconForm: "line", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: preset.headerBackgroundType ?? (pageType === "report" ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid"), headerBackgroundDefaultVersion: 2, headerAlign: preset.headerAlign ?? (pageType === "report" ? "center" : "left"), headerTitleFont: preset.headerTitleFont ?? 32, subtitle: preset.subtitle ?? "none", headerMetaStyle: preset.headerMetaStyle ?? (pageType === "dashboard" ? "plain" : "surface"), headerMetaDefaultVersion: 2, headerMetaSeparator: preset.headerMetaSeparator ?? "dot", headerDecoration: preset.headerDecoration ?? "none", headerSolidLinkedToMode: true, pageBackground: preset.pageBackground ?? "neutral", customPageBackground: preset.light.page, pageTexture: preset.pageTexture ?? "none", contentWidth: preset.contentWidth ?? "auto", sectionVisibility: preset.sectionVisibility ?? "auto", sectionLeading: preset.sectionLeading ?? "none", sectionIconStyle: "line", sectionIconColor: "accent", sectionIcons: {}, sectionCopy: preset.sectionCopy ?? "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider ?? "none", sectionSurface: preset.sectionSurface ?? "none", sectionFont: preset.sectionFont ?? 15, sectionWeight: 700, frame: preset.frame ?? "none", kpiIcon: preset.kpiIcon ?? "outline", kpiIconWeight: "regular", kpiIconColor: "accent", kpiIconFollowCardVersion: 1, kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: preset.chartPalette ?? "auto", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below", cardTitleStyle: preset.cardTitleStyle ?? "none", cardTitleLeading: preset.cardTitleLeading ?? "none", cardTitleDecoration: "line", cardTitleColor: "neutral", cardTitleIcon: "none", cardTitleIconForm: "line", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
       applyState();
     }
 
-    document.querySelector("#presetControls").addEventListener("click", (event) => {
-      const name = event.target.dataset.preset;
-      if (name) selectPreset(name);
-    });
     document.querySelector("#customPresetSave").addEventListener("click", () => openCustomPresetDialog("create"));
     customPresetUpdate.addEventListener("click", () => {
       const preset = getCustomPreset(customPresetActionTargetId);
@@ -3595,15 +3759,13 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       options[nextIndex].focus();
     });
     customPresetList.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key) || !event.target.matches(".custom-preset-select")) return;
-      const options = [...customPresetList.querySelectorAll(".custom-preset-select")];
-      if (!options.length) return;
+      if (event.key !== "Escape") return;
+      const dropdown = event.target.closest(".visual-preset-select");
+      if (!dropdown || dropdown.dataset.open !== "true") return;
       event.preventDefault();
-      const currentIndex = options.indexOf(event.target);
-      const nextIndex = event.key === "Home" ? 0
-        : event.key === "End" ? options.length - 1
-        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + options.length) % options.length;
-      options[nextIndex].focus();
+      dropdown.dataset.open = "false";
+      dropdown.querySelector(".custom-select-trigger")?.setAttribute("aria-expanded", "false");
+      dropdown.querySelector(".custom-select-trigger")?.focus();
     });
     document.addEventListener("pointerdown", (event) => {
       if (!customPresetPopover.contains(event.target) && !event.target.closest("[data-custom-preset-more]")) closeCustomPresetMenu();
@@ -3968,7 +4130,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     const studioAuth = createAuthSessionController({
-      gate: studioAuthGate, form: studioAuthForm, token: studioAuthToken, submit: studioAuthSubmit, status: studioAuthStatus, logout: studioAuthControl, projectControl: studioProjectControl, tokenToggle: studioAuthTokenToggle, external: studioAuthExternal, providers: studioAuthProviders,
+      gate: studioAuthGate, form: studioAuthForm, email: studioAuthEmail, password: studioAuthPassword, name: studioAuthName, nameField: studioAuthNameField, submit: studioAuthSubmit, status: studioAuthStatus, logout: studioAuthControl, projectControl: studioProjectControl, passwordToggle: studioAuthPasswordToggle, modeSwitch: studioAuthSwitch, external: studioAuthExternal, providers: studioAuthProviders, title: studioAuthTitle, description: studioAuthDescription, retry: studioAuthRetry, recovery: studioAuthRecovery, forgot: studioAuthForgot,
       onActor(payload) {
       const actor = payload.actor || null;
       if (actor?.role === "viewer") {

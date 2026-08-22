@@ -44,7 +44,10 @@ function chartSvg(component, workspace) {
   const horizontalTypes = ["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"];
   const labelNodes = horizontalTypes.includes(type) ? "" : chartLabels.map((label, index) => `<text x="${coords[index]?.[0] ?? 28}" y="212" text-anchor="middle">${escapeHtml(label)}</text>`).join("");
   let shape;
-  if (["pie", "sector-pie", "rose"].includes(type)) {
+  if (type === "data-table") {
+    const rowHeight = Math.min(34, 164 / Math.max(chartLabels.length, 1)); const columnWidth = 420 / Math.max(series.length, 1);
+    shape = `<text x="28" y="18">分类</text>${series.map((item, index) => `<text x="${190 + columnWidth * (index + .5)}" y="18" text-anchor="middle">${escapeHtml(item.name)}</text>`).join("")}${chartLabels.map((label, row) => { const y = 28 + row * rowHeight; return `<rect x="20" y="${y}" width="600" height="${rowHeight}" fill="${row % 2 ? "transparent" : "var(--page)"}"/><text x="28" y="${y + rowHeight / 2 + 4}">${escapeHtml(label)}</text>${series.map((item, index) => `<text x="${190 + columnWidth * (index + .5)}" y="${y + rowHeight / 2 + 4}" text-anchor="middle">${escapeHtml(String(item.values[row] ?? ""))}</text>`).join("")}<line x1="20" x2="620" y1="${y + rowHeight}" y2="${y + rowHeight}" stroke="var(--line)"/>`; }).join("")}`;
+  } else if (["pie", "sector-pie", "rose"].includes(type)) {
     const total = values.reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0) || 1;
     if (type === "pie") {
       let offset = 0;
@@ -53,6 +56,16 @@ function chartSvg(component, workspace) {
       const maximum = Math.max(...values.map(Number), 1); let angle = -Math.PI / 2;
       shape = values.map((value, index) => { const sweep = Math.max(0, Number(value) || 0) / total * Math.PI * 2; const radius = type === "rose" ? 34 + Math.max(0, Number(value) || 0) / maximum * 56 : 86; const x1 = 320 + Math.cos(angle) * radius; const y1 = 105 + Math.sin(angle) * radius; const end = angle + sweep; const x2 = 320 + Math.cos(end) * radius; const y2 = 105 + Math.sin(end) * radius; const path = `<path d="M320 105 L${x1} ${y1} A${radius} ${radius} 0 ${sweep > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z" fill="var(--chart-${index % 8 + 1})"/>`; angle = end; return path; }).join("");
     }
+  } else if (type === "radar") {
+    const count = Math.max(chartLabels.length, 3); const maximum = Math.max(...series.flatMap((item) => item.values.map(Number)), 1);
+    const point = (index, value, radius = 78) => { const angle = -Math.PI / 2 + index * Math.PI * 2 / count; const scaled = radius * Math.max(0, Number(value) || 0) / maximum; return `${320 + Math.cos(angle) * scaled},${105 + Math.sin(angle) * scaled}`; };
+    const grid = [0.25, 0.5, 0.75, 1].map((scale) => `<polygon points="${Array.from({ length: count }, (_, index) => point(index, maximum * scale)).join(" ")}" fill="none" stroke="var(--line)"/>`).join("");
+    const axes = Array.from({ length: count }, (_, index) => `<line x1="320" y1="105" x2="${point(index, maximum).split(",")[0]}" y2="${point(index, maximum).split(",")[1]}" stroke="var(--line)"/>`).join("");
+    const profiles = series.map((item, index) => `<polygon points="${Array.from({ length: count }, (_, dimension) => point(dimension, item.values[dimension])).join(" ")}" fill="var(--chart-${index % 8 + 1})" fill-opacity=".12" stroke="var(--chart-${index % 8 + 1})" stroke-width="2"/>`).join("");
+    shape = `${grid}${axes}${profiles}`;
+  } else if (type === "funnel") {
+    const maximum = Math.max(...values.map(Number), 1); const rowHeight = 164 / values.length;
+    shape = values.map((value, index) => { const top = Math.max(72, Number(value) / maximum * 420); const next = Math.max(72, Number(values[index + 1] ?? value) / maximum * 420); const y = 20 + index * rowHeight; return `<path d="M${320 - top / 2} ${y} H${320 + top / 2} L${320 + next / 2} ${y + rowHeight - 2} H${320 - next / 2} Z" fill="var(--chart-${index % 8 + 1})"/><text x="320" y="${y + rowHeight / 2 + 4}" text-anchor="middle">${escapeHtml(chartLabels[index] || "")}</text>`; }).join("");
   } else if (horizontalTypes.includes(type)) {
     const ranked = type === "ranking-bar" ? chartLabels.map((label, index) => ({ label, value: Number(values[index]) || 0 })).sort((left, right) => right.value - left.value) : null;
     const displayLabels = ranked?.map(({ label }) => label) || chartLabels;

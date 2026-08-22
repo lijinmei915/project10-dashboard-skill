@@ -53,9 +53,10 @@ if (!workspaceCoreClient.includes('export { diffWorkspaces, migrateWorkspace, va
 if (!workspaceStateCore.includes('import { migrateWorkspace, validateWorkspace } from "./workspace-core-client.mjs";')) throw new Error("Workspace state core must use the Studio core client boundary");
 if (!editorRuntime.includes('import { createWorkspaceSession, PROJECT_STATE_SCRIPT_ID } from "/studio/workspace-session.mjs";')) throw new Error("Studio editor runtime must use the workspace session boundary");
 if (!editorRuntime.includes('import { createAuthSessionController } from "/studio/auth-session-controller.mjs";') || !editorRuntime.includes("const studioAuth = createAuthSessionController({")) throw new Error("Studio editor runtime must delegate auth session orchestration");
+for (const authContract of ['id="studioAuthRetry"', 'id="studioAuthForgot"', 'id="studioAuthDescription"', 'id="studioAuthRecovery"']) if (!markup.includes(authContract)) throw new Error(`Studio auth shell is missing ${authContract}`);
 if (!editorRuntime.includes('import { createWorkspaceRenderer } from "/studio/workspace-renderer.mjs";') || !editorRuntime.includes("workspaceRenderer.render(documentModel)")) throw new Error("Studio editor runtime must delegate document projection to the workspace renderer");
 if (!editorRuntime.includes('import { createWorkspaceControlRenderer } from "/studio/workspace-control-renderer.mjs";') || !editorRuntime.includes("workspaceControlRenderer.render(controls, workspaceInteractions)")) throw new Error("Studio editor runtime must delegate interaction control projection to the control renderer");
-if (!editorRuntime.includes('import { createWorkspaceChartAdapter } from "/studio/workspace-chart-adapter.mjs";') || !editorRuntime.includes("workspaceChartAdapter.render(component)")) throw new Error("Studio editor runtime must delegate asynchronous chart rendering to the chart adapter");
+if (!editorRuntime.includes('import { automaticChartPaletteMode, createWorkspaceChartAdapter } from "/studio/workspace-chart-adapter.mjs";') || !editorRuntime.includes("workspaceChartAdapter.render(component)")) throw new Error("Studio editor runtime must delegate asynchronous chart rendering to the chart adapter");
 if (!editorRuntime.includes('from "/studio/workspace-layout-interaction.mjs";') || !editorRuntime.includes("reorderCanvasIds({") || !editorRuntime.includes("shouldStartPointerDrag(")) throw new Error("Studio editor runtime must use the layout interaction rules adapter");
 if (!editorRuntime.includes('import { createWorkspaceLayoutController } from "/studio/workspace-layout-controller.mjs";') || !editorRuntime.includes("window.DashboardLayoutEditor = createWorkspaceLayoutController({")) throw new Error("Studio editor runtime must delegate layout config DOM mapping to the layout controller");
 if (!editorRuntime.includes('import { createWorkspaceStructureSynchronizer } from "/studio/workspace-structure-synchronizer.mjs";') || !editorRuntime.includes("const workspaceStructureSynchronizer = createWorkspaceStructureSynchronizer({")) throw new Error("Studio editor runtime must delegate card structure coordination to the structure synchronizer");
@@ -69,14 +70,14 @@ if (!html.includes('<script type="module" src="/studio/project-center.mjs"></scr
 if (!html.includes('<script type="module" src="/studio/studio-router.mjs"></script>')) throw new Error("Preview must load the Studio Router module");
 if (!html.includes('<script type="module" src="/studio/publication-center.mjs"></script>')) throw new Error("Preview must load the Studio Publication Center module");
 if (!html.includes('<script type="module" src="/studio/data-source-center.mjs"></script>')) throw new Error("Preview must load the Studio Data Source Center module");
-if (!html.includes('<script type="module" src="/studio/ai-composer-center.mjs"></script>')) throw new Error("Preview must load the Studio AI Composer Center module");
+if (!/<script type="module" src="\/studio\/ai-composer-center\.mjs(?:\?[^\"]+)?"><\/script>/.test(html)) throw new Error("Preview must load the Studio AI Composer Center module");
 if (!html.includes('<script type="module" src="/studio/export-center.mjs"></script>')) throw new Error("Preview must load the Studio Export Center module");
 if (!html.includes("window.DashboardStudioBridge = Object.freeze")) throw new Error("Preview must expose the narrow Studio workspace bridge");
 if (!editorRuntime.includes('from "/studio/resource-application-protocol.mjs";') || !editorRuntime.includes("validateChartApplication(event.data")) throw new Error("Studio must validate resource applications through the shared protocol");
 if (!resourceApplicationProtocol.includes('kind: "apply-chart"') || !resourceApplicationProtocol.includes("selectedTarget.id !== message.targetId")) throw new Error("Resource application protocol must bind chart actions to the current target");
 if (html.includes("function openProjectDialog()") || html.includes("function renderProjects(projects)")) throw new Error("Project Center implementation must not remain in the preview runtime");
 if (!projectCenter.includes('import { createStudioApiClient } from "/studio/studio-api-client.mjs";') || !projectCenter.includes("const { request } = createStudioApiClient();")) throw new Error("Project Center must use the shared Studio API client");
-if (!projectCenter.includes("openOrganization, currentProjectId: () => bridge.getCurrentProject()?.id || null") || !studioRouter.includes("projectIdFromPath") || !studioRouter.includes('window.location.pathname === "/studio/organizations/current"')) throw new Error("Studio Router must use the narrow Project Center route boundary");
+if (!projectCenter.includes("openOrganization, currentProjectId: () => bridge.getCurrentProject()?.id || null") || !studioRouter.includes("projectIdFromPath") || !studioRouter.includes('window.location.pathname === "/studio/organizations/current"') || !studioRouter.includes('dashboard-auth-ready')) throw new Error("Studio Router must use the narrow Project Center route boundary and reactivate it after authentication");
 if (!projectCenter.includes("function beginAiProject()") || !projectCenter.includes("bridge.beginAiProject()") || !projectCenter.includes("DashboardAiComposerCenter?.setEmbedded(ui.projectComposerView") || !projectCenter.includes('addEventListener("dashboard-generation-job-started", closeProjectDialog)')) throw new Error("Project Center must embed AI input through the narrow bridge and close after Job creation");
 if (!publicationCenter.includes('import { createStudioApiClient } from "/studio/studio-api-client.mjs";') || !publicationCenter.includes("const { request } = createStudioApiClient();")) throw new Error("Publication Center must use the shared Studio API client");
 if (!publicationCenter.includes("async function openPublication(publicationId)") || !publicationCenter.includes("window.DashboardPublicationCenter = Object.freeze({ openDialog, openPublication })") || !studioRouter.includes("publicationIdFromPath") || !studioRouter.includes("dashboard-publication-center-ready")) throw new Error("Studio publication routes must delegate through the Publication Center boundary");
@@ -141,9 +142,10 @@ for (const requiredId of ["aiScope", "aiScopeName", "aiRefineTemplates", "aiChar
 for (const contract of ["function syncAiComposerScope()", "getAiTransactionContext()", "applyAiPreview(workspace", "applyAiCommit(payload)", "applyAiUndo(payload)", "beginAiProject() {"]) {
   if (!html.includes(contract)) throw new Error(`Preview AI transaction bridge is missing: ${contract}`);
 }
-for (const contract of ['import { diffWorkspaces } from "/studio/workspace-core-client.mjs";', "function renderReview(run)", "async function requestCandidate()", "async function cancelActiveGeneration()", "function streamGenerationJob(jobId, token)", 'new EventSource(`/api/generation/jobs/${encodeURIComponent(jobId)}/events`)', "async function resumeGenerationJob()", "async function acceptCandidate()", "async function undoAcceptedChange()", "function compareRevision(revisionId)", "async function loadChartCatalog()", "function renderChartRefinementTemplates(charts)", 'fetch("/api/components/catalog"', 'fetch("/api/generation/jobs"', 'fetch("/api/generation/undo"']) {
+for (const contract of ['import { diffWorkspaces } from "/studio/workspace-core-client.mjs";', 'import { generationProgressStates, normalizeGenerationProgress } from "/studio/generation-progress-model.mjs";', "function renderReview(run)", "async function requestCandidate()", "async function cancelActiveGeneration()", "function streamGenerationJob(jobId, token)", "const observeTerminalEvent = () =>", 'new EventSource(`/api/generation/jobs/${encodeURIComponent(jobId)}/events`)', 'source.addEventListener("section.ready"', "function applyStreamingProgress(progress", "async function resumeGenerationJob()", "async function acceptCandidate()", "async function undoAcceptedChange()", "function compareRevision(revisionId)", "async function loadChartCatalog()", "function renderChartRefinementTemplates(charts)", 'fetch("/api/components/catalog"', 'fetch("/api/generation/jobs"', 'fetch("/api/generation/undo"']) {
   if (!aiComposerCenter.includes(contract)) throw new Error(`Studio AI transaction orchestration is missing: ${contract}`);
 }
+if (aiComposerCenter.includes("streamingPreviewTimer") || aiComposerCenter.includes("setInterval(advance")) throw new Error("Studio generation preview must advance from persisted section.ready events, not a display timer");
 for (const forbidden of ["function renderAiReview(run)", "function requestAiDraft()", "function acceptAiDraft()", "function undoAcceptedAiChange()", 'fetch(isRefinement ? "/api/generation/refine"', 'fetch("/api/generation/undo"']) {
   if (html.includes(forbidden)) throw new Error(`AI transaction orchestration must not remain in the preview runtime: ${forbidden}`);
 }
@@ -153,22 +155,68 @@ for (const requiredId of ["cardChartTypeField", "cardChartTypeControl", "cardCha
 for (const contract of ["function createPortableChartSvg(", "function renderWorkspaceCharts(", "function requestChartSvg(", 'fetcher("/api/charts/render"']) {
   if (!html.includes(contract)) throw new Error(`Preview chart runtime contract is missing: ${contract}`);
 }
-for (const [value, label] of [["line", "折线图"], ["time-series", "时序图"], ["area", "面积图"], ["bar", "基础柱图"], ["grouped-bar", "分组柱图"], ["stacked-bar", "堆叠柱图"], ["percent-stacked-bar", "百分比堆叠柱图"], ["histogram", "直方图"], ["horizontal-bar", "基础条图"], ["grouped-horizontal-bar", "分组条图"], ["stacked-horizontal-bar", "堆叠条图"], ["percent-stacked-horizontal-bar", "百分比堆叠条图"], ["diverging-bar", "双向条图"], ["ranking-bar", "排名图"], ["gantt", "甘特图"], ["sector-pie", "饼图"], ["pie", "环图"], ["rose", "玫瑰图"]]) {
+for (const [value, label] of [["line", "折线图"], ["time-series", "时序图"], ["area", "面积图"], ["bar", "基础柱图"], ["grouped-bar", "分组柱图"], ["stacked-bar", "堆叠柱图"], ["percent-stacked-bar", "百分比堆叠柱图"], ["histogram", "直方图"], ["horizontal-bar", "基础条图"], ["grouped-horizontal-bar", "分组条图"], ["stacked-horizontal-bar", "堆叠条图"], ["percent-stacked-horizontal-bar", "百分比堆叠条图"], ["diverging-bar", "双向条图"], ["ranking-bar", "排名图"], ["gantt", "甘特图"], ["sector-pie", "饼图"], ["pie", "环图"], ["rose", "玫瑰图"], ["radar", "雷达图"], ["funnel", "漏斗图"]]) {
   if (!html.includes(`<option value="${value}">${label}</option>`)) {
     throw new Error(`Chart card controls are missing the controlled option: ${value}/${label}`);
   }
 }
+for (const contract of [
+  '<option value="marker-glow">发光短标</option>',
+  '<option value="glow">光感渐变</option>',
+  'linear-gradient(90deg, var(--accent-line) 0%, transparent 100%)',
+  'data-section-leading="marker-glow"',
+  'data-kpi-icon-container="glow"',
+  '{ value: "glow-theme", label: "主题光感", group: "光感" }',
+  '{ value: "glow-multi", label: "多色光感", group: "光感" }'
+]) {
+  if (!html.includes(contract) && !editorRuntime.includes(contract)) throw new Error(`FX report visual contract is missing: ${contract}`);
+}
+for (const contract of [
+  'kpiStyleSamples.after(groupKpiIconComposer, groupKpiLayoutField, groupKpiBackgroundField)',
+  'kpiStyleSamples.dataset.iconEnabled = String(globalHasIcon)',
+  'cardKpiStyleSamples.dataset.iconEnabled = String(localHasIcon)',
+  'kpiLayoutControl.closest(".control-group").hidden = !globalHasIcon',
+  'cardKpiLayoutField.hidden = !localHasIcon',
+  'createContextGroupLabel("分组布局")',
+  'createContextGroupLabel("指标图标", "kpi-icon-group-label")',
+  'createContextGroupLabel("卡片外观", "kpi-card-group-label")',
+  'state.kpiGlowStyleVersion !== 1',
+  'state.kpiIcon === "outline" && state.kpiIconContainer === "solid"',
+  'function deriveKpiStyleSelection(source)',
+  'function applyKpiStyleSelection(target, selection, local = false)',
+  'const previewGradientId = `kpi-style-gradient-${select.id}-${optionIndex}`',
+  'designDrawer.style.setProperty("--kpi-theme-preview", iconTokens.solid)',
+  'const FX_UI_KPI_GRADIENTS = Object.freeze([',
+  '{ start: "#FF8000", end: "#FFB347" }',
+  'designDrawer.style.setProperty(`--kpi-colorful-preview-${index + 1}`, gradient.start)',
+  'preview.dataset.distributedGradient = "true"',
+  'class="kpi-distributed-gradient-chip"',
+  'const visibleLabel = select.getAttribute("aria-label") ||',
+  '<option value="medium" selected>标准</option><option value="large">大</option>',
+  'const hasIconBackground = !["none", "outline"].includes(resolvedContainer)',
+  'card.dataset.resolvedKpiIconBackground = String(hasIconBackground)',
+  ': { box: 34, glyph: 21, offset: 44, shiftY: -8 }',
+  'if (override.kpiIconSize === "small") override.kpiIconSize = "medium"',
+  'kpiIcon: preset.kpiIcon ?? "outline"',
+  'kpiIconColor: "accent"',
+  '.kpi-icon-size-field[hidden]',
+  '.kpi-icon-shape-field[hidden]',
+  '.metric[data-kpi-icon="outline"][data-kpi-icon-container="soft"] .metric-icon { --kpi-icon-scale: 1; }',
+  '.metric[data-resolved-kpi-icon="outline"][data-resolved-kpi-icon-background="true"] .metric-icon svg > path'
+]) {
+  if (!html.includes(contract) && !editorRuntime.includes(contract)) throw new Error(`Conditional KPI icon controls are missing: ${contract}`);
+}
 for (const requiredId of ["customPresetSave", "customPresetRow", "customPresetList", "customPresetPopover", "customPresetUpdate", "customPresetRename", "customPresetDelete", "customPresetDialog"]) {
   if (!html.includes(`id="${requiredId}"`)) throw new Error(`Preview is missing custom preset control: ${requiredId}`);
 }
-if (!html.includes('aria-label="保存为自定义预设"') || !html.includes("function isCurrentCustomPresetModified()") || !html.includes('more.className = "custom-preset-more"')) {
-  throw new Error("Custom presets must use a separate add command, direct tabs, and modified-state detection");
+if (!html.includes('aria-label="保存为自定义预设"') || !html.includes("function isCurrentCustomPresetModified()") || !html.includes('dropdown.id = "presetControls"') || !html.includes('groupLabel("系统预设")') || !html.includes('groupLabel("我的预设")')) {
+  throw new Error("Built-in and custom presets must share one grouped selector with modified-state detection");
 }
-if (!html.includes('class="preset-strip"') || !html.includes('class="preset-strip-divider"') || html.includes('class="custom-preset-row-label"')) {
-  throw new Error("Built-in and custom presets must share one compact strip separated without a second group label");
+if (!html.includes('className = "custom-select visual-preset-select"') || !html.includes('className = "visual-preset-custom-row"') || !html.includes('+ 将当前配置保存为新预设')) {
+  throw new Error("Visual presets must use the unified grouped selector and footer create command");
 }
-if (html.includes('>保存自定义</button>') || html.includes('window.prompt("自定义预设名称"') || html.includes('id="customPresetMenuTrigger"')) {
-  throw new Error("Custom presets must not use the legacy command tab, prompt, or selection dropdown");
+if (html.includes('class="preset-strip"') || html.includes('window.prompt("自定义预设名称"') || html.includes('id="customPresetMenuTrigger"')) {
+  throw new Error("Custom presets must not use the legacy segmented strip, prompt, or separate management trigger");
 }
 if (!exportCenter.includes("await bridge.prepareRevision()") || !exportCenter.includes('/api/projects/${encodeURIComponent(project.id)}')) throw new Error("Standalone export must save and request an immutable project revision");
 if (!aiComposerCenter.includes('fetch("/api/generation/health"')) throw new Error("AI composer must check generation service availability");
@@ -197,7 +245,7 @@ for (const contract of [
   'const pagePresetDefaults = {',
   '"fx-orange": {\n          accent: "#ff8000"',
   'radius: 10,\n          cardGap: 12,\n          cardTitleFont: 16,\n          cardSubtitle: "none"',
-  'chartPalette: "categorical"',
+  'chartPalette: "auto"',
   'const preset = { ...basePreset, ...(pagePresetDefaults[pageType]?.[name] || {}) }',
   'cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below"'
 ]) {

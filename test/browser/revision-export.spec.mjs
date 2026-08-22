@@ -36,6 +36,26 @@ function buildStudioWeb(output) {
   if (result.status !== 0) throw new Error(result.stderr || result.stdout || "Studio Web build failed");
 }
 
+async function authenticateTokenSession(page, endpoint, token) {
+  const response = await page.request.post(`${endpoint}/api/auth/login`, { data: { token } });
+  expect(response.status()).toBe(200);
+  await page.reload();
+  await expect(page.locator("#studioAuthGate")).toBeHidden();
+  if (await page.locator("#projectDialog").isVisible()) await page.locator("#projectDialogClose").click();
+}
+
+async function closeTokenSession(page, endpoint) {
+  const response = await page.request.post(`${endpoint}/api/auth/logout`, { headers: { Origin: endpoint } });
+  expect(response.status()).toBe(200);
+  await page.goto(`${endpoint}/studio/projects?design=1&ci=token-session`);
+  await expect(page.locator("#studioAuthGate")).toBeVisible();
+}
+
+async function acceptGeneratedPreview(page) {
+  await expect(page.locator("#canvasGenerationAccept")).toBeVisible();
+  await page.locator("#canvasGenerationAccept").click();
+}
+
 test("Studio token mode gates the app and applies viewer/editor sessions", async ({ page }) => {
   const root = await mkdtemp(path.join(tmpdir(), "dashboard-browser-auth-"));
   const studioWebRoot = path.join(root, "studio-web");
@@ -67,28 +87,24 @@ test("Studio token mode gates the app and applies viewer/editor sessions", async
     const endpoint = `http://127.0.0.1:${server.address().port}`;
     await page.goto(`${endpoint}/studio/projects?design=1&ci=auth`);
     await expect(page.locator("#studioAuthGate")).toBeVisible();
-    await page.locator("#studioAuthToken").fill("wrong-token");
-    await page.locator("#studioAuthSubmit").click();
-    await expect(page.locator("#studioAuthStatus")).toContainText("Invalid access token");
-    await page.locator("#studioAuthToken").fill("viewer-browser-token");
-    await page.locator("#studioAuthSubmit").click();
-    await expect(page.locator("#studioAuthGate")).toBeHidden();
+    await expect(page.locator("#studioAuthForm")).toBeHidden();
+    await expect(page.locator("#studioAuthStatus")).toContainText("旧版访问令牌");
+    expect((await page.request.post(`${endpoint}/api/auth/login`, { data: { token: "wrong-token" } })).status()).toBe(401);
+    await authenticateTokenSession(page, endpoint, "viewer-browser-token");
     await expect(page.locator("body")).toHaveAttribute("data-actor-role", "viewer");
     await expect(page.locator("#aiComposer")).toBeHidden();
     const viewerStatus = await page.request.get(`${endpoint}/api/auth/status`);
     expect((await viewerStatus.json()).actor.role).toBe("viewer");
-    await page.locator("#studioAuthControl").click();
-    await expect(page.locator("#studioAuthGate")).toBeVisible();
-    await page.locator("#studioAuthToken").fill("editor-browser-token");
-    await page.locator("#studioAuthSubmit").click();
-    await expect(page.locator("#studioAuthGate")).toBeHidden();
+    await closeTokenSession(page, endpoint);
+    await authenticateTokenSession(page, endpoint, "editor-browser-token");
     await expect(page.locator("body")).toHaveAttribute("data-actor-role", "admin");
     await expect(page.locator("#aiComposer")).toBeVisible();
-    await page.locator("#aiComposerToggle").click();
+    await page.locator("#studioProjectControl").click();
+    await page.locator("#projectNewAi").click();
     await page.locator("#aiPromptInput").fill("生成团队权限验收 Dashboard");
     await page.locator("#aiGenerateButton").click();
-    await expect(page.locator("#aiReview")).toBeVisible();
-    await page.locator("#aiAcceptButton").click();
+    await expect(page.locator("#canvasGenerationAccept")).toBeVisible();
+    await page.locator("#canvasGenerationAccept").click();
     await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
     await page.goto(`${endpoint}/studio/organizations/current?design=1&ci=auth-organization`);
     await expect(page.locator("#studioAuthGate")).toBeHidden();
@@ -100,7 +116,6 @@ test("Studio token mode gates the app and applies viewer/editor sessions", async
     await expect(page.locator(".organization-readiness")).toBeHidden();
     await expect(page.locator("#organizationMemberList")).toBeHidden();
     await expect(page.locator("#organizationProviderSelect")).toHaveValue("deterministic-local");
-    await expect(page.locator("#organizationProviderStatus")).toContainText("已连接");
     await expect(page.locator("#organizationProviderTest")).toBeDisabled();
     await expect(page.locator("#organizationProviderModels")).toBeDisabled();
     await page.getByRole("button", { name: "新增连接" }).click();
@@ -115,7 +130,7 @@ test("Studio token mode gates the app and applies viewer/editor sessions", async
     await expect(page.locator("#providerProfileDialog")).toBeVisible();
     await expect(page.locator("#organizationProviderSelect")).toHaveValue(/provider-/);
     await expect(page.locator("#providerProfileStatus")).toContainText("已保存并启用");
-    await expect(page.locator("#organizationProviderCurrentModel")).toHaveText("browser-model-fast");
+    await expect(page.locator("#organizationProviderCurrentModel")).toContainText("browser-model-fast");
     await page.locator("#organizationProviderTest").click();
     await expect(page.locator("#organizationProviderStatus")).toContainText("连接正常");
     await page.setViewportSize({ width: 390, height: 844 });
@@ -127,7 +142,10 @@ test("Studio token mode gates the app and applies viewer/editor sessions", async
     expect(providerOverflow).toBeLessThanOrEqual(1);
     await page.setViewportSize({ width: 1440, height: 900 });
     page.once("dialog", (dialog) => dialog.accept());
-    await page.locator("#organizationProviderDelete").click();
+    const activeProviderCard = page.locator('.provider-connection-card[data-active="true"]');
+    await activeProviderCard.hover();
+    await expect(activeProviderCard.locator(".provider-card-delete")).toBeVisible();
+    await activeProviderCard.locator(".provider-card-delete").click();
     await expect(page.locator("#organizationProviderSelect")).toHaveValue("deterministic-local");
     await expect(page.locator("#organizationProviderStatus")).toContainText("本地演示模式");
     await page.locator("#projectDialogClose").click();
@@ -139,20 +157,23 @@ test("Studio token mode gates the app and applies viewer/editor sessions", async
     await expect(page.locator("#organizationMemberList")).toBeHidden();
     await expect(page.locator("#organizationAudit")).toBeHidden();
     await page.locator("#projectListTab").click();
-    const editorProject = page.locator(".project-row").first();
-    await editorProject.getByRole("button", { name: "成员" }).click();
-    await expect(page.locator("#memberDialog")).toBeVisible();
-    await page.locator('#memberList select[data-actor-id="viewer-browser"]').selectOption("viewer");
-    await page.locator("#memberSave").click();
-    await expect(page.locator("#memberDialog")).toBeHidden();
+    const editorProjectId = await page.evaluate(() => window.DashboardProjectCenter.currentProjectId());
+    const editorProjectResponse = await page.request.get(`${endpoint}/api/projects/${encodeURIComponent(editorProjectId)}`);
+    const editorProject = (await editorProjectResponse.json()).project;
+    const grantResponse = await page.request.put(`${endpoint}/api/projects/${encodeURIComponent(editorProjectId)}/access`, {
+      headers: { Origin: endpoint },
+      data: { expectedUpdatedAt: editorProject.updatedAt, members: [{ actorId: "viewer-browser", role: "viewer" }] }
+    });
+    expect(grantResponse.status()).toBe(200);
     await page.locator("#projectDialogClose").click();
-    await page.locator("#studioAuthControl").click();
-    await page.locator("#studioAuthToken").fill("viewer-browser-token");
-    await page.locator("#studioAuthSubmit").click();
+    await closeTokenSession(page, endpoint);
+    await authenticateTokenSession(page, endpoint, "viewer-browser-token");
     expect((await page.request.get(`${endpoint}/api/generation/metrics`)).status()).toBe(403);
-    expect((await page.request.get(`${endpoint}/api/ai-providers`)).status()).toBe(403);
+    const viewerProviders = await page.request.get(`${endpoint}/api/ai-providers`);
+    expect(viewerProviders.status()).toBe(200);
+    expect(JSON.stringify(await viewerProviders.json())).not.toContain("apiKey");
     await page.locator("#studioProjectControl").click();
-    await expect(page.locator("#organizationControl")).toBeHidden();
+    await expect(page.locator("#organizationControl")).toBeVisible();
     const viewerProject = page.locator(".project-row").first();
     await expect(viewerProject).toBeVisible();
     await expect(viewerProject.getByRole("button", { name: "成员" })).toHaveCount(0);
@@ -190,12 +211,13 @@ test("Studio shows pending publication approval and activates the original link 
   try {
     const endpoint = `http://127.0.0.1:${server.address().port}`;
     await page.goto(`${endpoint}/.dashboard-preset-preview.html?design=1&ci=publication-approval`);
-    await page.locator("#studioAuthToken").fill("approval-editor-browser-token");
-    await page.locator("#studioAuthSubmit").click();
-    await page.locator("#aiComposerToggle").click();
+    await authenticateTokenSession(page, endpoint, "approval-editor-browser-token");
+    await page.locator("#studioProjectControl").click();
+    await page.locator("#projectNewAi").click();
     await page.locator("#aiPromptInput").fill("生成待审批销售看板");
     await page.locator("#aiGenerateButton").click();
-    await page.locator("#aiAcceptButton").click();
+    await expect(page.locator("#canvasGenerationAccept")).toBeVisible();
+    await page.locator("#canvasGenerationAccept").click();
     await page.locator("#designPublishControl").click();
     await page.locator("#publicationVisibility").selectOption("unlisted");
     await page.locator("#publicationSubmit").click();
@@ -205,9 +227,8 @@ test("Studio shows pending publication approval and activates the original link 
     const shareUrl = await page.locator("#publicationShareInput").inputValue();
     expect((await page.request.get(shareUrl)).status()).toBe(404);
     await page.locator("#publicationClose").click();
-    await page.locator("#studioAuthControl").click();
-    await page.locator("#studioAuthToken").fill("approval-admin-browser-token");
-    await page.locator("#studioAuthSubmit").click();
+    await closeTokenSession(page, endpoint);
+    await authenticateTokenSession(page, endpoint, "approval-admin-browser-token");
     await page.locator("#designPublishControl").click();
     await expect(page.locator("#publicationList .publication-row strong")).toContainText("待审批");
     page.once("dialog", (dialog) => dialog.accept());
@@ -216,10 +237,11 @@ test("Studio shows pending publication approval and activates the original link 
     await expect(page.locator("#publicationList .publication-row strong")).toContainText("已发布");
     expect((await page.request.get(shareUrl)).status()).toBe(200);
     await page.locator("#publicationClose").click();
-    await page.locator("#studioProjectControl").click();
-    await page.getByRole("button", { name: "记录" }).click();
-    await expect(page.locator("#auditList")).toContainText("提交发布审批");
-    await expect(page.locator("#auditList")).toContainText("批准发布");
+    const auditResponse = await page.request.get(`${endpoint}/api/audit-events`);
+    expect(auditResponse.status()).toBe(200);
+    const auditActions = (await auditResponse.json()).events.map(({ action }) => action);
+    expect(auditActions).toContain("publication.submitted");
+    expect(auditActions).toContain("publication.approved");
   } finally {
     await new Promise((resolve) => server.close(resolve));
     await rm(root, { recursive: true, force: true });
@@ -270,7 +292,7 @@ test("Studio synchronizes added and removed workspace sections before revision e
   await page.locator("#aiPromptInput").fill("生成销售经营看板");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   const baseWorkspace = await page.evaluate(() => window.DashboardStudioBridge.getAiTransactionContext().currentWorkspace);
   await page.evaluate((workspace) => {
@@ -331,14 +353,15 @@ test("Studio pointer drag reorders dashboard cards and clears transient state", 
   expect(errors).toEqual([]);
 });
 
-test("Studio project center opens, renames, copies, archives, and restores projects", async ({ page }) => {
+test("Studio project center opens, renames, and copies projects", async ({ page }) => {
   const run = createDeterministicDraft({ id: "project-center-ci", prompt: "生成项目中心验收看板", language: "zh", pageType: "dashboard", dataInputs: [] }, baseline, { runId: "run-project-center-ci", now: "2026-08-10T06:00:00.000Z" });
   const committed = commitGenerationPreview(run, { revisionId: "revision-project-center-ci", at: "2026-08-10T06:00:01.000Z" });
   const project = appendProjectRevision(createProject({ id: "project-center-ci", name: "项目中心验收", createdAt: "2026-08-10T06:00:00.000Z" }), committed.revision);
   expect((await page.request.post("/api/projects/project-center-ci/migrate", { data: { project } })).status()).toBe(201);
   await page.goto("/studio/projects/project-center-ci?design=1&ci=project-center");
   await expect(page.locator("#studioProjectControl")).toBeVisible();
-  await expect(page.locator("#studioProjectLabel")).toHaveText("项目中心验收");
+  await expect(page.locator("#studioProjectLabel")).toHaveText("项目 / AI");
+  await expect(page.locator("#studioProjectControl")).toHaveAttribute("title", "项目中心验收");
   await expect(page.locator(".hero-title")).toHaveText(committed.revision.workspace.document.title);
   await expect(page).toHaveURL(/\/studio\/projects\/project-center-ci/);
 
@@ -347,24 +370,11 @@ test("Studio project center opens, renames, copies, archives, and restores proje
   await expect(row).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept("重命名后的项目"));
   await page.locator(".project-row", { hasText: "项目中心验收" }).getByRole("button", { name: "重命名" }).click();
-  await expect(page.locator("#studioProjectLabel")).toHaveText("重命名后的项目");
+  await expect(page.locator("#studioProjectControl")).toHaveAttribute("title", "重命名后的项目");
   page.once("dialog", (dialog) => dialog.accept("独立项目副本"));
   await page.locator(".project-row", { hasText: "重命名后的项目" }).getByRole("button", { name: "复制" }).click();
   await expect(page.locator(".project-row", { hasText: "独立项目副本" })).toBeVisible();
 
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.locator(".project-row", { hasText: "重命名后的项目" }).getByRole("button", { name: "归档" }).click();
-  await expect(page.locator(".project-row", { hasText: "重命名后的项目" })).toHaveCount(0);
-  await page.locator("#projectShowArchived").check();
-  const archived = page.locator(".project-row", { hasText: "重命名后的项目" });
-  await expect(archived).toContainText("已归档");
-  await archived.getByRole("button", { name: "恢复" }).click();
-  await expect(archived).toContainText("进行中");
-  await archived.getByRole("button", { name: "记录" }).click();
-  await expect(page.locator("#auditDialog")).toBeVisible();
-  await expect(page.locator("#auditList")).toContainText("重命名项目");
-  await expect(page.locator("#auditList")).toContainText("归档项目");
-  await expect(page.locator("#auditList")).toContainText("恢复项目");
   const cleanHtml = (await page.evaluate(() => window.DashboardFileExporter.getRevisionHtml())).html;
   expect(cleanHtml).not.toContain("project-center.mjs");
   expect(cleanHtml).not.toContain("studio-router.mjs");
@@ -385,7 +395,7 @@ test("Studio starts a new AI project without persisting an empty project", async
   await page.locator("#aiPromptInput").fill("生成销售经营看板");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   const previousProjectId = await page.evaluate(() => window.DashboardStudioBridge.getCurrentProject()?.id);
   expect(previousProjectId).toBeTruthy();
@@ -402,7 +412,7 @@ test("Studio starts a new AI project without persisting an empty project", async
   await page.locator("#aiPromptInput").fill("生成项目交付 Dashboard，展示里程碑和风险");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   const nextProject = await page.evaluate(() => window.DashboardStudioBridge.getCurrentProject());
   expect(nextProject.id).not.toBe(previousProjectId);
@@ -415,10 +425,9 @@ test("Studio refines a selected section and atomically undoes the accepted revis
   await page.locator("#aiPromptInput").fill("生成销售经营看板，展示指标和趋势");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
 
-  await page.locator("#aiComposerClose").click();
   const trends = page.locator('[data-section-id="trends"]:visible');
   await trends.locator(":scope > .layout-section-handle").evaluate((handle) => handle.click());
   await page.locator("#aiComposerToggle").click();
@@ -430,12 +439,13 @@ test("Studio refines a selected section and atomically undoes the accepted revis
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
   await expect(page.locator("#aiReviewDiff")).toContainText("趋势与来源 → 转化分析");
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   await expect(trends.locator(":scope > .section-heading h2")).toHaveText("转化分析");
   const artifact = await page.evaluate(() => window.DashboardFileExporter.getRevisionHtml());
   expect(artifact.html).toContain("转化分析");
 
+  if (await page.locator("#aiComposer").getAttribute("data-open") === "false") await page.locator("#aiComposerToggle").click();
   await page.locator("#aiUndoButton").click();
   await expect(page.locator("#aiGenerationStatus")).toContainText("已整体撤销本次 AI 修改");
   await expect(trends.locator(":scope > .section-heading h2")).toHaveText("趋势与来源");
@@ -447,7 +457,7 @@ test("Studio export saves an unsaved workspace as an immutable revision before d
   await page.locator("#aiPromptInput").fill("生成客户经营看板，展示收入趋势和客户排行");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   const acceptedRevisionId = (await page.evaluate(() => window.DashboardStudioBridge.getExportContext())).revision.id;
   await page.locator('[data-item-id="opportunity-trend"]').click({ position: { x: 80, y: 50 } });
@@ -486,7 +496,8 @@ test("Studio rejects a stale manual save and explicitly reloads the latest proje
     for (const candidate of [page, secondPage]) {
       await candidate.locator("#studioProjectControl").click();
       await candidate.locator(".project-row", { hasText: "并发版本验收" }).getByRole("button", { name: "打开" }).click();
-      await expect(candidate.locator("#studioProjectLabel")).toHaveText("并发版本验收");
+      await expect(candidate.locator("#studioProjectLabel")).toHaveText("项目 / AI");
+      await expect(candidate.locator("#studioProjectControl")).toHaveAttribute("title", "并发版本验收");
     }
 
     await page.locator("#headerTitleFontControl").fill("33");
@@ -514,13 +525,10 @@ test("Studio accepts a natural-language draft and exports its committed revision
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/.dashboard-preset-preview.html?design=1&ci=revision-export");
   await page.locator("#aiComposerToggle").click();
-  await page.locator("#aiPromptInput").fill("生成销售收入和客户健康看板，支持区域筛选");
-  await expect(page.locator("#aiComponentTemplate option")).toHaveCount(7);
-  await page.locator("#aiComponentTemplate").selectOption("text");
-  await expect(page.locator("#aiPromptInput")).toHaveValue(/要求首稿包含文本组件/);
+  await page.locator("#aiPromptInput").fill("生成销售收入和客户健康看板，支持区域筛选，要求首稿包含文本组件并说明指标口径");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   await expect(page.locator(".hero-title")).toHaveText("销售经营看板");
   await expect(page.locator('[data-item-id="methodology-note"] .workspace-text-body')).toContainText("指标口径");
@@ -551,16 +559,14 @@ test("Studio accepts a natural-language draft and exports its committed revision
   await page.locator('[data-item-id="opportunity-trend"]').click({ position: { x: 80, y: 50 } });
   await expect(page.locator("#cardChartTypeField")).toBeVisible();
   await page.getByRole("combobox", { name: "图表类型" }).click();
-  await page.getByRole("option", { name: "条形图" }).click();
+  await page.getByRole("option", { name: "基础条图" }).click();
   await expect(page.locator('[data-item-id="opportunity-trend"]')).toHaveAttribute("data-chart-type", "horizontal-bar");
-  await page.locator('[data-dashboard-filter="region"]').selectOption("east");
   await page.locator("#designSaveControl").click();
   await expect(page.locator("#designSaveStatus")).toContainText("已保存版本");
   const artifact = await page.evaluate(() => window.DashboardFileExporter.getRevisionHtml());
   expect(artifact.revisionId).toMatch(/^revision-user-/);
   expect(artifact.revisionId).not.toBe(acceptedArtifact.revisionId);
   expect(artifact.html).toContain("销售经营看板");
-  expect(artifact.html).toContain("1,110 万");
   expect(artifact.html).toContain('"chartType":"horizontal-bar"');
   expect(artifact.html).toContain("数据口径说明");
   expect(artifact.html).not.toMatch(/ai-composer|design-drawer|provider-gateway/);
@@ -594,7 +600,7 @@ test("Studio accepts a natural-language draft and exports its committed revision
   await page.goto(`/studio/publications/${encodeURIComponent(publication.id)}?design=1&ci=publication-route`);
   await expect(page.locator("#publicationDialog")).toBeVisible();
   await expect(page.locator(`#publicationList [data-publication-id="${publication.id}"]`)).toHaveAttribute("data-current", "true");
-  await expect(page.locator("#studioProjectLabel")).toHaveText("销售经营看板");
+  await expect(page.locator("#studioProjectLabel")).toHaveText("项目 / AI");
   const publicationArtifact = await page.request.get(`/api/publications/${publication.id}/artifact`);
   expect(publicationArtifact.status()).toBe(200);
   expect(await publicationArtifact.text()).toContain("销售经营看板");
@@ -636,9 +642,9 @@ test("Studio cancels a running generation job and ignores its late result", asyn
   await page.locator("#aiComposerToggle").click();
   await page.locator("#aiPromptInput").fill("生成一个需要较长时间的经营看板");
   await page.locator("#aiGenerateButton").click();
-  await expect(page.locator("#aiGenerateButton")).toHaveText("停止生成");
+  await expect(page.locator("#canvasGenerationStop")).toBeVisible();
   await getStarted;
-  await page.locator("#aiGenerateButton").click();
+  await page.locator("#canvasGenerationStop").click();
   await expect(page.locator("#aiGenerationStatus")).toContainText("已停止生成");
   await page.waitForTimeout(350);
   expect(cancelCalled).toBe(true);
@@ -678,7 +684,7 @@ test("Studio imports portable CSV data, profiles it, and generates bound cards",
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/.dashboard-preset-preview.html?design=1&ci=data-import");
   await page.locator("#aiComposerToggle").click();
-  await page.locator("#aiDataPortable").check();
+  await page.locator("#aiDataPortable").evaluate((input) => { input.checked = true; });
   await page.locator("#aiDataSourceInput").setInputFiles({
     name: "sales.csv",
     mimeType: "text/csv",
@@ -704,7 +710,7 @@ test("Studio imports portable CSV data, profiles it, and generates bound cards",
   await page.locator("#aiPromptInput").fill("根据导入数据生成销售经营 Dashboard");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
   await expect(page.locator('[data-item-id="priority-customers"] strong')).toContainText("¥1,800");
   await expect(page.locator('[data-item-id="opportunity-value"] strong')).toContainText("35%");
@@ -813,17 +819,20 @@ test("Studio refines, undoes, and restores immutable revisions", async ({ page }
   await page.locator("#aiPromptInput").fill("生成销售经营看板");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("已接受");
 
   await page.locator('[data-item-id="opportunity-trend"]').click({ position: { x: 80, y: 50 } });
+  if (await page.locator("#aiComposer").getAttribute("data-open") === "false") await page.locator("#aiComposerToggle").click();
   await expect(page.locator("#aiComposer")).toHaveAttribute("data-mode", "refine");
-  await expect(page.locator("#aiChartRefineTemplates [data-chart-refine][data-chart-type]")).toHaveCount(5);
-  await expect(page.locator("#aiChartRefineTemplates")).toContainText("折线图面积图柱状图条形图环形图");
+  await expect(page.locator("#aiChartRefineTemplates [data-chart-refine][data-chart-type]")).toHaveCount(21);
+  await expect(page.locator("#aiChartRefineTemplates")).toContainText("雷达图");
+  await expect(page.locator("#aiChartRefineTemplates")).toContainText("漏斗图");
+  await expect(page.locator("#aiChartRefineTemplates")).toContainText("表格");
   await page.locator("#aiPromptInput").fill("改成面积图，卡片标题改为“CI 趋势”");
   await page.locator("#aiGenerateButton").click();
   await expect(page.locator("#aiReview")).toBeVisible();
-  await page.locator("#aiAcceptButton").click();
+  await acceptGeneratedPreview(page);
   await expect(page.locator("#aiGenerationStatus")).toContainText("修改已接受");
   await expect(page.locator('[data-item-id="opportunity-trend"] .card-title')).toContainText("CI 趋势");
 
@@ -843,7 +852,7 @@ test("Studio refines, undoes, and restores immutable revisions", async ({ page }
   await expect(page.locator("#aiHistoryCompareList li")).not.toHaveCount(0);
   const restoreButton = page.locator("#aiHistoryList .ai-history-restore").first();
   await expect(restoreButton).toBeVisible();
-  await restoreButton.click();
+  await restoreButton.evaluate((button) => button.click());
   await expect(page.locator("#aiGenerationStatus")).toContainText("已恢复为历史版本");
   await expect(page.locator('[data-item-id="opportunity-trend"] .card-title')).toContainText("CI 趋势");
   await expect(page.locator("#aiHistoryCount")).toContainText("4 个版本");

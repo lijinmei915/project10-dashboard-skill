@@ -108,6 +108,10 @@ test("organization HTTP control persists admin changes and invalidates an existi
   assert.deepEqual((await auditResponse.json()).events.map(({ action }) => action).sort(), ["organization.members.updated", "organization.updated"]);
   const suspendedStatus = await fetch(`${endpoint}/api/auth/status`, { headers: { Cookie: editorCookie } });
   assert.equal(suspendedStatus.status, 200);
-  assert.deepEqual(await suspendedStatus.json(), { mode: "token", authenticated: false });
+  assert.deepEqual(await suspendedStatus.json(), {
+    mode: "token",
+    authenticated: false,
+    capabilities: { registration: false, passwordRecovery: false }
+  });
   assert.equal((await fetch(`${endpoint}/api/organizations/current`, { headers: { Cookie: adminCookie } })).status, 200);
 });
