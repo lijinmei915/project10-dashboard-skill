@@ -1,21 +1,26 @@
 import { RESOURCE_CHANNEL, chartApplicationMessage, iconApplicationMessage, readResourceContext } from "/studio/resource-application-protocol.mjs";
+import { createClientEchartsRuntime } from "/studio/client-echarts-runtime.mjs";
 
 const families = Object.freeze({
   all: { label: "全部", match: () => true },
-  line: { label: "线图", match: ({ type }) => ["line", "time-series", "area"].includes(type) },
+  line: { label: "线图", match: ({ type }) => ["line", "time-series", "area", "combo-bar-line"].includes(type) },
   column: { label: "柱图", match: ({ type }) => ["bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram"].includes(type) },
-  bar: { label: "条图", match: ({ type }) => ["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"].includes(type) },
+  bar: { label: "条图", match: ({ type }) => ["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "bullet"].includes(type) },
   pie: { label: "饼图", match: ({ type }) => ["sector-pie", "pie", "rose"].includes(type) },
+  indicator: { label: "指标图", match: ({ type }) => type === "gauge" },
   relation: { label: "关系图", match: ({ type }) => type === "radar" },
   conversion: { label: "转化图", match: ({ type }) => type === "funnel" },
   table: { label: "表格", match: ({ type }) => type === "data-table" }
 });
 
 const samples = Object.freeze({
+  "combo-bar-line": { labels: ["1月", "2月", "3月", "4月", "5月", "6月"], series: [{ name: "收入", values: [128, 156, 142, 188, 214, 246] }, { name: "转化率", values: [18, 21, 20, 25, 27, 30] }], combo: { dualAxis: true, barUnit: "万元", lineUnit: "%" } },
   histogram: { labels: [], series: [{ name: "订单金额", values: [12,18,21,22,24,25,27,29,31,35,36,42,48,53] }] },
   "time-series": { labels: ["2026-01-01","2026-02-01","2026-03-01","2026-04-01","2026-05-01"], series: [{ name: "响应时间", values: [18,22,27,24,34] }], thresholds: [20,30] },
   gantt: { labels: ["调研","设计","开发","验收"], series: [{ name: "开始", values: [0,2,5,9] }, { name: "工期", values: [3,4,5,3] }] },
   "diverging-bar": { labels: ["18-24","25-34","35-44","45+"], series: [{ name: "左侧", values: [24,32,28,18] }, { name: "右侧", values: [27,35,25,21] }] },
+  bullet: { labels: ["收入","毛利","续费率","交付率"], series: [{ name: "实际", values: [82,68,91,74] }, { name: "目标", values: [90,75,88,85] }], bullet: { min: 0, max: 120, unit: "%", precision: 0, ranges: [60,85,100] } },
+  gauge: { labels: ["完成率"], series: [{ name: "目标完成率", values: [76.8] }], gauge: { min: 0, max: 100, unit: "%", precision: 1, thresholds: [60,85] } },
   radar: { labels: ["增长","转化","留存","活跃","口碑"], series: [{ name: "本期", values: [82,68,76,88,72] }, { name: "目标", values: [75,80,78,82,85] }] },
   funnel: { labels: ["访问","注册","试用","付费","续费"], series: [{ name: "用户数", values: [1200,820,540,260,180] }] },
   "data-table": { labels: ["华东","华南","华北","西部"], series: [{ name: "收入", values: [128,96,84,71] }, { name: "订单", values: [342,286,251,198] }], table: { sort: "desc", sortBy: 0, limit: 4, summary: true, formats: [{ suffix: " 万" }, { suffix: " 单" }], conditional: false } },
@@ -24,6 +29,7 @@ const samples = Object.freeze({
 
 const semanticCopy = Object.freeze({
   "ordered-category-trend": "展示有顺序的数据变化趋势",
+  "bar-and-line-dual-metric-comparison": "用柱状图和折线图同时比较两个相关指标",
   "timestamp-indexed-trend": "按真实时间轴查看变化和阈值",
   "single-series-category-comparison": "比较不同分类的一组数值",
   "multi-series-side-by-side-comparison": "并排比较同一分类下的多个系列",
@@ -40,13 +46,16 @@ const semanticCopy = Object.freeze({
   "part-to-whole-solid-sectors": "用实心扇区展示整体构成",
   "part-to-whole-donut": "用圆环展示整体构成",
   "part-to-whole-radius-comparison": "用扇区半径强化规模差异"
+  ,"actual-versus-target-with-performance-ranges": "比较实际值、目标线和绩效区间"
   ,"multi-dimensional-profile-comparison": "比较对象在多个统一维度上的能力轮廓"
   ,"ordered-stage-conversion": "展示有序阶段中的规模递减与转化流失"
+  ,"single-value-progress-with-thresholds": "展示单个指标相对目标区间的位置"
   ,"exact-value-multi-field-lookup": "以行列形式查询精确值并对照多个字段"
 });
 
 const dataShapeCopy = Object.freeze({
   "ordered-categories+one-or-more-series": "有序分类 + 一个或多个系列",
+  "categories+bar-series+line-series+optional-dual-axis": "分类 + 柱状系列 + 折线系列 + 可选双 Y 轴",
   "timestamps+one-or-more-series+optional-thresholds": "时间戳 + 数值系列 + 可选阈值",
   "categories+single-series": "分类 + 单系列",
   "categories+multiple-series": "分类 + 至少两个系列",
@@ -56,6 +65,8 @@ const dataShapeCopy = Object.freeze({
   "categories+single-nonnegative-series": "分类 + 一组非负数值"
   ,"dimensions+one-or-more-series": "统一维度 + 一个或多个对象系列"
   ,"ordered-stages+single-nonnegative-series": "有序阶段 + 单系列非负数值"
+  ,"single-value+range+optional-thresholds": "单个数值 + 最小/最大范围 + 可选阈值"
+  ,"categories+actual-series+target-series+optional-ranges": "分类 + 实际系列 + 目标系列 + 可选绩效区间"
   ,"rows+one-or-more-value-columns": "行标签 + 一个或多个数值列"
 });
 
@@ -68,9 +79,11 @@ const applyContext = document.querySelector("#applyContext");
 const context = readResourceContext(window.location.href);
 const channel = (context.canApplyChart || context.canApplyIcon) && "BroadcastChannel" in window ? new BroadcastChannel(RESOURCE_CHANNEL) : null;
 let catalog = [];
+let chartPalette = null;
 let family = "all";
 let iconWeight = "regular";
 let iconSearchTimer = null;
+const previewRuntime = createClientEchartsRuntime();
 const standardColors = Object.freeze({ "#ff7a2f": "#ff7a2f", categorical: "linear-gradient(90deg,#5b8ff9,#45b8d8,#43c59e,#96bf45,#f3a83b,#f06b72,#de72b4,#9270e8)", success: "#16a34a", warning: "#d97706", danger: "#dc2626" });
 
 const componentPreview = Object.freeze({
@@ -172,18 +185,113 @@ async function renderIcons(query = "") {
 
 function sampleFor(type) {
   const source = samples[type] || samples.default;
-  const singleSeries = ["line","area","bar","horizontal-bar","ranking-bar","sector-pie","pie","rose","funnel"].includes(type);
+  const singleSeries = ["line","area","bar","horizontal-bar","ranking-bar","sector-pie","pie","rose","gauge","funnel"].includes(type);
   return { ...source, series: singleSeries ? [source.series[0]] : source.series };
+}
+
+function hueFromHex(color) {
+  const [red, green, blue] = color.match(/[0-9a-f]{2}/gi).map((value) => parseInt(value, 16) / 255);
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  if (!delta) return 0;
+  const segment = max === red
+    ? ((green - blue) / delta) % 6
+    : max === green
+      ? (blue - red) / delta + 2
+      : (red - green) / delta + 4;
+  return (segment * 60 + 360) % 360;
+}
+
+function automaticPaletteMode(type, seriesCount) {
+  if (type === "gauge") return "monochrome";
+  if (["sector-pie", "pie", "rose", "radar", "funnel"].includes(type)) return "categorical";
+  if (seriesCount <= 1) return "monochrome";
+  if (seriesCount === 2) return "bichrome";
+  return "categorical";
+}
+
+function previewPalette(type, seriesCount) {
+  const categorical = chartPalette.categorical;
+  const mode = automaticPaletteMode(type, seriesCount);
+  if (mode === "categorical") return categorical;
+  const accentHue = hueFromHex("#ff8000");
+  const ranked = [...categorical].sort((first, second) => {
+    const distance = (color) => {
+      const delta = Math.abs(hueFromHex(color) - accentHue);
+      return Math.min(delta, 360 - delta);
+    };
+    return distance(first) - distance(second);
+  });
+  return mode === "bichrome" ? ranked.slice(0, 2) : ranked.slice(0, 1);
+}
+
+function formatTableValue(value, format = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value ?? "");
+  const decimals = Math.max(0, Math.min(4, Number(format.decimals) || 0));
+  return `${format.prefix || ""}${number.toLocaleString("zh-CN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${format.suffix || ""}`;
+}
+
+function renderTablePreview(preview, sample) {
+  const config = sample.table || {};
+  const formats = Array.isArray(config.formats) ? config.formats : [];
+  const rows = sample.labels.map((label, rowIndex) => ({
+    label,
+    values: sample.series.map(({ values }) => values[rowIndex])
+  }));
+  if (["asc", "desc"].includes(config.sort)) {
+    const direction = config.sort === "asc" ? 1 : -1;
+    rows.sort((left, right) => direction * ((Number(left.values[config.sortBy]) || 0) - (Number(right.values[config.sortBy]) || 0)));
+  }
+  const visibleRows = rows.slice(0, Math.max(1, Math.min(20, Number(config.limit) || 8)));
+  const maxima = sample.series.map((_, columnIndex) => Math.max(...visibleRows.map(({ values }) => Number(values[columnIndex]) || 0)));
+  const table = document.createElement("table");
+  table.className = "resource-data-table";
+  const header = table.createTHead().insertRow();
+  ["分类", ...sample.series.map(({ name }) => name)].forEach((label) => {
+    const cell = document.createElement("th"); cell.scope = "col"; cell.textContent = label; header.append(cell);
+  });
+  const body = table.createTBody();
+  visibleRows.forEach((row) => {
+    const tableRow = body.insertRow();
+    const label = document.createElement("th"); label.scope = "row"; label.textContent = row.label; tableRow.append(label);
+    row.values.forEach((value, columnIndex) => {
+      const cell = tableRow.insertCell(); cell.textContent = formatTableValue(value, formats[columnIndex]);
+      if (config.conditional && Number(value) === maxima[columnIndex]) cell.dataset.emphasis = "true";
+    });
+  });
+  if (config.summary) {
+    const footer = table.createTFoot().insertRow();
+    const label = document.createElement("th"); label.scope = "row"; label.textContent = "合计"; footer.append(label);
+    sample.series.forEach((_, columnIndex) => {
+      const cell = footer.insertCell();
+      cell.textContent = formatTableValue(visibleRows.reduce((sum, row) => sum + (Number(row.values[columnIndex]) || 0), 0), formats[columnIndex]);
+    });
+  }
+  const scroll = document.createElement("div"); scroll.className = "resource-table-scroll"; scroll.append(table);
+  preview.replaceChildren(scroll);
 }
 
 async function renderPreview(card, chart) {
   const preview = card.querySelector(".chart-preview");
   const sample = sampleFor(chart.type);
+  if (chart.type === "data-table") {
+    renderTablePreview(preview, sample);
+    return;
+  }
   try {
-    const response = await fetch("/api/charts/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: chart.type, ...sample, width: 460, height: 220, mode: "light", palette: ["#f26a2e","#3592f3","#59b77a","#d8a126"] }) });
-    const payload = await response.json();
-    if (!response.ok || !payload.svg) throw new Error(payload.error || "预览生成失败");
-    preview.innerHTML = payload.svg;
+    const palette = previewPalette(chart.type, sample.series.length);
+    preview.replaceChildren();
+    const spec = {
+      version: 1,
+      chartType: chart.type,
+      data: { labels: sample.labels, series: sample.series, thresholds: sample.thresholds || [], gauge: sample.gauge || {}, bullet: sample.bullet || {}, combo: sample.combo || {}, table: sample.table || {} },
+      appearance: { mode: "light", width: 460, height: 220, palette },
+      interactions: { legend: { visible: true, interactive: true }, tooltip: { enabled: true }, zoom: "none" },
+      refreshPolicy: { mode: "manual", pauseWhenHidden: true }
+    };
+    await previewRuntime.render(preview, spec);
   } catch (error) {
     preview.innerHTML = `<div class="chart-status" data-tone="danger">${String(error.message || "预览生成失败")}</div>`;
   }
@@ -192,7 +300,7 @@ async function renderPreview(card, chart) {
 function render() {
   const query = search.value.trim().toLowerCase();
   const visible = catalog.filter((chart) => families[family].match(chart) && `${chart.type} ${chart.name} ${chart.semantic || ""} ${(chart.aliases || []).join(" ")}`.toLowerCase().includes(query));
-  grid.replaceChildren(...visible.map((chart) => {
+  const cards = visible.map((chart) => {
     const card = document.createElement("article"); card.className = "chart-card";
     card.innerHTML = `<header class="chart-head"><strong>${chart.name}</strong><span class="chart-id">${chart.type}</span></header><div class="chart-preview"><div class="chart-status">正在生成预览...</div></div><div class="chart-detail"><p>${semanticCopy[chart.semantic] || "受控图表能力"}</p><p><span>数据：</span>${dataShapeCopy[chart.dataShape] || "分类与数值系列"}</p></div>${context.canApplyChart ? '<button class="chart-apply" type="button">应用</button>' : ""}`;
     card.querySelector(".chart-apply")?.addEventListener("click", (event) => {
@@ -202,8 +310,11 @@ function render() {
       event.currentTarget.textContent = "已应用";
       applyContext.innerHTML = `<strong>已应用 ${chart.name}</strong><span>返回 Studio 查看结果，可继续选择其他图表。</span>`;
     });
-    renderPreview(card, chart); return card;
-  }));
+    return { card, chart };
+  });
+  grid.replaceChildren(...cards.map(({ card }) => card));
+  cards.forEach(({ card, chart }) => renderPreview(card, chart));
+  previewRuntime.disposeMissing([...grid.querySelectorAll(".chart-preview")]);
   meta.textContent = `共 ${catalog.length} 种图表，当前显示 ${visible.length} 种`;
   empty.hidden = visible.length > 0;
 }
@@ -242,7 +353,9 @@ try {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || "读取图表目录失败");
   catalog = payload.charts || [];
-  setCapability("charts", `图表目录 · ${catalog.length} 种`);
+  if (!payload.palette?.version || !Array.isArray(payload.palette.categorical) || payload.palette.categorical.length < 3) throw new Error("图表色板不可用");
+  chartPalette = payload.palette;
+  setCapability("charts", `图表目录 · ${catalog.length} 种 · 色板 v${chartPalette.version}`);
   render();
   const loaders = [["components", "组件目录", loadComponents], ["icons", "图标库", () => renderIcons("")], ["standards", "设计规范", loadStandards]];
   await Promise.all(loaders.map(async ([id, label, loader]) => {

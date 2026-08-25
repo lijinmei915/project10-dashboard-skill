@@ -17,7 +17,7 @@ export function hashShareToken(token) {
   return createHash("sha256").update(required(token, "token")).digest("hex");
 }
 
-export function createPublication({ id = `publication-${randomUUID()}`, project, revisionId = project?.currentRevisionId, dataSources = [], visibility = "private", shareToken, status = "published", approval = null, now = new Date().toISOString() } = {}) {
+export function createPublication({ id = `publication-${randomUUID()}`, project, revisionId = project?.currentRevisionId, dataSources = [], visibility = "private", shareToken, status = "published", approval = null, renderChartSvg = null, now = new Date().toISOString() } = {}) {
   const workspace = restoreProjectRevision(project, revisionId);
   if (!["private", "unlisted", "public"].includes(visibility)) throw new ContractError("Publication visibility is invalid", [{ path: "/visibility", code: "enum", message: "Use private, unlisted, or public" }]);
   if (!["pending", "published"].includes(status)) throw new ContractError("Publication status is invalid", [{ path: "/status", code: "enum", message: "Use pending or published" }]);
@@ -36,7 +36,7 @@ export function createPublication({ id = `publication-${randomUUID()}`, project,
       querySnapshots: context.querySnapshots
     };
   });
-  const artifact = exportProjectRevision(project, revisionId);
+  const artifact = exportProjectRevision(project, revisionId, { renderChartSvg });
   return {
     version: 1,
     id: required(id, "id"),

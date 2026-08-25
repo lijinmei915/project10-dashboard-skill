@@ -85,6 +85,25 @@ test("corrects field types from raw values and builds a versioned semantic model
   assert.equal(corrected.semanticModel.version, 2);
 });
 
+test("registers only ordered hierarchies backed by semantic dimensions", () => {
+  const source = parseDataSource({ id: "geo-sales", name: "区域销售", format: "csv", content: "区域,省份,城市,收入\n华东,浙江,杭州,100\n华东,江苏,南京,200" });
+  const dimensions = source.semanticModel.dimensions;
+  const region = dimensions.find(({ label }) => label === "区域");
+  const province = dimensions.find(({ label }) => label === "省份");
+  const city = dimensions.find(({ label }) => label === "城市");
+  const configured = updateDataSourceSchema(source, { semanticModel: {
+    dimensions: dimensions.map(({ fieldId, label }) => ({ fieldId, label })),
+    metrics: source.semanticModel.metrics.map(({ fieldId, label, aggregation, format }) => ({ fieldId, label, aggregation, format })),
+    hierarchies: [{ id: "geo", label: "地域", levels: [region.id, province.id, city.id] }]
+  } });
+  assert.deepEqual(configured.semanticModel.hierarchies, [{ id: "geo", label: "地域", levels: [region.id, province.id, city.id] }]);
+  assert.throws(() => updateDataSourceSchema(source, { semanticModel: {
+    dimensions: dimensions.map(({ fieldId }) => ({ fieldId })),
+    metrics: source.semanticModel.metrics.map(({ fieldId }) => ({ fieldId })),
+    hierarchies: [{ id: "geo", levels: [region.id, "dimension-missing"] }]
+  } }), /层级维度/);
+});
+
 test("executes bounded semantic queries without accepting physical field names", () => {
   const source = parseDataSource({ id: "query-sales", name: "销售查询", format: "csv", content: csv, now: "2026-08-10T03:00:00.000Z" });
   const region = source.semanticModel.dimensions.find(({ label }) => label === "区域");
@@ -186,10 +205,10 @@ test("persists imported data and generates a portable bound workspace through th
   assert.equal(nonPortableDraftResponse.status, 200);
   const nonPortableWorkspace = (await nonPortableDraftResponse.json()).run.preview.workspace;
   const nonPortableComponents = nonPortableWorkspace.document.sections.flatMap(({ components }) => components);
-  assert.equal(nonPortableWorkspace.resources?.datasets, undefined);
+  assert.deepEqual(nonPortableWorkspace.resources?.datasets?.["sales-excel-api"], { portable: false });
   assert.equal(nonPortableComponents.find(({ id }) => id === "priority-customers").props.value, "3,000");
   assert.equal(nonPortableComponents.find(({ id }) => id === "opportunity-trend").props.labels.length, 2);
-  assert.equal(nonPortableComponents.some(({ binding }) => binding), false);
+  assert(nonPortableComponents.some(({ binding }) => binding?.kind === "series"));
 
   const draftResponse = await fetch(`${endpoint}/api/generation/draft`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request: { id: "data-draft", prompt: "生成销售数据看板", language: "zh", pageType: "dashboard", dataInputs: [{ id: "sales-api", kind: "uploaded", name: "客户端伪造名称" }] }, baseWorkspace: baseline }) });
   assert.equal(draftResponse.status, 200);

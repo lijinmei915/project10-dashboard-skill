@@ -2,14 +2,14 @@
 
 > **接手时间**：2026-06-30
 > **项目根目录**：项目10-dashboard skill
-> **当前状态**：M1/M2/M3 阶段门槛已通过；组织控制面、OIDC 邀请接受、组织审计、数据连接、刷新、发布与多格式交付均有自动证据。
-> **下一步**：SCIM 已按产品决策暂缓；在真实 TLS ingress/静态托管和 IdP 环境验证已自动固化的公网 Origin、Cookie、OIDC callback 与缓存合同，并用最小只读账号执行真实 PostgreSQL connector smoke。
+> **当前状态**：交互式 BI M0-M7 阶段门槛已全部通过；KPI 真实迷你趋势已贯通本地/在线数据、Dashboard 交互和 Report 静态导出，组织控制面、数据连接、刷新、发布与多格式交付均有自动证据。
+> **下一步**：在真实业务数据上评估第二个受控扩展需求；部署环境验证与 PostgreSQL connector smoke 并行保留。
 > **风险**：OIDC 邀请当前仅验证 file-storage 流程；identity 与 organization 是独立持久化边界，失败时授权 fail-closed 但不是跨仓库原子提交。远程适配器尚未用有效 API key 做真实联网验收；PostgreSQL connector 只有注入式回归，尚未连接部署数据库。
 
 ---
 layer: knowledge
 type: status
-last_verified: 2026-08-22
+last_verified: 2026-08-24
 depends_on: [PROJECT.md]
 ---
 
@@ -21,6 +21,9 @@ depends_on: [PROJECT.md]
 
 ## 当前状态
 
+- Dashboard 已新增标题区域右上角页面级刷新按钮：按 Dataset 合并手动刷新在线组件，刷新中保留旧数据，失败显示 last-known-good，无在线数据或 mock 看板时按钮置灰；自动轮询、SSE 和刷新重试继续由同一运行时管理。
+- Report 同一位置保留刷新图标但置灰，状态为“快照报告”，明确 Report 不支持在线刷新。
+- 项目名称已按组织范围强制唯一：名称比较会 trim、NFKC 归一化并忽略大小写，覆盖创建、复制、Report 副本、AI 首次提交与重命名；服务端组织级写入队列避免并发重名，删除后允许复用。
 - 个人账号登录体验已完成产品化：本地 `disabled` 模式免登录；在线 `password` 模式支持注册、登录、完整错误状态、服务重试、密码显隐、Session 恢复和项目深链回跳。退出入口收进项目中心标题栏，主画布不新增浮动账号按钮；密码找回尚无邮件通道，界面明确说明联系维护者。
 - HTML 导入现支持表格与通用页面自动分流：表格进入结构化 Dataset，报告/Dashboard 提取标题、分区、正文和列表，并在生成时统一按当前 Workspace、主题和组件规范重建。通用 HTML 可不填写提示词直接生成；原脚本与样式不会执行或进入成品。
 - Dashboard 独立 Provider 已完成第三阶段：组织管理员可新增、编辑、删除、切换、发现模型和测试连接；组织级档案与凭证分仓持久化，Generation Job 按 organizationId 解析 Provider，最后一个档案删除后回退本地演示。OmniDesk 仅作公开格式迁移兼容。19 项 Provider 定向测试、完整 177 项 Node 基线和 Playwright 18/18 通过。当前 file 凭证仓储仅适合单实例；下一阶段是共享 Profile Repository、Secret Manager/KMS 端口、密钥轮换和治理审计。
@@ -29,9 +32,10 @@ depends_on: [PROJECT.md]
 - 配置外部 audit anchor 时，Publication audit outbox 的每次成功投递会同步请求异步链头刷新，锚定失败保持不回滚业务或内部 audit；定向 Node 回归覆盖该链路
 - Playwright 已补 Publication 审批真实 UI 证据：editor 提交 pending 后不显示批准按钮且 link 404；同组织管理员批准后 UI 和同一 link 同步变为已发布/200
 - 发布相关审计事件仍以 `publication.submitted / publication.approved` 等稳定 action 保留在审计 API；当前个人产品界面已移除项目记录入口，审批 Playwright 直接验证事件合同
-- 当前做到：`M0-M3 阶段门槛已通过；自然语言生成、精修版本、真实数据、刷新调度、发布访问和多格式交付形成闭环。`
+- 当前做到：`交互式 BI M0-M7 阶段门槛已全部通过；自然语言生成、精修版本、真实数据、交互分析、固定 Report 副本、受控自定义图表、发布访问和多格式交付形成闭环。`
+- 交互式 BI M4 已通过阶段门槛：Dataset 注册 2-8 层语义维度层级，Workspace 仅引用层级 ID；当前层由路径深度推导，每层查询重新读取授权模型并保留祖先过滤。ECharts 点击、面包屑任意深度返回、保存刷新恢复和末层禁入均已接通。
 - 当前阻塞：`无硬阻塞；真实联网 smoke test 需要部署环境显式提供模型与 API key，其他平台工作可继续。`
-- 组件能力已收口到统一目录入口：`/api/components/catalog` 返回 6 类内容组件、2 类页面控件和 5 类图表，AI Composer 与 Provider 共用该来源；契约门禁同步核对 Registry、Schema 和 Workspace Runtime，六类组件均有确定性导出证据，`text` 已补 Studio 显式渲染。便携 Skill 仍保持 29 文件。
+- 组件能力已收口到统一目录入口：`/api/components/catalog` 返回 6 类内容组件、2 类页面控件和 23 种图表，AI Composer 与 Provider 共用该来源；契约门禁同步核对 Registry、Schema 和 Workspace Runtime，六类组件均有确定性导出证据，`text` 已补 Studio 显式渲染。
 - AI 根据自然语言和能力目录自动选择组件，不再展示手工组件选择；`text` 可由口径说明、备注或文本组件意图生成，并贯通 Section、布局、provenance、版本和导出。
 - Workspace 结构协调层现已支持完整 Section 生命周期：动态创建、排序、标题/副标题更新、布局工具绑定和删除，再同步分区内卡片；浏览器回归证明新增“附录”分区进入画布与 revision 导出，恢复原 Workspace 后整区消失。
 - AI Composer 现支持 Section 与 Component 双作用域：选中分区后可改标题/副标题、前移/后移、新增说明分区或删除分区；候选继续走字段级 Command Batch、隔离预览、revision 和整批撤销。删除会同步清理控件、交互、视觉和资源引用，最后一个分区受保护。
@@ -43,20 +47,51 @@ depends_on: [PROJECT.md]
 
 ## 本次已完成
 
+- KPI 趋势视觉已对齐紧凑参考样式：标准看板默认使用右下角 1.5px 主题色平滑曲线加向下透明的渐变面积，不显示坐标轴和常驻点；Dashboard ECharts、Report 静态 SVG 与独立导出保持一致，原折线和平滑线仍可切换。
+- 内置看板三张 KPI 已补 7 周 mock 历史序列并以 `data-source="mock"` 标记，打开预览即可检查交互趋势；真实 Workspace 没有历史序列时不会回填 mock。局部“核心指标（整组）”设置新增独立“趋势线”分组，集中显示可见性、周期和样式三项配置。
+- KPI 迷你趋势使用独立受控 `trendBinding`，不从当前值或环比伪造历史；本地和在线数据都在当前筛选范围内生成 2-30 个真实点。Dashboard 使用客户端 ECharts 提供 Tooltip、axisPointer 和点击意图，视觉设置支持自动/显示/隐藏、7/12/30 点及折线/平滑线/面积线；Report 和便携导出只保留静态 SVG。
+- Report 副本已修复孤立 `trendBinding`：授权物化后删除主绑定、趋势绑定和数据引用，同时保留有效 `props.sparkline`。隔离浏览器实测 Dashboard 三条 Canvas 均可 Hover 显示周期、数值和指针，Report 三条静态 SVG 且 KPI Canvas 为 0；自动/隐藏/显示、12点面积线即时切换通过。窄屏 Dashboard/Report 均无横向溢出，数值与趋势 0 重叠；专项回归与完整门禁通过。
+
+- 交互式 BI M1 已通过阶段门槛：`studio/client-echarts-runtime.mjs` 使用共享 ChartSpec Builder 管理 ECharts 6 的实例复用、`setOption`、ResizeObserver、异步迟到失效与销毁；Workspace Adapter 按页面类型把 Dashboard 21种绘图类型路由到 Canvas，把 Report 与 `data-table` 保持为静态 SVG，并保留服务端故障降级。
+- Studio 开发与独立 Web 构建统一提供 `/vendor/echarts.mjs`，构建 manifest 记录 ECharts 与客户端 ChartSpec runtime。Workspace 恢复时暂停图表绘制，避免 Report 在主题恢复前按默认 Dashboard 请求客户端 vendor。
+- M1 验收证据：`npm run check` 为 205 passed / 6 PostgreSQL skips / 0 failed，生成评测 10/10；Playwright 专项 2/2，真实 Chromium 中21种 ECharts 配方均生成 320×260 Canvas、更新复用、清理归零，Report 直开为 SVG且 `/vendor/echarts.mjs` 请求数为0；现有项目 Dashboard→Report→Dashboard 实测 Canvas→SVG→Canvas，移动端横向溢出为0，控制台无 warning/error。下一步进入 M2 在线语义查询。
+- 交互式 BI M2 已通过阶段门槛：新增 `studio/online-data-runtime.mjs`，非便携 Dashboard 以授权语义 ID 查询在线 Dataset，并支持 AbortController、序号门禁、并发元数据请求去重、服务端查询缓存与 last-known-good。在线结果只保存在运行时内存，Workspace 仅保留 `{ portable: false }`，Report 不执行在线查询。
+- M2 验收证据：`npm run check` 为 210 passed / 6 PostgreSQL skips / 0 failed，生成评测 10/10、平均100；在线数据/权限专项17/17，Playwright专项3/3。真实 Chromium 中 KPI、Canvas 图表、排行和表格使用刷新后的在线数据；模拟503后旧数值与Canvas保持、卡片转为stale，Workspace无records；跨组织预览和查询统一404。下一步进入 M3 筛选与跨图联动。
+- 交互式 BI M3 已通过阶段门槛：新增 `studio/analysis-state.mjs` 与 ChartSpec `selection`，ECharts 只上报选择意图；状态层按 component/section/page 和同 Dataset 边界统一驱动 portable/online 过滤。重复选择或标题提示可清除，显式保存后 `chartSelections` 可恢复，渲染和查询不会反向触发选择。
+- M3 验收证据：`npm run check` 为214 passed / 6 PostgreSQL skips / 0 failed，生成评测10/10、平均100；完整 Playwright 22/22。真实 Chromium 柱体选择使整页 KPI 3,000→1,000，保存刷新后保持，清除回到3,000；查询稳定无循环，390px 横向溢出0，桌面/移动截图中标题、更新时间和筛选提示不重叠。下一步进入 M4 层级下钻。
+- M4 验收证据：`npm run check` 为218 passed / 6 PostgreSQL skips / 0 failed，生成评测10/10、平均100；完整 Playwright 23/23。真实 Chromium 完成区域→省份→城市，查询正文使用语义 ID 并保留祖先过滤，保存刷新后恢复到浙江，面包屑可返回根层。390px 页面无横向溢出，标题与面包屑不重叠；专项用例再次通过并输出移动截图。下一步进入 M5 刷新与 SSE。
+- 交互式 BI M5 已通过阶段门槛：在线 Dashboard 默认按 Dataset 使用可恢复 SSE，也支持受控轮询；新增隐藏暂停、指数退避、游标重连、事件去重和多 Dataset 定向失效。刷新继续走授权语义查询并保留 last-known-good，不写 Workspace。
+- M5 验收证据：`npm run check` 为226 passed / 6 PostgreSQL skips / 0 failed，生成评测10/10、平均100；完整 Playwright 23/23。真实 Refresh API→SSE→语义重查使华东 KPI 1,000→1,500，同时保存的选择、Workspace interactions 和 ECharts zoom 20-80 不变；390px 无横向溢出，后续503仍显示4,000的旧数据。下一步进入 M6 Dashboard 生成 Report 副本。
+- 交互式 BI M6 已通过阶段门槛：Dashboard 当前 revision 可生成独立 Report Project；在线 Dataset 按发起者重新执行行级授权，筛选、图表选择、下钻和图例状态固化为静态值，副本删除数据绑定、records、刷新/缩放策略与 interactions，源 Project 深比较不变。
+- M6 验收证据：`npm run check` 为229 passed / 6 PostgreSQL skips / 0 failed，生成评测10/10、平均100；完整 Playwright 23/23。真实项目中心创建新 Report，直接深链为服务端 SVG且 `/vendor/echarts.mjs` 请求数为0；原 Dashboard 重开仍为 Canvas且 revision 数不变。390px横向溢出0，截图为 `/tmp/dashboard-m6-report-copy-mobile.png`。下一步进入 M7 受控自定义图表与治理。
+- 交互式 BI M7 已通过阶段门槛：新增版本化 Custom Chart Extension Registry 与首个 `bullet` 受控 Custom Series。ChartSpec 只保存纯 JSON 的实际、目标和绩效区间；本地 Builder 独占 `renderItem`，manifest 递归冻结，重复 ID/capability、未知 capability/runtime、非标准 fallback 和可执行输入失败关闭，Builder 异常按 manifest 降级。
+- Bullet 严格要求非空分类、恰好“实际 + 目标”两组且数据与分类等长。当前通用 Workspace `series` binding 只表达单指标，确定性起稿不会给 Bullet 伪装该绑定；接入真实刷新前必须先定义双指标绑定协议。构建合同强制目录 extension 元数据与本地注册表一致。
+- M7 验收证据：`npm run check` 为237 passed / 6 PostgreSQL skips / 0 failed，生成评测10/10、平均100；完整 Playwright 24/24。真实 Chromium 中同一 Bullet 规范在 Dashboard 为非空 Canvas、Report 为服务端 SVG且不请求客户端 ECharts；正式 Report 下载与 Publication artifact 也注入同一宿主 SSR，便携环境才使用无依赖降级。390px 横向溢出0，截图为 `/tmp/dashboard-m7-bullet-mobile.png` 和 `/tmp/report-m7-bullet-mobile.png`。M0-M7 长目标完成。
+- 交互式 BI 长目标已建立并进入 M0。新增 `chart-spec.schema.json` 与浏览器/Node 共用的 `chart-spec-runtime.mjs`：旧图表渲染请求兼容归一化为 ChartSpec v1，21种 ECharts 图表由同一 Builder 构造，`data-table` 保持语义 DOM；版本化输入拒绝函数、非 JSON 对象、未知字段、非法绑定和无效下钻层级。架构决策固定 Dashboard 客户端 ECharts、Report 服务端 SVG、转换生成副本和不引入 Chart.js。
+- 资源中心图表预览已与正式 `palette.v1.json` 对齐：目录 API 同时返回色板版本和分类色，前端不再维护临时四色。自动规则固定为仪表盘单色、分类图多色、普通图按系列数选择单/双/多色；资源预览与最终生成保持同一颜色来源和 ECharts SSR 渲染内核。
+- 图表资源库新增 `gauge` 仪表盘并扩展为 22 种：资源中心归入“指标图”，默认示例为 `76.8%` 和 `60/85` 阈值；AI 可识别仪表盘意图，Studio、ECharts SSR、服务降级 SVG 与 standalone 导出共享 `props.gauge` 范围/单位/精度/阈值合同，单值图不显示图例。仪表主弧统一以主题色表示已完成、连续灰色表示未完成，阈值保留为配置但不再切断主弧。
 - KPI 图标设置已从“样式 + 颜色”自由组合收敛为固定样式单选：无、主题/多色线型、主题/多色面型、主题/多色浅底、主题/多色光感、主题/多色反白；系统预设默认“主题线型”，单卡保留“跟随整组”。底层继续序列化原有三字段，不改变 Workspace 与导出协议；自定义下拉优先使用控件显式 `aria-label`。主题选项预览读取当前主题派生色，多色选项从真实分类色板均匀抽取四色显示彩色 glyph/容器；画布 KPI 也按卡片总数均匀抽取分类色，避免少量卡片只落在相邻冷色。
 - KPI 浅底线型不再继承有底图标的 `84%` 整体缩放；主题浅底和多色浅底通过轻量 path 轮廓补偿与对应无底线型保持相同视觉粗细，容器尺寸仍按带底两档规则解析。
 - KPI 图标大小已统一为“标准 / 大”两档并默认标准：无底使用原中/大尺寸 `40/23px` 与 `48/28px`，带底使用“小号 +2px”的 `34/21px` 和原中号 `40/23px`；历史全局/单卡 `small` 自动迁移为 `medium`。
 - KPI 原“深底线型”已替换为“光感渐变”：继续使用线型图标，容器改为每卡同色渐变与柔光阴影；旧的 `outline + solid` 全局及单卡配置会通过版本标记一次性迁移到 `glow`。
 - KPI 设置已复用现有图标样式组合器重整为渐进式配置，并拆为“分组布局 / 指标图标 / 卡片外观”：图标样式置顶；未开启图标时隐藏颜色、大小、位置和底形状；无底图标仅显示颜色、大小和位置；有底图标再显示底形状。卡片底色在“卡片外观”中独立常显，全局整组与单卡局部使用同一显隐规则。
-- 已从 `fx-ui-report-skill` 的真实样式源码提取并接入三项可选视觉能力：分组标题新增 `marker-glow` 发光短标，右侧横线升级为主题弱线到透明的渐隐线，KPI 新增 `glow` 光感渐变容器。KPI 光感容器复用每卡分类色 token，支持全局与单卡覆盖、预设保存恢复，并保持标准看板默认配置不变。
+- 已从 `fx-ui-report-skill` 的真实样式源码提取并接入三项可选视觉能力：分组标题与卡片标题均支持 `marker-glow` 发光短标，右侧横线升级为主题弱线到透明的渐隐线，KPI 新增 `glow` 光感渐变容器。标题短标复用 `6px × 12px` 与主题浅色柔光规则；KPI 光感容器复用每卡分类色 token，支持全局与单卡覆盖、预设保存恢复，并保持标准看板默认配置不变。
+- 指标卡整组新增 `separate / joined` 组织方式，与卡片底色分开配置；“独立卡片 + 白色”可表达白底独立 KPI 卡，旧状态默认不变。
+- `joined` KPI 整组样式使用统一组底，内部卡片与组底保留等值四周内边距，卡片之间使用同等间距，不再以 `1px` 分隔线紧贴拼接。
+- `joined` KPI 作为整体卡片必须显示标题；外层边界跟随全局卡片圆角、阴影和边框，标题跟随卡片标题字号、前导装饰、图标形态与配色。
+- `joined` KPI 的外层四周内边距、标题到内容距离和指标卡间距均直接继承 `cardGap`，与页面同层卡片间距保持一致。
+- Dashboard “标准看板”专属默认已更新为当前接受配置：`joined + multi` KPI，`outline + glow + colorful` 图标，16px 中性线型短标标题与标题右侧副标题；共用 `fx-orange` 的 Report 默认未改动。
+- Dashboard 信息条连接符已恢复为可见且可切换：圆点与竖线只作用于数据截止和创建人之间；示例数据来源附加项继续在 Dashboard 隐藏。
+- 项目中心暂时隐藏项目归属筛选，只保留搜索和排序；服务端权限与项目 ACL 逻辑未删除。
 - AI 生成可靠性链路已完成：SSE 首帧提供安全的 `job.snapshot` 并保持 10 秒心跳；前端不再把进度连接中断当作生成失败，断线期间使用 4 秒低频 Job 查询补偿，30 秒后仍只提示实时进度暂不可用。取消、SSE 终态、快照终态和 HTTP 终态通过同一幂等收口处理；收到终态事件后客户端主动关流，不再把正常 EOF 闪现为“连接已恢复”
 - Generation Job 重启恢复已补齐租约等待：新 worker 遇到旧进程尚未过期的 `running` lease 会在到期后复查、重新入队并执行，活跃 worker 续租时则继续等待，避免双执行。成功任务在完整候选通过 Workspace、命令物化和来源校验后持久化逐分区 `section.ready`；失败任务不产生该事件，公开摘要只返回完成数和总数
 - AI Composer 已移除定时模拟进度，按 `section.ready` 顺序队列呈现 `1/N` 到页面校验；重连快照直接恢复权威完成数，完整 Workspace 仍只在终态后原子替换画布。修复后完整 `npm run check` 通过：Generation eval `10/10`、平均 `100`，Node `196 passed / 6 PostgreSQL environment skips / 0 failed`，Skill 31 文件可复现
 - 浏览器端到端已验证同一任务依次出现 `section.ready 1/4` 至 `4/4`、校验完成和可接受预览；停服后只显示恢复提示，重启后旧任务等待租约到期接管并最终进入 `preview.ready`。真实远程 Provider 生成成功；终态回归确认正常 EOF 不再闪现“连接已恢复”，候选均已放弃且原项目未变。该进度表示已验证分区的顺序呈现，不是模型内容逐 chunk 写入
 - 后续架构升级可将 Web API 与 AI Worker 拆分为独立执行边界；这不是当前断线恢复、服务重启接管或逐分区进度正确性的前置条件
-- 当前 Dashboard 视觉配置已固化为“标准看板”预设，并同步到 Studio、standalone starter、Skill 规范和设计资源目录。基线为 `#ff8000 / 14px 正文 / 10px 圆角 / 16px 卡片标题 / 智能图表配色 / 12px 间距 / 标准密度`；智能配色按图表类型与系列数量解析，局部显式覆盖继续优先。受控图表资源新增雷达图、漏斗图与表格图表，目录现为 21 种，已贯通 AI 语义、Studio、服务端预览与便携导出。
+- 当前 Dashboard 视觉配置已固化为“标准看板”预设，并同步到 Studio、standalone starter、Skill 规范和设计资源目录。基线为 `#ff8000 / 14px 正文 / 10px 圆角 / 16px 卡片标题 / 智能图表配色 / 12px 间距 / 标准密度`；智能配色按图表类型与系列数量解析，局部显式覆盖继续优先。受控图表资源新增雷达图、漏斗图、表格图表与仪表盘，目录现为 22 种，已贯通 AI 语义、Studio、服务端预览与便携导出。
 - 认证产品入口已从管理员分发访问令牌转向个人账号：本地 `disabled` 模式免登录，在线 `password` 模式提供邮箱密码注册/登录、独立个人空间、scrypt 哈希、HttpOnly Session 和失败限流；旧 `token` 服务端能力仅保留迁移兼容，UI 不再提供令牌输入。
 - 视觉预设交互已统一：系统预设和我的预设在同一下拉中分组展示，自定义项的管理按钮按悬停/聚焦出现，管理命令使用浮层且支持 `Esc` 关闭；浏览器确认当前自定义预设、分组、选中态和禁用更新状态正确。
+- 项目中心已增加永久删除：管理员/所有者可在项目行点击“删除”，确认后服务端按 `expectedUpdatedAt` 做并发校验并移除项目文件；删除当前项目会回到新建项目草稿，编辑者和只读成员不显示删除入口。
 
 - 资源中心 M2 已接入：Studio 选中 Workspace 图表卡片后，视觉设置旁入口携带临时目标上下文；资源页可发送受控图表应用意图，Studio 只接受会话一致、目标仍被选中且图表 ID 受控的操作。普通访问继续只读。
 - 资源中心 M3 第一部分已完成：组件 Tab 直接展示 `/api/components/catalog` 的 6 类组件与 2 类页面控件；图标 Tab 直接使用 Phosphor 搜索与资源端点，支持四种粗细并可应用到当前卡片标题。桌面实测 8 个组件、48 个图标、搜索与卡片应用通过；本轮浏览器 viewport override 未作用于现有标签，M3 移动端仍需新标签补充真实证据。分组图标协议已实现，但当前 Dashboard 预设隐藏分组标题，需在可见分组标题预设中补 UI 验收。
@@ -313,7 +348,7 @@ depends_on: [PROJECT.md]
 - AI 工作台增加销售经营、产品运营、项目交付和复盘报告四类需求模板；模板点击后只回填多行输入框，用户可继续修改，不会直接提交生成
 - 示例数据来源标记收敛到头部信息条的单一“数据来源：示例数据”，不再占据标题上方或重复出现在分区标题旁
 - 所有局部继承下拉项显示当前解析值，例如“跟随全局（标题下方）”或“跟随整组（右上）”，并随全局/整组设置实时同步
-- Dashboard 的“标准看板”已固化为页面类型专属默认：橙色 `#ff7a2f`、透明极简头部、10px 卡片圆角、16px 卡片标题、无副标题、无边框、轻阴影、单色图表和标准间距；Report 的“品牌报告”继续使用共享基础预设，不受这些覆盖影响
+- Dashboard 的“标准看板”已固化为页面类型专属默认；当前参数以本文件上方“当前接受配置”及 `studio/editor-runtime.js` 的 Dashboard 专属覆盖为准，Report 的“品牌报告”继续使用共享基础预设，不受这些覆盖影响
 - 色彩架构已确定为“色相固定、色阶动态”：固定 8 色承担 BI/KPI 数据身份，语义色保持独立；浅底、交互态、边框和图标容器可通过版本化 OKLCH 算法生成同色相 UI 色阶
 - 修复 Report 分组无法向上移动：Report 现在忽略 Dashboard 连续画布残留的内联 `order`，视觉顺序、DOM 顺序、上下移动按钮与保存顺序重新一致；Dashboard 画布顺序不受影响
 - 修复 Report KPI 卡片强制 `border: 0` 覆盖全局卡片规则的问题；KPI 现与普通卡片共同继承全局边框、圆角和阴影，专属配置只处理 KPI 内容、图标与底色
@@ -394,9 +429,12 @@ depends_on: [PROJECT.md]
 
 ## 下一步
 
-1. 继续把项目中心的静态按钮、输入框、Tab 与弹窗逐步接入 Studio UI 原语，保持现有业务 ID、事件和主题 token 不变
-2. 在有效服务端密钥环境执行真实模型首稿、局部精修、一次 repair、延迟和成本 smoke test
-3. 在 PostgreSQL 共享仓储、Session 与 Refresh 租约之上补组织管理入口、集中不可篡改审计 sink 和共享 Query Cache 策略
+- 产品入口已收敛为两类：`Dashboard` 是客户端 ECharts 交互看板，`Report` 是可刷新但使用服务端 SVG 的在线分析报告；分享、下载和审计时由服务端转为 `Report · 静态快照`。内部 `analysis-report` / `report` 类型仍保留，用于兼容运行时、历史项目和快照转换。
+- 项目中心删除按钮已统一危险操作样式；删除前读取最新项目元数据，确认取消、失败和并发冲突后按钮都可重试，避免列表摘要版本过期造成“删不掉”。
+
+1. 使用真实业务数据评估第二个受控扩展；只有标准 ECharts 组合无法表达且具备明确唯一语义时才进入版本化注册表
+2. 继续把项目中心的静态按钮、输入框、Tab 与弹窗逐步接入 Studio UI 原语，保持现有业务 ID、事件和主题 token 不变
+3. 在有效服务端密钥环境执行真实模型首稿、局部精修、一次 repair、延迟和成本 smoke test
 4. 增加数据库 migration 发布/回滚演练与多进程故障注入，并最终移除无 revision DOM 兼容导出
 
 ## 相关文件

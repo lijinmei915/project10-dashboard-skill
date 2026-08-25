@@ -65,7 +65,7 @@ function mountProjectFilterSelect(select) {
   render();
 }
 
-[ui.projectSort, ui.projectOwnership].forEach(mountProjectFilterSelect);
+[ui.projectSort].forEach(mountProjectFilterSelect);
 
 const providerManagerBody = ui.organizationDialog.querySelector(".provider-manager-body");
 if (providerManagerBody && ui.projectSettingsView) ui.projectSettingsView.append(providerManagerBody);
@@ -170,6 +170,19 @@ async function copyProject(project) {
   await loadProjects();
 }
 
+async function createReportCopy(project) {
+  const name = window.prompt("报告名称", `${project.name} 报告`)?.trim();
+  if (!name) return;
+  ui.projectStatus.textContent = "正在固化最新数据并生成报告...";
+  const { project: report } = await request(`/api/projects/${encodeURIComponent(project.id)}/report-copy`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: `project-report-${Date.now()}`, name })
+  });
+  await loadProjects();
+  await activateProject(report.id);
+  ui.projectStatus.textContent = "报告副本已创建";
+}
+
 async function toggleArchive(project) {
   const archive = project.status !== "archived";
   if (archive && !window.confirm(`归档“${project.name}”？归档后项目只读，可随时恢复。`)) return;
@@ -178,13 +191,28 @@ async function toggleArchive(project) {
   await loadProjects();
 }
 
+async function deleteProject(project) {
+  if (!window.confirm(`删除项目“${project.name}”？此操作不可恢复，项目及其全部版本会永久删除。`)) return;
+  ui.projectStatus.textContent = "正在删除项目...";
+  // The list is a summary and can be stale after an edit in another tab; fetch the current metadata version before deleting.
+  const { project: latest } = await request(`/api/projects/${encodeURIComponent(project.id)}`, { cache: "no-store" });
+  await request(`/api/projects/${encodeURIComponent(project.id)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ expectedUpdatedAt: latest.updatedAt })
+  });
+  if (bridge.getCurrentProject()?.id === project.id) bridge.beginAiProject();
+  await loadProjects();
+  ui.projectStatus.textContent = "项目已删除";
+}
+
 async function openAudit(project) {
   ui.auditDialog.hidden = false;
   ui.auditProjectName.textContent = project.name;
   ui.auditStatus.textContent = "正在读取项目记录...";
   const { events = [] } = await request(`/api/audit-events?projectId=${encodeURIComponent(project.id)}&limit=200`, { cache: "no-store" });
   const labels = {
-    "project.created": "创建项目", "project.copied": "复制项目", "project.renamed": "重命名项目", "project.archived": "归档项目", "project.restored": "恢复项目", "project.access.updated": "更新成员权限",
+    "project.created": "创建项目", "project.copied": "复制项目", "project.renamed": "重命名项目", "project.archived": "归档项目", "project.restored": "恢复项目", "project.deleted": "删除项目", "project.access.updated": "更新成员权限",
     "publication.published": "发布版本", "publication.submitted": "提交发布审批", "publication.approved": "批准发布", "publication.revoked": "撤回发布"
   };
   if (!events.length) {
@@ -412,11 +440,24 @@ async function saveOrganization() {
 
 function actionButton(label, handler, variant = "outline") {
   const button = createButton(label, { variant });
-  button.addEventListener("click", () => handler().catch((error) => { ui.projectStatus.textContent = error.message; }));
+  button.addEventListener("click", async () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      await handler();
+    } catch (error) {
+      ui.projectStatus.textContent = error.message || "操作失败，请重试";
+    } finally {
+      if (button.isConnected) button.disabled = false;
+    }
+  });
   return button;
 }
 
 let allProjects = [];
+function pageTypeLabel(pageType) {
+  return pageType === "analysis-report" ? "Report" : pageType === "report" ? "Report · 静态快照" : "Dashboard";
+}
 function renderProjects(projects = allProjects) {
   const current = bridge.getCurrentProject();
   const hasProjects = projects.length > 0;
@@ -434,7 +475,7 @@ function renderProjects(projects = allProjects) {
     const row = document.createElement("div"); row.className = "project-row"; row.dataset.current = String(current?.id === project.id);
     const copy = document.createElement("span"); copy.className = "project-row-copy";
     const title = document.createElement("strong"); title.textContent = project.name;
-    const meta = document.createElement("span"); meta.textContent = `${project.status === "archived" ? "已归档" : "进行中"} · ${project.revisionCount} 个版本 · 最后修改 ${formatProjectUpdatedAt(project.updatedAt)}`;
+    const meta = document.createElement("span"); meta.textContent = `${pageTypeLabel(project.pageType)} · ${project.status === "archived" ? "已归档" : "进行中"} · ${project.revisionCount} 个版本 · 最后修改 ${formatProjectUpdatedAt(project.updatedAt)}`;
     copy.append(title, meta);
     const actions = document.createElement("span"); actions.className = "project-row-actions";
     const open = actionButton(current?.id === project.id ? "重新加载" : "打开", () => current?.id === project.id ? reloadProject(project.id) : activateProject(project.id), "default");
@@ -442,6 +483,7 @@ function renderProjects(projects = allProjects) {
     const writable = bridge.getActorRole() !== "viewer";
     if (writable) actions.append(actionButton("复制", () => copyProject(project)));
     if (writable && ["admin", "owner", "editor"].includes(project.accessRole) && project.status !== "archived") actions.append(actionButton("重命名", () => renameProject(project)));
+    if (writable && ["admin", "owner"].includes(project.accessRole)) actions.append(actionButton("删除", () => deleteProject(project), "destructive"));
     row.append(copy, actions); return row;
   }));
 }

@@ -1,5 +1,6 @@
 [
   { "type": "line", "name": "折线图", "semantic": "ordered-category-trend", "dataShape": "ordered-categories+one-or-more-series", "aliases": ["折线图", "曲线图", "趋势", "走势", "变化"] },
+  { "type": "combo-bar-line", "name": "柱线复合图", "semantic": "bar-and-line-dual-metric-comparison", "dataShape": "categories+bar-series+line-series+optional-dual-axis", "aliases": ["柱线复合图", "柱状图叠加折线图", "柱线图", "组合图", "复合图", "双轴图", "柱线组合"] },
   { "type": "time-series", "name": "时序图", "semantic": "timestamp-indexed-trend", "dataShape": "timestamps+one-or-more-series+optional-thresholds", "aliases": ["时序图", "时间序列图", "时间轴趋势", "监控趋势", "阈值趋势"] },
   { "type": "area", "name": "面积图", "aliases": ["趋势", "累计", "规模", "变化"] },
   { "type": "bar", "name": "基础柱图", "semantic": "single-series-category-comparison", "dataShape": "categories+single-series", "aliases": ["基础柱图", "柱状图", "柱形图", "单系列", "分类对比"] },
@@ -17,6 +18,8 @@
   { "type": "sector-pie", "name": "饼图", "semantic": "part-to-whole-solid-sectors", "dataShape": "categories+single-nonnegative-series", "aliases": ["饼图", "实心饼图", "扇形占比"] },
   { "type": "pie", "name": "环图", "semantic": "part-to-whole-donut", "dataShape": "categories+single-nonnegative-series", "aliases": ["环图", "环形图", "圆环图", "甜甜圈图"] },
   { "type": "rose", "name": "玫瑰图", "semantic": "part-to-whole-radius-comparison", "dataShape": "categories+single-nonnegative-series", "aliases": ["玫瑰图", "南丁格尔玫瑰图", "极区图", "半径饼图"] },
+  { "type": "bullet", "name": "子弹图", "semantic": "actual-versus-target-with-performance-ranges", "dataShape": "categories+actual-series+target-series+optional-ranges", "aliases": ["子弹图", "目标达成图", "实际与目标", "绩效区间", "bullet chart"], "extension": { "manifestVersion": 1, "capability": "custom-series", "fallbackType": "horizontal-bar" } },
+  { "type": "gauge", "name": "仪表盘", "semantic": "single-value-progress-with-thresholds", "dataShape": "single-value+range+optional-thresholds", "aliases": ["仪表盘", "仪表盘图", "进度仪表", "完成率", "达成率", "健康分", "风险等级", "gauge"] },
   { "type": "radar", "name": "雷达图", "semantic": "multi-dimensional-profile-comparison", "dataShape": "dimensions+one-or-more-series", "aliases": ["雷达图", "蛛网图", "能力模型", "多维对比", "指标画像"] },
   { "type": "funnel", "name": "漏斗图", "semantic": "ordered-stage-conversion", "dataShape": "ordered-stages+single-nonnegative-series", "aliases": ["漏斗图", "转化漏斗", "转化路径", "阶段流失", "销售漏斗"] },
   { "type": "data-table", "name": "表格", "semantic": "exact-value-multi-field-lookup", "dataShape": "rows+one-or-more-value-columns", "aliases": ["表格", "数据表", "明细表", "列表", "精确值", "多字段对照"] }

@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: log
-last_verified: 2026-08-22
+last_verified: 2026-08-24
 depends_on: [docs/CHANGELOG.md]
 ---
 
@@ -663,3 +663,55 @@ depends_on: [docs/CHANGELOG.md]
 - 结论：身份状态在 Studio 壳层读取，不用独立登录路由替换目标地址。认证成功派发 `dashboard-auth-ready`，Router 重新激活当前 `/studio/projects/:id` 或其他站内路由
 - 原因：用户通常从具体项目链接进入；登录后退回列表会丢失任务上下文。保持 pathname 和 query 可以让认证只作为门禁，不改变用户目标
 - 边界：服务状态未知时隐藏提交表单并只提供重新连接；邮箱可保留，密码不持久化。退出入口融合进项目中心标题栏，主画布不增加账号浮动控件
+
+## 2026-08-23
+
+### 决策 108：Dashboard 与 Report 共用 ChartSpec 和 ECharts Builder，但使用不同运行时
+
+- 结论：Dashboard 是在线分析应用，使用客户端 ECharts；Report 是固定阅读成品，使用服务端 ECharts SVG。两者共用版本化纯 JSON ChartSpec、图表目录、Option Builder、色板和数字格式。类型转换创建新项目或副本，不作为成品页面显示开关；Dashboard 不承诺离线 HTML 导出
+- 原因：客户端运行时才能以低延迟承载 Tooltip、缩放、跨图联动、下钻和持续刷新；服务端 SVG 更适合 Report 的稳定阅读、发布和 PDF。复用同一个 Builder 可避免 Dashboard 与 Report 出现两套视觉和语义，继续使用 ECharts 也避免 Chart.js 插件与第二渲染协议的维护成本
+- 边界：AI和普通用户只能生成经 Schema 校验的 ChartSpec，不得提交任意 ECharts Option、formatter、renderItem 或 JavaScript。自定义图表按标准系列组合、受控 Custom Series、审核式插件逐级开放；每项扩展必须声明 Report 静态降级
+
+### 决策 109：Dataset SSE 只通知变化，语义查询仍是数据真相
+
+- 结论：在线 Dashboard 默认按 Dataset 建立一个可恢复 SSE，事件只携带 Dataset ID、语义版本和更新时间；客户端收到变化后重新执行授权语义查询。分钟级场景可显式使用 HTTP 轮询，WebSocket 不作为默认能力
+- 原因：SSE 足以承载单向变化通知，浏览器原生支持重连；不在长连接中发送 records 可以复用现有组织隔离、行级策略、查询缓存和迟到结果门禁，也避免建立第二套数据授权协议
+- 边界：客户端按事件 ID 与版本时间去重，失败有界退避并保留 last-known-good；页面隐藏默认暂停。刷新只替换运行时数据覆盖，不写 Workspace 或清空筛选、选择、图例、下钻和 zoom。SSE 不是持久任务真相，也不保证逐条业务事件回放，只保证重连后观察当前最新版本
+
+### 决策 110：Dashboard 转 Report 使用授权快照与新 Project
+
+- 结论：Dashboard 生成 Report 时，服务端从指定不可变 revision 创建新 Project；在线 Dataset 按发起者重新授权，当前筛选、图表选择、下钻和图例状态物化为静态值，随后删除全部数据绑定与交互运行态。源 Project 完全不变
+- 原因：Report 是可复现的阅读成品，不应依赖后续数据刷新、浏览器会话或 Dashboard 交互状态；新 Project 让两种生命周期、权限审计和后续编辑相互独立
+- 边界：Dataset 缺失或越权必须整次失败，不能使用浏览器缓存或 last-known-good 替代授权查询；列表只暴露 `pageType` 摘要，Report 深链在 revision 恢复前不得先按模板 Dashboard 加载客户端 ECharts
+
+### 决策 111：自定义图表使用版本化本地注册表，不开放任意 ECharts Option
+
+- 结论：标准系列无法准确表达的稳定 BI 语义可进入受控扩展注册表。首个扩展 `bullet` 只接受实际系列、目标系列和绩效区间的纯 JSON ChartSpec；审核过的本地 Builder 才生成 ECharts Custom Series。每个 manifest 必须声明版本、稳定 ID、唯一语义、数据形状、能力、Dashboard/Report 运行时和标准降级
+- 原因：直接开放 Option、formatter 或 `renderItem` 等同于允许模型或用户向运行时注入程序，也会让 Dashboard 与 Report、版本迁移和故障隔离失去合同。受控注册表保留 ECharts 的表达能力，同时让 AI 只面对可验证的业务语义
+- 边界：普通用户和 AI 永远不能提交 JavaScript。manifest 及嵌套字段递归不可变；重复 ID/capability、未知 capability/runtime、非标准 fallback、可执行 manifest 和缺少本地 Builder 的扩展失败关闭；目录 extension 元数据必须与注册表一致。Builder 异常只降级当前图为 manifest 指定的标准类型。Bullet 必须有非空分类和等长的实际/目标两系列；通用单指标 binding 不得冒充双指标数据源。当前注册表是随产品发布的审核清单，不是用户插件市场或远程代码加载器
+
+### 决策 112：指标卡组织方式与底色正交配置
+
+- 结论：KPI 整组新增 `separate / joined` 组织方式，与 `default / white / single / multi` 卡片底色分开保存。白色独立指标卡由 `separate + white` 组合表达；`joined` 使用统一组底，四周内边距、标题到内容距离和内部卡间距统一继承全局 `cardGap`，不使用紧贴分隔线。整组语义下必须显示标题，外层与标题分别继承卡片圆角、阴影、边框及卡片标题视觉 token
+- 原因：“是否独立成卡”是组级布局边界，“使用什么底色”是卡片表面样式，两者绑定会阻断后续主题组合
+- 边界：组织方式暂不提供单卡覆盖；旧 Workspace 和新预设均默认 `separate`，不改变已有项目视觉
+
+## 2026-08-24
+
+### 决策 113：KPI 当前值与历史趋势使用独立受控绑定
+
+- 结论：KPI 主 `binding` 只计算当前聚合值，新增 `trendBinding` 只计算真实历史序列；两者引用同一授权 Dataset 并共享筛选条件。Dashboard 用客户端 ECharts 交互呈现，Report 和便携导出物化为静态 SVG
+- 原因：当前值和历史序列的数据形状、查询维度与刷新成本不同。分离绑定可防止模型根据单值或环比伪造走势，也让在线查询、筛选、权限和静态快照各自保持明确口径
+- 边界：趋势必须有 2-30 个对齐的有限值，受控周期只允许 7/12/30；没有真实顺序维度或少于 2 点时隐藏。Workspace 不接受任意 ECharts Option、formatter 或 JavaScript。Report 副本必须删除两个绑定和 `dataRef`，但保留已经授权物化的 `props.sparkline`
+
+### 决策 114：在线分析报告独立于快照 Report
+
+- 结论：新增 `pageType: analysis-report`。它保留固定布局、页面筛选、非便携 Dataset 身份、组件 binding/trendBinding 和 refreshPolicy；编辑器中的图表统一走服务端 SVG，允许受控手动、轮询或 Dataset 事件刷新，并显示最后更新时间。`pageType: report` 继续表示已固化的不可变快照，不显示可用刷新。
+- 原因：用户既需要“每次打开都看最新数据的固定分析版式”，也需要“不会变化、可分享和审计的报告副本”。把两者都叫 Report 会让刷新按钮、数据绑定、导出和权限边界互相冲突；把在线报告当成 Dashboard 又会引入不必要的 Canvas 交互。
+- 边界：在线报告不承诺 Dashboard 的图表下钻、跨图联动和离线可用；需要这些能力时使用 Dashboard。在线报告需要分享、导出或审计时，必须通过服务端授权数据转换为新的 `report` 快照，源项目不变。自定义图表扩展必须同时声明 `analysis-report: server-svg`。
+
+### 决策 115：产品入口只保留 Dashboard 与 Report 两类
+
+- 结论：用户创建和编辑时只显示 `Dashboard` 与 `Report` 两个页面类型。用户选择的 `Report` 对应内部 `analysis-report` 在线运行时，支持绑定数据、筛选和刷新；静态 `report` 只作为在线 Report 经过服务端授权固化后的交付快照。
+- 原因：在线分析和静态分享是同一份报告在不同生命周期的状态，不应让用户在创建时面对两个容易混淆的 Report 选项。两类入口足以表达核心差异：Dashboard 是交互操作台，Report 是固定分析版式。
+- 边界：内部 `analysis-report` 和 `report` 类型继续保留以兼容历史项目、渲染器和快照转换；项目列表统一显示为 Report，并在静态快照上追加“静态快照”标识。分享、下载、PDF、图片和审计仍必须基于新建的静态快照，不能直接公开在线 Report。

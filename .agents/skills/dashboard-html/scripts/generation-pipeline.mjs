@@ -39,7 +39,7 @@ function requiredText(value, field, maxLength) {
 export function normalizeGenerationRequest(input, defaults = {}) {
   if (!isObject(input)) throw new ContractError("Generation request must be an object");
   const language = ["zh", "en"].includes(input.language) ? input.language : defaults.language || "zh";
-  const pageType = ["auto", "dashboard", "report"].includes(input.pageType) ? input.pageType : "auto";
+  const pageType = ["auto", "dashboard", "analysis-report", "report"].includes(input.pageType) ? input.pageType : "auto";
   const dataInputs = Array.isArray(input.dataInputs) ? input.dataInputs.map((source, index) => ({
     id: requiredText(source?.id || `data-${index + 1}`, `dataInputs/${index}/id`, 100),
     kind: ["description", "uploaded", "api", "sample"].includes(source?.kind) ? source.kind : "description",

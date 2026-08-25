@@ -28,11 +28,13 @@ for (const file of manifest.forbiddenFiles ?? []) {
 await Promise.all(requiredFiles.map((file) => access(path.join(skillDir, file))));
 
 const schema = JSON.parse(await readFile(path.join(skillDir, "schemas/dashboard-workspace.schema.json"), "utf8"));
+const chartSpecSchema = JSON.parse(await readFile(path.join(skillDir, "schemas/chart-spec.schema.json"), "utf8"));
 const generationSchema = JSON.parse(await readFile(path.join(skillDir, "schemas/dashboard-generation.schema.json"), "utf8"));
 const chartCatalog = JSON.parse(await readFile(path.join(skillDir, "data/chart-catalog.json"), "utf8"));
 const componentRegistry = JSON.parse(await readFile(path.join(skillDir, "data/component-registry.json"), "utf8"));
 const designStandards = JSON.parse(await readFile(path.join(skillDir, "data/design-standards.json"), "utf8"));
 const { COMPONENT_RULES, CHART_TYPES } = await import("./workspace-core.mjs");
+const { DEFAULT_CUSTOM_CHART_EXTENSION_REGISTRY } = await import("./custom-chart-extension-runtime.mjs");
 const palette = JSON.parse(await readFile(path.join(skillDir, "assets/palette.v1.json"), "utf8"));
 const colorSystem = await readFile(path.join(skillDir, "references/color-system.md"), "utf8");
 const starter = await readFile(path.join(skillDir, "assets/templates/starter.html"), "utf8");
@@ -63,7 +65,24 @@ if (!chartCatalog.length || chartCatalog.some(({ type }) => !type)) throw new Er
 const schemaChartTypes = schema.$defs?.chartType?.enum ?? [];
 const catalogChartTypes = chartCatalog.map(({ type }) => type);
 if (schemaChartTypes.join("\n") !== catalogChartTypes.join("\n")) throw new Error("Chart catalog differs from workspace chart types");
+if (chartSpecSchema.properties?.version?.const !== 1) throw new Error("ChartSpec schema version must be 1");
+if ((chartSpecSchema.$defs?.chartType?.enum ?? []).join("\n") !== catalogChartTypes.join("\n")) throw new Error("Chart catalog differs from ChartSpec types");
+for (const field of ["data", "appearance", "interactions", "refreshPolicy"]) if (!chartSpecSchema.required?.includes(field)) throw new Error(`ChartSpec must require ${field}`);
+if (chartSpecSchema.additionalProperties !== false || chartSpecSchema.properties?.interactions?.additionalProperties !== false) throw new Error("ChartSpec must reject unregistered fields");
 if ([...CHART_TYPES].join("\n") !== catalogChartTypes.join("\n")) throw new Error("Chart catalog differs from workspace runtime");
+const customManifests = DEFAULT_CUSTOM_CHART_EXTENSION_REGISTRY.manifests();
+for (const customManifest of customManifests) {
+  const catalogEntry = chartCatalog.find(({ type }) => type === customManifest.id);
+  if (!catalogEntry) throw new Error(`Custom chart catalog entry is missing: ${customManifest.id}`);
+  if (catalogEntry.semantic !== customManifest.semantic) throw new Error(`Custom chart semantic differs from registry: ${customManifest.id}`);
+  if (catalogEntry.dataShape !== customManifest.dataShape) throw new Error(`Custom chart data shape differs from registry: ${customManifest.id}`);
+  if (catalogEntry.extension?.manifestVersion !== customManifest.manifestVersion) throw new Error(`Custom chart manifest version differs from registry: ${customManifest.id}`);
+  if (!customManifest.capabilities.includes(catalogEntry.extension?.capability)) throw new Error(`Custom chart capability differs from registry: ${customManifest.id}`);
+  if (catalogEntry.extension?.fallbackType !== customManifest.fallbackType) throw new Error(`Custom chart fallback differs from registry: ${customManifest.id}`);
+}
+for (const catalogEntry of chartCatalog.filter(({ extension }) => extension)) {
+  if (!DEFAULT_CUSTOM_CHART_EXTENSION_REGISTRY.get(catalogEntry.type)) throw new Error(`Chart catalog declares an unregistered custom extension: ${catalogEntry.type}`);
+}
 const registeredComponents = componentRegistry.filter(({ role }) => role !== "page-control");
 const registeredControls = componentRegistry.filter(({ role }) => role === "page-control");
 const schemaComponentTypes = schema.properties?.document?.properties?.sections?.items?.properties?.components?.items?.properties?.type?.enum ?? [];

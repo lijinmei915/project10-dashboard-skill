@@ -1,11 +1,33 @@
 import { assertWorkspace, cloneValue } from "./workspace-core.mjs";
 
+function locateComponent(workspace, componentId) {
+  for (const section of workspace.document?.sections ?? []) {
+    const component = section.components.find(({ id }) => id === componentId);
+    if (component) return { component, sectionId: section.id };
+  }
+  return null;
+}
+
 function filtersForComponent(workspace, component, sectionId) {
   const definitions = [];
   for (const control of workspace.document?.controls ?? []) {
     if (control.type !== "filter-bar" || !control.props.targets.some((target) => target === component.id || target === sectionId)) continue;
     definitions.push(...control.props.controls);
   }
+  for (const [sourceId, value] of Object.entries(workspace.interactions?.chartSelections ?? {})) {
+    const source = locateComponent(workspace, sourceId);
+    const scope = source?.component.props?.selection?.targetScope;
+    const targetsComponent = scope === "page" || (scope === "section" && source.sectionId === sectionId) || (scope === "component" && sourceId === component.id);
+    if (targetsComponent && source.component.dataRef === component.dataRef && source.component.binding?.kind === "series") {
+      definitions.push({ id: `chart-selection-${sourceId}`, field: source.component.binding.categoryField, defaultValue: value });
+    }
+  }
+  const drilldown = component.props?.drilldown;
+  const path = workspace.interactions?.drilldowns?.[component.id]?.path ?? [];
+  if (drilldown?.enabled === true) path.forEach((value, index) => {
+    const level = drilldown.levels?.[index];
+    if (level) definitions.push({ id: `drilldown-${component.id}-${index}`, field: level.field, defaultValue: value });
+  });
   return definitions;
 }
 
@@ -56,7 +78,9 @@ export function materializeComponent(workspace, componentId) {
   if (!component?.binding) return component ? cloneValue(component) : null;
   const records = filteredRecords(workspace, component, sectionId);
   const next = cloneValue(component);
-  const binding = component.binding;
+  const path = workspace.interactions?.drilldowns?.[component.id]?.path ?? [];
+  const currentLevel = component.props?.drilldown?.levels?.[path.length];
+  const binding = currentLevel && component.binding.kind === "series" ? { ...component.binding, categoryField: currentLevel.field } : component.binding;
   if (binding.kind === "aggregate") {
     next.props.value = formatNumber(aggregate(records, binding.operation, binding.field), binding.format);
   } else if (binding.kind === "series") {
@@ -70,6 +94,16 @@ export function materializeComponent(workspace, componentId) {
     next.props.items = groupRecords(records, binding.labelField, binding.valueField, binding.operation)
       .sort((left, right) => right.value - left.value)
       .slice(0, binding.limit ?? 10);
+  }
+  if (component.trendBinding?.kind === "series") {
+    const trend = component.trendBinding;
+    const points = groupRecords(records, trend.categoryField, trend.valueField, trend.operation).slice(-(trend.limit ?? 30));
+    if (points.length >= 2) next.props.sparkline = {
+      labels: points.map(({ label }) => label),
+      values: points.map(({ value }) => value),
+      ...(component.props?.sparkline?.unit ? { unit: component.props.sparkline.unit } : {})
+    };
+    else delete next.props.sparkline;
   }
   next.props.empty = records.length === 0;
   return next;

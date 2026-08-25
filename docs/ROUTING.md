@@ -22,6 +22,8 @@ depends_on: [AGENTS.md, .agents/skills/dashboard-html/SKILL.md]
 
 - 看板、监控、状态、实时概览
   使用 `pageType: dashboard`；默认全宽流式内容区、极简透明头部，卡片已有自身标题时省略分组标题
+- 固定报告结构，但还要继续筛选、查数或刷新
+  使用 `pageType: analysis-report`；默认阅读宽度、报告式章节和服务端 SVG，保留受控筛选与刷新
 - 报告、分析、复盘、周期总结
   使用 `pageType: report`；默认阅读宽度、surface 头部并保留章节标题
 - 同时出现两类意图

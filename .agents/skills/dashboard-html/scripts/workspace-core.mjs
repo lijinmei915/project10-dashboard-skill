@@ -1,10 +1,10 @@
 const WORKSPACE_VERSION = 2;
 const GENERATION_VERSION = 1;
 const PALETTE_VERSIONS = new Set(["1.0.0", "1.2.0"]);
-const PAGE_TYPES = new Set(["dashboard", "report"]);
+const PAGE_TYPES = new Set(["dashboard", "analysis-report", "report"]);
 const LANGUAGES = new Set(["zh", "en"]);
 const MODES = new Set(["light", "dark"]);
-export const CHART_TYPES = new Set(["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"]);
+export const CHART_TYPES = new Set(["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"]);
 const COMMANDS = new Set(["set", "unset", "insert", "remove", "move", "replace"]);
 export const COMPONENT_RULES = Object.freeze({
   summary: ["body"],
@@ -145,7 +145,7 @@ function validateWorkspaceShape(workspace) {
   if (!isObject(theme)) issue(issues, "/theme", "required", "Theme is required");
   else {
     if (typeof theme.preset !== "string" || !theme.preset) issue(issues, "/theme/preset", "type", "Preset must be a non-empty string");
-    if (!PAGE_TYPES.has(theme.pageType)) issue(issues, "/theme/pageType", "enum", "Page type must be dashboard or report");
+    if (!PAGE_TYPES.has(theme.pageType)) issue(issues, "/theme/pageType", "enum", "Page type must be dashboard, analysis-report, or report");
     if (!LANGUAGES.has(theme.language)) issue(issues, "/theme/language", "enum", "Language must be zh or en");
     if (typeof theme.accent !== "string" || !/^#[0-9a-f]{6}$/i.test(theme.accent)) issue(issues, "/theme/accent", "pattern", "Accent must be a 6-digit hex color");
     if (!MODES.has(theme.mode)) issue(issues, "/theme/mode", "enum", "Mode must be light or dark");
@@ -196,11 +196,58 @@ function validateWorkspaceShape(workspace) {
   if (workspace.resources !== undefined && !isObject(workspace.resources)) issue(issues, "/resources", "type", "Resources must be an object");
   const datasets = isObject(workspace.resources?.datasets) ? workspace.resources.datasets : {};
   for (const [datasetId, dataset] of Object.entries(datasets)) {
-    if (!isObject(dataset) || !Array.isArray(dataset.records) || typeof dataset.portable !== "boolean") issue(issues, `/resources/datasets/${datasetId}`, "shape", "Dataset requires records and a portable policy");
-    else if (dataset.records.some((record) => !isObject(record))) issue(issues, `/resources/datasets/${datasetId}/records`, "type", "Dataset records must be objects");
+    if (!isObject(dataset) || typeof dataset.portable !== "boolean") issue(issues, `/resources/datasets/${datasetId}`, "shape", "Dataset requires a portable policy");
+    else if (dataset.portable && !Array.isArray(dataset.records)) issue(issues, `/resources/datasets/${datasetId}/records`, "required", "Portable datasets require records");
+    else if (!dataset.portable && Array.isArray(dataset.records) && dataset.records.length) issue(issues, `/resources/datasets/${datasetId}/records`, "policy", "Online datasets must not embed records");
+    else if (Array.isArray(dataset.records) && dataset.records.some((record) => !isObject(record))) issue(issues, `/resources/datasets/${datasetId}/records`, "type", "Dataset records must be objects");
   }
   for (const { component, path } of documentComponents) {
-    if (component.binding === undefined) continue;
+    const sparkline = component.props?.sparkline;
+    if (sparkline !== undefined) {
+      const labels = sparkline?.labels;
+      const values = sparkline?.values;
+      if (component.type !== "kpi" || !isObject(sparkline) || !Array.isArray(labels) || !Array.isArray(values) || labels.length < 2 || labels.length > 30 || labels.length !== values.length || labels.some((label) => typeof label !== "string") || values.some((value) => !Number.isFinite(value)) || (sparkline.unit !== undefined && (typeof sparkline.unit !== "string" || sparkline.unit.length > 20))) {
+        issue(issues, `${path}/props/sparkline`, "shape", "KPI sparkline requires 2 to 30 aligned labels and finite values");
+      }
+    }
+    if (component.trendBinding !== undefined) {
+      const binding = component.trendBinding;
+      if (component.type !== "kpi" || !component.binding || component.binding.kind !== "aggregate" || !isObject(binding) || binding.kind !== "series" || !binding.categoryField || !binding.valueField || !["sum", "average", "min", "max", "count"].includes(binding.operation) || (binding.limit !== undefined && ![7, 12, 30].includes(binding.limit))) {
+        issue(issues, `${path}/trendBinding`, "shape", "KPI trend binding requires an aggregate KPI and a controlled series binding");
+      }
+    }
+    const refreshPolicy = component.props?.refreshPolicy;
+    if (refreshPolicy !== undefined) {
+      const mode = refreshPolicy?.mode;
+      const intervalValid = mode === "poll"
+        ? Number.isInteger(refreshPolicy.intervalMs) && refreshPolicy.intervalMs >= 5_000 && refreshPolicy.intervalMs <= 86_400_000
+        : refreshPolicy?.intervalMs === undefined;
+      if (!component.binding || !isObject(refreshPolicy) || !["manual", "poll", "dataset-event"].includes(mode) || typeof refreshPolicy.pauseWhenHidden !== "boolean" || !intervalValid) {
+        issue(issues, `${path}/props/refreshPolicy`, "shape", "Bound component refresh policy requires a safe mode, visibility policy, and bounded polling interval");
+      }
+    }
+    const selection = component.props?.selection;
+    if (selection !== undefined) {
+      if (component.type !== "chart" || !isObject(selection) || typeof selection.enabled !== "boolean" || !["component", "section", "page"].includes(selection.targetScope)) {
+        issue(issues, `${path}/props/selection`, "shape", "Chart selection requires enabled and a controlled target scope");
+      } else if (component.binding?.kind !== "series") {
+        issue(issues, `${path}/props/selection`, "compatibility", "Chart selection requires a categorical series binding");
+      }
+    }
+    const drilldown = component.props?.drilldown;
+    if (drilldown !== undefined) {
+      const levels = Array.isArray(drilldown?.levels) ? drilldown.levels : [];
+      const levelFields = levels.map(({ field }) => field);
+      if (component.type !== "chart" || !isObject(drilldown) || drilldown.enabled !== true || !/^[a-z][a-z0-9-]*$/.test(drilldown.hierarchyId || "") || !["component", "section", "page"].includes(drilldown.targetScope) || levels.length < 2 || levels.length > 8 || levels.some((level) => !isObject(level) || typeof level.field !== "string" || typeof level.label !== "string") || new Set(levelFields).size !== levels.length) {
+        issue(issues, `${path}/props/drilldown`, "shape", "Chart drilldown requires a registered hierarchy with 2 to 8 levels");
+      } else if (component.binding?.kind !== "series" || component.binding.categoryField !== levelFields[0]) {
+        issue(issues, `${path}/props/drilldown`, "compatibility", "Chart drilldown must start from its category field");
+      } else {
+        const records = datasets[component.dataRef]?.records ?? [];
+        for (const field of levelFields) if (records.length && !records.some((record) => Object.hasOwn(record, field))) issue(issues, `${path}/props/drilldown/levels`, "reference", `Drilldown field ${field} does not exist in dataset ${component.dataRef}`);
+      }
+    }
+    if (component.binding === undefined && component.trendBinding === undefined) continue;
     if (!isObject(component.binding) || !["aggregate", "series", "rows", "ranking"].includes(component.binding.kind)) {
       issue(issues, `${path}/binding`, "shape", "Data binding kind is invalid");
       continue;
@@ -217,7 +264,12 @@ function validateWorkspaceShape(workspace) {
       : component.binding.kind === "series" ? [component.binding.categoryField, component.binding.valueField]
       : component.binding.kind === "rows" ? (component.binding.columns ?? []).map(({ field }) => field)
       : [component.binding.labelField, component.binding.valueField];
-    for (const field of bindingFields.filter(Boolean)) if (!fields.has(field)) issue(issues, `${path}/binding`, "reference", `Binding field ${field} does not exist in dataset ${component.dataRef}`);
+    for (const field of bindingFields.filter(Boolean)) if (records.length && !fields.has(field)) issue(issues, `${path}/binding`, "reference", `Binding field ${field} does not exist in dataset ${component.dataRef}`);
+    if (component.trendBinding) {
+      for (const field of [component.trendBinding.categoryField, component.trendBinding.valueField].filter(Boolean)) {
+        if (records.length && !fields.has(field)) issue(issues, `${path}/trendBinding`, "reference", `Trend binding field ${field} does not exist in dataset ${component.dataRef}`);
+      }
+    }
   }
   for (const [controlIndex, pageControl] of (document?.controls ?? []).entries()) {
     if (pageControl.type !== "filter-bar") continue;
@@ -253,6 +305,21 @@ function validateWorkspaceShape(workspace) {
         const component = documentComponents.find(({ component }) => component.id === componentId)?.component;
         if (!component || component.type !== "chart") issue(issues, `/interactions/chartSeriesVisibility/${componentId}`, "reference", "Series visibility target must be an existing chart");
         else if (!isObject(series) || Object.values(series).some((value) => typeof value !== "boolean")) issue(issues, `/interactions/chartSeriesVisibility/${componentId}`, "type", "Series visibility values must be boolean");
+      }
+      const selections = workspace.interactions.chartSelections;
+      if (selections !== undefined && !isObject(selections)) issue(issues, "/interactions/chartSelections", "type", "Chart selections must be an object");
+      else for (const [componentId, value] of Object.entries(selections ?? {})) {
+        const component = documentComponents.find(({ component }) => component.id === componentId)?.component;
+        if (!component || component.type !== "chart" || component.props?.selection?.enabled !== true) issue(issues, `/interactions/chartSelections/${componentId}`, "reference", "Chart selection source must be an enabled chart");
+        else if (!["string", "number", "boolean"].includes(typeof value)) issue(issues, `/interactions/chartSelections/${componentId}`, "type", "Chart selection value must be a scalar");
+      }
+      const drilldowns = workspace.interactions.drilldowns;
+      if (drilldowns !== undefined && !isObject(drilldowns)) issue(issues, "/interactions/drilldowns", "type", "Drilldown state must be an object");
+      else for (const [componentId, state] of Object.entries(drilldowns ?? {})) {
+        const component = documentComponents.find(({ component }) => component.id === componentId)?.component;
+        const maximum = (component?.props?.drilldown?.levels?.length || 1) - 1;
+        if (!component || component.props?.drilldown?.enabled !== true) issue(issues, `/interactions/drilldowns/${componentId}`, "reference", "Drilldown source must be an enabled chart");
+        else if (!isObject(state) || !Array.isArray(state.path) || state.path.length > maximum || state.path.some((value) => !["string", "number", "boolean"].includes(typeof value))) issue(issues, `/interactions/drilldowns/${componentId}/path`, "type", "Drilldown path must contain bounded scalar values");
       }
     }
   }

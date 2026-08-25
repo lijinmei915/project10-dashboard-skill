@@ -14,7 +14,7 @@ const ui = {
 const composerHome = ui.composer.parentNode;
 const composerHomeNextSibling = ui.composer.nextSibling;
 const generateHome = ui.generate.parentNode;
-const chartLabels = { line: "折线图", "time-series": "时序图", area: "面积图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", radar: "雷达图", funnel: "漏斗图", "data-table": "表格", categorical: "多色" };
+const chartLabels = { line: "折线图", "combo-bar-line": "柱线复合图", "time-series": "时序图", area: "面积图", bar: "基础柱图", "grouped-bar": "分组柱图", "stacked-bar": "堆叠柱图", "percent-stacked-bar": "百分比堆叠柱图", histogram: "直方图", "horizontal-bar": "基础条图", "grouped-horizontal-bar": "分组条图", "stacked-horizontal-bar": "堆叠条图", "percent-stacked-horizontal-bar": "百分比堆叠条图", "diverging-bar": "双向条图", "ranking-bar": "排名图", gantt: "甘特图", "sector-pie": "饼图", pie: "环图", rose: "玫瑰图", bullet: "子弹图", gauge: "仪表盘", radar: "雷达图", funnel: "漏斗图", "data-table": "表格", categorical: "多色" };
 
 let serviceChecked = false;
 let pendingRun = null;
@@ -618,7 +618,9 @@ async function requestCandidate() {
   const prompt = ui.prompt.value.trim();
   const selectedDataSource = bridge.getSelectedDataSource();
   const selectedPageType = ui.pageTypeControls?.querySelector('input[name="aiPageType"]:checked')?.value || "dashboard";
-  activeGenerationPageType = selectedPageType;
+  // Report is the user-facing online analysis mode; static reports are created only by snapshot conversion.
+  const generationPageType = selectedPageType === "report" ? "analysis-report" : selectedPageType;
+  activeGenerationPageType = generationPageType;
   const effectivePrompt = prompt || (selectedDataSource?.contentKind === "page" ? "保留导入页面的业务内容和信息层级，使用当前视觉主题与组件规范重新生成页面" : "");
   if (!effectivePrompt) {
     ui.status.textContent = "请先描述业务目标";
@@ -643,7 +645,7 @@ async function requestCandidate() {
       body: JSON.stringify({
         mode: refinement ? "refine" : "draft",
         request: {
-          id: `request-${Date.now()}`, prompt: effectivePrompt, language: context.language || "zh", pageType: selectedPageType,
+          id: `request-${Date.now()}`, prompt: effectivePrompt, language: context.language || "zh", pageType: generationPageType,
           ...(refinement ? { scope: { kind: target.kind, id: target.id } } : {}),
           dataInputs: refinement || !context.dataSource ? [] : [{ id: context.dataSource.id, kind: "uploaded", name: context.dataSource.name }]
         },
@@ -658,7 +660,7 @@ async function requestCandidate() {
     startStreamingPreview(baselineWorkspace);
     rememberGenerationJob();
     syncCanvasGeneration();
-    window.dispatchEvent(new CustomEvent("dashboard-generation-job-started", { detail: { jobId: payload.job.id, pageType: selectedPageType } }));
+    window.dispatchEvent(new CustomEvent("dashboard-generation-job-started", { detail: { jobId: payload.job.id, pageType: generationPageType } }));
     ui.generate.disabled = false;
     ui.generate.textContent = "停止生成";
     const job = await streamGenerationJob(payload.job.id, token);

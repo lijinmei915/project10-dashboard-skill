@@ -16,6 +16,8 @@ const workspaceControlRendererPath = path.resolve(scriptDir, "../../../../studio
 const workspaceControlRenderer = await readFile(workspaceControlRendererPath, "utf8");
 const workspaceChartAdapterPath = path.resolve(scriptDir, "../../../../studio/workspace-chart-adapter.mjs");
 const workspaceChartAdapter = await readFile(workspaceChartAdapterPath, "utf8");
+const clientEchartsRuntimePath = path.resolve(scriptDir, "../../../../studio/client-echarts-runtime.mjs");
+const clientEchartsRuntime = await readFile(clientEchartsRuntimePath, "utf8");
 const projectCenterPath = path.resolve(scriptDir, "../../../../studio/project-center.mjs");
 const projectCenter = await readFile(projectCenterPath, "utf8");
 const studioRouterPath = path.resolve(scriptDir, "../../../../studio/studio-router.mjs");
@@ -57,6 +59,7 @@ for (const authContract of ['id="studioAuthRetry"', 'id="studioAuthForgot"', 'id
 if (!editorRuntime.includes('import { createWorkspaceRenderer } from "/studio/workspace-renderer.mjs";') || !editorRuntime.includes("workspaceRenderer.render(documentModel)")) throw new Error("Studio editor runtime must delegate document projection to the workspace renderer");
 if (!editorRuntime.includes('import { createWorkspaceControlRenderer } from "/studio/workspace-control-renderer.mjs";') || !editorRuntime.includes("workspaceControlRenderer.render(controls, workspaceInteractions)")) throw new Error("Studio editor runtime must delegate interaction control projection to the control renderer");
 if (!editorRuntime.includes('import { automaticChartPaletteMode, createWorkspaceChartAdapter } from "/studio/workspace-chart-adapter.mjs";') || !editorRuntime.includes("workspaceChartAdapter.render(component)")) throw new Error("Studio editor runtime must delegate asynchronous chart rendering to the chart adapter");
+if (!editorRuntime.includes('import { applyChartSelection, chartSelectionFilters } from "/studio/analysis-state.mjs";') || !editorRuntime.includes("applyChartSelection(workspaceDocument, workspaceInteractions")) throw new Error("Studio chart linking must use the shared AnalysisState boundary");
 if (!editorRuntime.includes('from "/studio/workspace-layout-interaction.mjs";') || !editorRuntime.includes("reorderCanvasIds({") || !editorRuntime.includes("shouldStartPointerDrag(")) throw new Error("Studio editor runtime must use the layout interaction rules adapter");
 if (!editorRuntime.includes('import { createWorkspaceLayoutController } from "/studio/workspace-layout-controller.mjs";') || !editorRuntime.includes("window.DashboardLayoutEditor = createWorkspaceLayoutController({")) throw new Error("Studio editor runtime must delegate layout config DOM mapping to the layout controller");
 if (!editorRuntime.includes('import { createWorkspaceStructureSynchronizer } from "/studio/workspace-structure-synchronizer.mjs";') || !editorRuntime.includes("const workspaceStructureSynchronizer = createWorkspaceStructureSynchronizer({")) throw new Error("Studio editor runtime must delegate card structure coordination to the structure synchronizer");
@@ -101,7 +104,8 @@ try { new Function(workspaceLayoutController.replace(/^export /gm, "")); } catch
 try { new Function(workspaceStructureSynchronizer.replace(/^export /gm, "")); } catch (error) { throw new Error(`Studio Workspace Structure Synchronizer module does not parse: ${error.message}`); }
 try { new Function(workspaceRenderer.replace(/^export /gm, "")); } catch (error) { throw new Error(`Studio Workspace Renderer module does not parse: ${error.message}`); }
 try { new Function(workspaceControlRenderer.replace(/^export /gm, "")); } catch (error) { throw new Error(`Studio Workspace Control Renderer module does not parse: ${error.message}`); }
-try { new Function(workspaceChartAdapter.replace(/^export /gm, "")); } catch (error) { throw new Error(`Studio Workspace Chart Adapter module does not parse: ${error.message}`); }
+try { new Function(workspaceChartAdapter.replace(/^import[^\n]+\n/gm, "").replace(/^export /gm, "")); } catch (error) { throw new Error(`Studio Workspace Chart Adapter module does not parse: ${error.message}`); }
+try { new Function(clientEchartsRuntime.replace(/^import[^\n]+\n/gm, "").replace(/^export /gm, "")); } catch (error) { throw new Error(`Studio Client ECharts Runtime module does not parse: ${error.message}`); }
 for (const forbidden of ["function readWorkspaceState()", "function readUrlWorkspaceState()", "function writeUrlWorkspaceState(", "function readProjectState()"] ) {
   if (editorRuntime.includes(forbidden)) throw new Error(`Workspace persistence must not remain in the editor runtime: ${forbidden}`);
 }
@@ -155,13 +159,23 @@ for (const requiredId of ["cardChartTypeField", "cardChartTypeControl", "cardCha
 for (const contract of ["function createPortableChartSvg(", "function renderWorkspaceCharts(", "function requestChartSvg(", 'fetcher("/api/charts/render"']) {
   if (!html.includes(contract)) throw new Error(`Preview chart runtime contract is missing: ${contract}`);
 }
-for (const [value, label] of [["line", "折线图"], ["time-series", "时序图"], ["area", "面积图"], ["bar", "基础柱图"], ["grouped-bar", "分组柱图"], ["stacked-bar", "堆叠柱图"], ["percent-stacked-bar", "百分比堆叠柱图"], ["histogram", "直方图"], ["horizontal-bar", "基础条图"], ["grouped-horizontal-bar", "分组条图"], ["stacked-horizontal-bar", "堆叠条图"], ["percent-stacked-horizontal-bar", "百分比堆叠条图"], ["diverging-bar", "双向条图"], ["ranking-bar", "排名图"], ["gantt", "甘特图"], ["sector-pie", "饼图"], ["pie", "环图"], ["rose", "玫瑰图"], ["radar", "雷达图"], ["funnel", "漏斗图"]]) {
+for (const contract of ['import { createClientEchartsRuntime } from "./client-echarts-runtime.mjs";', 'getPageType = () => dashboard.dataset.pageType || "dashboard"', 'clientRuntime.render(container, spec, {', 'clientRuntime.disposeMissing(activeClientContainers)']) {
+  if (!workspaceChartAdapter.includes(contract)) throw new Error(`Workspace chart adapter is missing the client ECharts boundary: ${contract}`);
+}
+if (!editorRuntime.includes("workspaceChartAdapter.prune(charts.map(({ id }) => id))")) throw new Error("Studio editor must dispose client chart instances that leave the active Workspace");
+for (const contract of ['import("/vendor/echarts.mjs")', "createEchartsOption(spec, { interactive: true, animation: true })", "record.instance.setOption(", "record.instance.dispose()", "instance.resize()"]) {
+  if (!clientEchartsRuntime.includes(contract)) throw new Error(`Client ECharts lifecycle runtime is missing: ${contract}`);
+}
+for (const [value, label] of [["line", "折线图"], ["time-series", "时序图"], ["area", "面积图"], ["bar", "基础柱图"], ["grouped-bar", "分组柱图"], ["stacked-bar", "堆叠柱图"], ["percent-stacked-bar", "百分比堆叠柱图"], ["histogram", "直方图"], ["horizontal-bar", "基础条图"], ["grouped-horizontal-bar", "分组条图"], ["stacked-horizontal-bar", "堆叠条图"], ["percent-stacked-horizontal-bar", "百分比堆叠条图"], ["diverging-bar", "双向条图"], ["ranking-bar", "排名图"], ["gantt", "甘特图"], ["sector-pie", "饼图"], ["pie", "环图"], ["rose", "玫瑰图"], ["bullet", "子弹图"], ["gauge", "仪表盘"], ["radar", "雷达图"], ["funnel", "漏斗图"]]) {
   if (!html.includes(`<option value="${value}">${label}</option>`)) {
     throw new Error(`Chart card controls are missing the controlled option: ${value}/${label}`);
   }
 }
 for (const contract of [
   '<option value="marker-glow">发光短标</option>',
+  '.card-title-marker { display: none; width: 4px; height: 12px; flex: 0 0 4px;',
+  '.dashboard[data-card-title-leading="marker-glow"] .card-title-marker',
+  '["none", "marker", "marker-glow", "icon", "number"]',
   '<option value="glow">光感渐变</option>',
   'linear-gradient(90deg, var(--accent-line) 0%, transparent 100%)',
   'data-section-leading="marker-glow"',
@@ -172,7 +186,7 @@ for (const contract of [
   if (!html.includes(contract) && !editorRuntime.includes(contract)) throw new Error(`FX report visual contract is missing: ${contract}`);
 }
 for (const contract of [
-  'kpiStyleSamples.after(groupKpiIconComposer, groupKpiLayoutField, groupKpiBackgroundField)',
+  'kpiStyleSamples.after(groupKpiIconComposer, groupKpiLayoutField, groupKpiOrganizationField, groupKpiBackgroundField)',
   'kpiStyleSamples.dataset.iconEnabled = String(globalHasIcon)',
   'cardKpiStyleSamples.dataset.iconEnabled = String(localHasIcon)',
   'kpiLayoutControl.closest(".control-group").hidden = !globalHasIcon',
@@ -186,8 +200,10 @@ for (const contract of [
   'function applyKpiStyleSelection(target, selection, local = false)',
   'const previewGradientId = `kpi-style-gradient-${select.id}-${optionIndex}`',
   'designDrawer.style.setProperty("--kpi-theme-preview", iconTokens.solid)',
-  'const FX_UI_KPI_GRADIENTS = Object.freeze([',
-  '{ start: "#FF8000", end: "#FFB347" }',
+  'const KPI_CATEGORICAL_GRADIENTS = Object.freeze(DASHBOARD_CATEGORICAL_PALETTE.map((start) => ({',
+  'function deriveKpiGradientEnd(seed)',
+  'end: deriveKpiGradientEnd(start)',
+  'KPI_CATEGORICAL_GRADIENTS.filter((_, index) => index % 2 === 0).forEach',
   'designDrawer.style.setProperty(`--kpi-colorful-preview-${index + 1}`, gradient.start)',
   'preview.dataset.distributedGradient = "true"',
   'class="kpi-distributed-gradient-chip"',
@@ -198,7 +214,7 @@ for (const contract of [
   ': { box: 34, glyph: 21, offset: 44, shiftY: -8 }',
   'if (override.kpiIconSize === "small") override.kpiIconSize = "medium"',
   'kpiIcon: preset.kpiIcon ?? "outline"',
-  'kpiIconColor: "accent"',
+  'kpiIconColor: preset.kpiIconColor ?? "accent"',
   '.kpi-icon-size-field[hidden]',
   '.kpi-icon-shape-field[hidden]',
   '.metric[data-kpi-icon="outline"][data-kpi-icon-container="soft"] .metric-icon { --kpi-icon-scale: 1; }',
@@ -244,10 +260,13 @@ if (!html.includes('<span>卡片间距</span><select class="control-select" id="
 for (const contract of [
   'const pagePresetDefaults = {',
   '"fx-orange": {\n          accent: "#ff8000"',
-  'radius: 10,\n          cardGap: 12,\n          cardTitleFont: 16,\n          cardSubtitle: "none"',
+  'radius: 10,\n          cardGap: 12,\n          cardTitleFont: 16,\n          cardSubtitle: "title-right"',
+  'kpiIconColor: "colorful",\n          kpiIconContainer: "glow"',
+  'kpiCardOrganization: "joined",\n          kpiCardBackground: "multi"',
   'chartPalette: "auto"',
   'const preset = { ...basePreset, ...(pagePresetDefaults[pageType]?.[name] || {}) }',
-  'cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below"'
+  'cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below"',
+  'kpiCardOrganization: preset.kpiCardOrganization ?? "separate"'
 ]) {
   if (!html.includes(contract)) throw new Error(`Dashboard standard preset contract is missing: ${contract}`);
 }

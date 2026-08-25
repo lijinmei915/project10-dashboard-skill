@@ -5,13 +5,13 @@ const formats = new Set(["png", "pdf"]);
 const reportPrintStyles = `
   @page { size: A4; margin: 15mm 12mm 18mm; }
   html,body { background:#fff !important; }
-  .dashboard[data-page-type="report"] { width:auto !important; margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
-  .dashboard[data-page-type="report"] .section,
-  .dashboard[data-page-type="report"] .card,
-  .dashboard[data-page-type="report"] .section-header,
-  .dashboard[data-page-type="report"] table { break-inside:avoid-page; page-break-inside:avoid; }
-  .dashboard[data-page-type="report"] .section + .section { break-before:auto; page-break-before:auto; }
-  .dashboard[data-page-type="report"] .table-wrap { overflow:visible !important; }
+  .dashboard[data-page-type="report"], .dashboard[data-page-type="analysis-report"] { width:auto !important; margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+  .dashboard[data-page-type="report"] .section, .dashboard[data-page-type="analysis-report"] .section,
+  .dashboard[data-page-type="report"] .card, .dashboard[data-page-type="analysis-report"] .card,
+  .dashboard[data-page-type="report"] .section-header, .dashboard[data-page-type="analysis-report"] .section-header,
+  .dashboard[data-page-type="report"] table, .dashboard[data-page-type="analysis-report"] table { break-inside:avoid-page; page-break-inside:avoid; }
+  .dashboard[data-page-type="report"] .section + .section, .dashboard[data-page-type="analysis-report"] .section + .section { break-before:auto; page-break-before:auto; }
+  .dashboard[data-page-type="report"] .table-wrap, .dashboard[data-page-type="analysis-report"] .table-wrap { overflow:visible !important; }
 `;
 const reportHeaderTemplate = `<div style="width:100%;padding:0 12mm;font:8px 'Segoe UI','PingFang SC',sans-serif;color:#667085;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="title"></span></div>`;
 const reportFooterTemplate = `<div style="width:100%;padding:0 12mm;font:8px 'Segoe UI','PingFang SC',sans-serif;color:#667085;text-align:right"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`;

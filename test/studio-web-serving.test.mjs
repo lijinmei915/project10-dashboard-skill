@@ -55,6 +55,12 @@ test("serves the independent Studio build without capturing API or publication r
   assert.equal(moduleResponse.headers.get("cache-control"), "no-cache");
   assert.match(await moduleResponse.text(), /\.\/workspace-core-runtime\.mjs/);
 
+  const echartsResponse = await fetch(`${endpoint}/vendor/echarts.mjs`);
+  assert.equal(echartsResponse.status, 200);
+  assert.match(echartsResponse.headers.get("content-type"), /^text\/javascript/);
+  assert.match(echartsResponse.headers.get("cache-control"), /immutable/);
+  assert((await echartsResponse.text()).length > 400_000);
+
   const missingModule = await fetch(`${endpoint}/studio/missing-module.mjs`);
   assert.equal(missingModule.status, 404);
   assert.match(missingModule.headers.get("content-type"), /^application\/json/);

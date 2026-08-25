@@ -20,9 +20,15 @@ test("resource center consumes shared catalogs and exposes all resource views", 
   for (const endpoint of ["/api/charts/catalog", "/api/components/catalog", "/api/icons/search", "/api/design/standards"]) assert(runtime.includes(endpoint));
   assert(server.includes('url.pathname === "/api/design/standards"'));
   assert.equal(components.length, 8);
-  assert.equal(charts.length, 21);
+  assert.equal(charts.length, 24);
   assert.deepEqual(standards.groups.map(({ id }) => id), ["color", "type", "space", "shape", "accessibility"]);
   assert(!runtime.includes("共 18 种图表"), "resource counts must come from catalogs");
+  for (const privateColor of ["#f26a2e", "#3592f3", "#59b77a", "#d8a126"]) assert(!runtime.includes(privateColor), `resource previews must not use private color ${privateColor}`);
+  assert(runtime.includes("chartPalette = payload.palette"));
+  assert(runtime.includes("automaticPaletteMode(type, seriesCount)"));
+  assert(runtime.includes("createClientEchartsRuntime") && runtime.includes("previewRuntime.render"));
+  assert(runtime.includes("renderTablePreview") && runtime.includes('table.className = "resource-data-table"'));
+  assert(server.includes("dashboardPalette.categorical"));
   assert(studioHtml.includes('id="mobileCanvasToggle"') && studioHtml.includes('id="mobileSettingsReturn"'));
   assert(studioRuntime.includes('setMobileDesignView("canvas")') && studioRuntime.includes('setMobileDesignView("settings")'));
 });

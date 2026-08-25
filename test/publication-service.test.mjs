@@ -24,11 +24,12 @@ const csv = "月份,收入\n2026-01,1200\n2026-02,1800";
 test("creates immutable publication metadata without exposing artifact HTML", () => {
   const project = appendProjectRevision(createProject({ id: "publication-project", name: "发布项目", createdAt: "2026-08-10T05:00:00.000Z" }), { id: "revision-published", createdAt: "2026-08-10T05:00:01.000Z", source: "agent", workspace: fixture.workspace });
   const source = parseDataSource({ id: "sample-sales", name: "销售数据", format: "csv", content: csv, now: "2026-08-10T05:00:00.000Z" });
-  const publication = createPublication({ id: "publication-fixed", project, dataSources: [source], visibility: "private", now: "2026-08-10T05:00:02.000Z" });
+  const publication = createPublication({ id: "publication-fixed", project, dataSources: [source], visibility: "private", renderChartSvg: () => '<svg width="640" height="220"><path d="M0 0H10"/></svg>', now: "2026-08-10T05:00:02.000Z" });
   assert.equal(publication.revisionId, "revision-published");
   assert.equal(publication.dataSnapshots[0].datasetFingerprint, source.fingerprint);
   assert.equal(publication.dataSnapshots[0].querySnapshots.totals.rows[0][0], 3000);
   assert.match(publication.artifact.html, /^<!DOCTYPE html>/);
+  assert.match(publication.artifact.html, /data-chart-renderer="echarts-ssr"/);
   const summary = publicationSummary(publication);
   assert.equal(summary.artifact.sha256, publication.artifact.sha256);
   assert.equal(Object.hasOwn(summary.artifact, "html"), false);

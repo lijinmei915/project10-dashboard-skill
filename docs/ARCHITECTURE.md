@@ -166,7 +166,8 @@ AI 首稿的完整阶段、状态机、provider 与 revision 边界见 `docs/arc
 - 共享运行入口使用 `/p/:publicationId`：private 对访客隐藏，unlisted 校验一次性展示的随机令牌且仓库只保存 SHA-256，public 使用稳定路径；共享访问与管理下载分离，撤回后统一返回 `410`。授权通过后按发布对象和连接来源执行进程内固定窗口限流，超限返回 `429/Retry-After`
 - Publication Access Store 追加 allowed/denied 审计事件并按发布汇总；事件不保存 URL、令牌、响应正文或客户端 IP。当前仍是单机管理边界，不等同于组织身份、RBAC 或合规审计
 - Embed 入口使用 `/embed/:publicationId` 并复用同一 private/unlisted/public 校验和撤回状态；Studio 生成 iframe 代码，embed 访问作为独立 channel 进入 Access Store
-- Publication Renderer 只读取已固化 artifact，通过 Studio-only Playwright Chromium 在 390-1920px 受控视口中关闭动画、等待字体并输出 PNG 或 PDF。Dashboard 保持宽度对应的保真长页 PDF；Report 自动以 A4 print media 输出，加入标题页眉、页码、稳定页边距和 Section/Card 防跨页规则。长页高度上限 20,000px，分页 Report 为 60,000px；渲染器和浏览器不进入 Skill 或 standalone
+- 页面运行时分为三种语义：Dashboard 使用客户端 ECharts 承载复杂交互；Online Analysis Report（`analysis-report`）保留固定结构、筛选、绑定和受控刷新，但图表使用服务端 SVG；Report（`report`）删除绑定和刷新状态，作为不可变快照。
+- Publication Renderer 只读取已固化 artifact，通过 Studio-only Playwright Chromium 在 390-1920px 受控视口中关闭动画、等待字体并输出 PNG 或 PDF。Dashboard 保持宽度对应的保真长页 PDF；`analysis-report` 和 Report 自动以 A4 print media 输出，加入标题页眉、页码、稳定页边距和 Section/Card 防跨页规则。长页高度上限 20,000px，分页报告为 60,000px；渲染器和浏览器不进入 Skill 或 standalone
 - Studio Auth Service 支持默认 disabled 本地身份与可选 token 身份源；token 登录换取 HttpOnly 服务端会话，管理 API 统一执行 viewer/editor/admin 角色和同源 Origin 检查。file 模式默认使用进程内 Session，PostgreSQL 模式自动使用共享 Session 表；share/embed 不复用管理会话
 - 生产代理入口以显式 `DASHBOARD_PUBLIC_ORIGIN` 作为 CSRF 与 OIDC callback 的部署真相，不信任转发头；未配置时只为本地兼容使用请求 Host。公网来源只允许 HTTPS（回环开发除外），OIDC redirect URI 必须精确匹配受控 callback 路径
 - 外部身份仓储在 file 与 PostgreSQL 中均提供持久化、不可变 subject 映射；OIDC 一次性登录事务暂为服务端内存实现。它们不保存 token、授权码或用户 profile。组织服务持久化邀请、动态成员 profile 与生命周期审计；接受 secret 只保存 hash，公开组织响应不会返回它

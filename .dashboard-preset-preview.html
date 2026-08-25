@@ -375,7 +375,7 @@
     .project-list-toolbar { display: flex; padding: 12px 14px 8px; align-items: center; justify-content: space-between; gap: 12px; }
     .project-list-toolbar[hidden], .project-list-filters[hidden] { display: none; }
     .project-list-toolbar label { display: inline-flex; align-items: center; gap: 6px; color: var(--tool-text); font-size: 12px; white-space: nowrap; }
-    .project-list-filters { display: grid; grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(120px, 1fr)); gap: 7px; padding: 12px 14px 2px; }
+    .project-list-filters { display: grid; grid-template-columns: minmax(180px, 1.5fr) minmax(120px, 1fr); gap: 7px; padding: 12px 14px 2px; }
     .project-list-filters input, .project-list-filters select { min-width: 0; height: 34px; padding: 0 9px; border: 1px solid var(--tool-line); border-radius: 5px; background: #fff; color: var(--tool-text); font-size: 11px; }
     .project-list-filters input:focus, .project-list-filters select:focus { outline: 0; border-color: var(--tool-accent); box-shadow: 0 0 0 2px rgba(24, 24, 27, .08); }
     .project-list-count { margin-left: auto; color: var(--tool-muted); font-size: 11px; }
@@ -398,6 +398,8 @@
     .studio-ui-button:disabled, .studio-ui-select:disabled { cursor: not-allowed; opacity: .45; }
     .studio-ui-select { min-width: 0; height: 32px; padding: 0 28px 0 9px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; color: var(--tool-text); font: inherit; font-size: 11px; }
     .project-row-actions .studio-ui-button { min-height: 30px; }
+    .project-row-actions .studio-ui-button--destructive { border-color: #fecaca; background: #fff; color: #b42318; }
+    .project-row-actions .studio-ui-button--destructive:hover { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
     .project-composer-view { min-width: 0; overflow: auto; }
     .project-composer-view[hidden], .project-list-view[hidden] { display: none; }
     .project-settings-view { min-width: 0; overflow: hidden; }
@@ -1041,7 +1043,12 @@
     #kpiControls > .control-group:has(#kpiLayoutControl), #cardKpiLayoutField { order: 2; grid-column: auto; }
     #kpiControls > .kpi-icon-composer .kpi-icon-shape-field, #cardKpiIconField .kpi-icon-shape-field { order: 3; }
     .kpi-card-group-label { order: 4; }
-    #kpiControls > .control-group:has(#kpiCardBackgroundControl), #cardKpiBackgroundField { order: 5; }
+    #kpiControls > .control-group:has(#kpiCardOrganizationControl) { order: 5; }
+    #kpiControls > .control-group:has(#kpiCardBackgroundControl), #cardKpiBackgroundField { order: 6; }
+    .kpi-trend-group-label { order: 7; }
+    #kpiControls > .control-group:has(#kpiSparklineDisplayControl) { order: 8; }
+    #kpiControls > .control-group:has(#kpiSparklinePointsControl) { order: 9; }
+    #kpiControls > .control-group:has(#kpiSparklineStyleControl) { order: 10; }
     .header-gradient-trigger { width: 30px; height: 30px; padding: 3px; border: 1px solid var(--tool-line); border-radius: 6px; background: #fff; cursor: pointer; }
     .header-gradient-trigger::before { display: block; width: 100%; height: 100%; border-radius: 3px; background: var(--header-gradient-swatch); content: ""; }
     .header-gradient-trigger[aria-expanded="true"] { border-color: var(--tool-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tool-accent) 16%, transparent); }
@@ -1210,6 +1217,15 @@
       position: relative;
       background: var(--hero-bg);
     }
+    .hero-refresh-tools { position: absolute; top: 20px; right: 24px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; color: var(--hero-text-muted); font-size: var(--support-font-size); }
+    .hero-refresh-status { white-space: nowrap; }
+    .hero-refresh-button { display: inline-grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 1px solid color-mix(in srgb, var(--hero-text-secondary) 26%, transparent); border-radius: min(6px, var(--radius)); background: color-mix(in srgb, var(--hero-bg) 70%, transparent); color: currentColor; cursor: pointer; }
+    .hero-refresh-button:hover:not(:disabled) { border-color: var(--hero-text-secondary); color: var(--hero-text-main); }
+    .hero-refresh-button:focus-visible { outline: 2px solid var(--accent-structure); outline-offset: 2px; }
+    .hero-refresh-button:disabled { cursor: not-allowed; opacity: .45; }
+    .hero-refresh-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+    .hero-refresh-button[data-state="loading"] svg { animation: dashboard-refresh-spin .8s linear infinite; }
+    @keyframes dashboard-refresh-spin { to { transform: rotate(360deg); } }
     .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .report-hero { display: contents; }
     .dashboard[data-page-type="dashboard"][data-header-background-type="none"] .hero-copy { padding: 0 calc(var(--space) * 2.2); }
     .dashboard[data-page-type="dashboard"][data-header-background-type="none"][data-header-decoration]:not([data-header-decoration="none"]) .report-hero { display: block; background: transparent; }
@@ -1265,8 +1281,8 @@
     .hero-attribution { --attribution-text: var(--text-secondary); --attribution-icon: var(--text-muted); display: inline-flex; order: 3; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%; gap: 9px; margin-top: 16px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: var(--attribution-text); font-size: var(--support-font-size); line-height: 16px; }
     .dashboard[data-header-meta="plain"] .hero-attribution { --attribution-text: var(--hero-text-secondary); --attribution-icon: var(--hero-text-muted); padding: 0; border: 0; border-radius: 0; background: transparent; }
     .dashboard[data-header-meta="hidden"] .hero-attribution { display: none; }
-    .dashboard[data-page-type="dashboard"] .hero-attribution .attribution-separator,
-    .dashboard[data-page-type="dashboard"] .hero-attribution .attribution-item:last-child { display: none; }
+    .dashboard[data-page-type="dashboard"] .hero-attribution .generated-data-separator,
+    .dashboard[data-page-type="dashboard"] .hero-attribution .generated-data-label { display: none; }
     .attribution-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; line-height: 16px; }
     .attribution-item > span { overflow-wrap: anywhere; }
     .attribution-item svg { display: block; width: 16px; height: 16px; flex: 0 0 16px; align-self: center; color: var(--attribution-icon); fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
@@ -1382,9 +1398,11 @@
 
     .surface { min-width: 0; border: 0; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text-main); }
     .card-title { display: flex; align-items: center; gap: 8px; }
-    .card-title-marker { display: none; width: 3px; height: 1.05em; flex: 0 0 3px; border-radius: 2px; background: var(--accent-structure); }
+    .card-title-marker { display: none; width: 4px; height: 12px; flex: 0 0 4px; border-radius: 2px; background: var(--accent-structure); }
     .card-title-number { display: none; min-width: 24px; flex: 0 0 auto; color: var(--accent-structure); font-size: .82em; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .dashboard[data-card-title-leading="marker"] .card-title-marker { display: block; }
+    .dashboard[data-card-title-leading="marker"] .card-title-marker,
+    .dashboard[data-card-title-leading="marker-glow"] .card-title-marker { display: block; }
+    .dashboard[data-card-title-leading="marker-glow"] .card-title-marker { width: 6px; height: 12px; flex-basis: 6px; border-radius: 3px; box-shadow: 0 0 0 3px var(--accent-soft); }
     .dashboard[data-card-title-leading="number"] .card-title-number { display: inline; }
     .dashboard:not([data-card-title-leading="icon"]) .surface:not([data-card-title-icon]) .card-title-icon { display: none !important; }
     .card-title-icon { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: calc(var(--radius) * .55); color: var(--title-icon-accent); }
@@ -1430,6 +1448,14 @@
     .surface[data-kpi-icon="filled"] .metric-icon svg { fill: currentColor; stroke: none; }
     .metric strong { display: block; margin-top: 10px; font-size: calc(28px * var(--font-scale)); line-height: 1; }
     .metric em { display: block; margin-top: 9px; color: var(--success); font-size: max(12px, calc(10px * var(--font-scale))); font-style: normal; font-weight: 650; }
+    .metric:has(> .kpi-sparkline) { min-height: 124px; }
+    .metric:has(> .kpi-sparkline) > :is(strong, em) { max-width: 50%; }
+    .kpi-sparkline { position: absolute !important; right: var(--space); bottom: calc(var(--space) - 2px); width: min(46%, 176px); height: 62px; cursor: crosshair; }
+    .kpi-sparkline[aria-busy="true"] { opacity: .45; }
+    .kpi-sparkline.is-static { cursor: default; }
+    .kpi-sparkline-static { display: block; width: 100%; height: 100%; overflow: visible; }
+    .kpi-sparkline-static .kpi-sparkline-line > * { stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .kpi-sparkline-static .kpi-sparkline-area polygon { opacity: 1; }
 
     .dashboard[data-kpi-icon="none"] .metric-icon { display: none; }
     .dashboard[data-kpi-icon-container="soft"] .metric-icon { border-radius: 50%; background: var(--icon-soft); color: var(--icon-accent); }
@@ -1516,8 +1542,20 @@
     .panel[data-card-subtitle="icon"] .card-subtitle-icon { display: block; }
     .dashboard[data-card-subtitle="icon"] .panel:not([data-card-subtitle]) .panel-note:is(:hover, :focus-visible)::after,
     .panel[data-card-subtitle="icon"] .panel-note:is(:hover, :focus-visible)::after { position: absolute; z-index: 8; top: calc(100% + 7px); right: 0; width: max-content; max-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow); color: var(--text-main); content: attr(data-tooltip); font-size: 12px; font-weight: 400; line-height: 1.4; }
-    .chart-render { display: grid; place-items: center; width: 100%; min-height: 190px; margin-top: 8px; overflow: hidden; }
+    .chart-render { display: grid; place-items: center; width: 100%; height: 260px; min-height: 190px; margin-top: 8px; overflow: hidden; }
     .chart-render svg { display: block; width: 100%; height: auto; max-height: 260px; overflow: visible; }
+    .card-data-status { margin-left: auto; color: var(--text-muted); font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .chart-selection-status { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; margin-left: auto; padding: 2px 7px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 4px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); color: var(--text-secondary); font: inherit; font-size: 11px; cursor: pointer; }
+    .chart-selection-status::after { content: "×"; color: var(--text-muted); font-size: 14px; line-height: 1; }
+    .chart-selection-status:focus-visible { outline: 2px solid var(--accent-structure); outline-offset: 2px; }
+    .chart-drilldown-breadcrumb { display: flex; align-items: center; gap: 4px; min-height: 24px; margin: 4px 0 8px; overflow-x: auto; color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+    .chart-drilldown-breadcrumb button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+    .chart-drilldown-breadcrumb button:not(:first-child)::before { margin-right: 4px; content: "/"; color: var(--line-strong, var(--text-muted)); }
+    .chart-drilldown-breadcrumb button:disabled { color: var(--text-secondary); cursor: default; opacity: 1; }
+    .chart-drilldown-breadcrumb button:focus-visible { outline: 2px solid var(--accent-structure); outline-offset: 2px; }
+    .surface[data-data-status="loading"] .card-data-status::before { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--accent); content: ""; animation: data-status-pulse 1.2s ease-in-out infinite; }
+    .surface[data-data-status="stale"] .card-data-status, .surface[data-data-status="error"] .card-data-status { color: var(--warning, #b45309); }
+    @keyframes data-status-pulse { 50% { opacity: .3; } }
     .surface[data-chart-rendered="true"] .bar-chart, .surface[data-chart-rendered="true"] .chart-axis { display: none; }
     .surface[data-empty="true"] .chart-render { display: none; }
     .bar-chart { display: flex; align-items: end; gap: 9px; height: 150px; padding-top: 22px; }
@@ -1634,6 +1672,19 @@
     .dashboard[data-section-leading="number"] { --section-number-display: inline-block; }
     .dashboard[data-section-divider="trailing"] { --section-rule-display: block; }
     .dashboard[data-section-divider="bottom"] { --section-bottom-pad: 10px; --section-border-bottom: 1px solid var(--line); }
+    .dashboard[data-section-surface="soft"] .report-body > .section[data-grouped="true"] {
+      padding: calc(var(--space) * .72);
+      border-radius: calc(var(--radius) * 1.25);
+      background: color-mix(in srgb, var(--surface-muted) 72%, transparent);
+    }
+    .dashboard[data-section-surface="soft"] .report-body > .section[data-grouped="true"] > .section-heading { margin-bottom: calc(var(--space) * .7); }
+    .dashboard[data-section-surface="outline"] .report-body > .section[data-grouped="true"] {
+      padding: calc(var(--space) * .82);
+      border: 1px solid color-mix(in srgb, var(--accent-structure) 18%, var(--line));
+      border-radius: calc(var(--radius) * 1.1);
+      background: color-mix(in srgb, var(--surface) 86%, var(--accent-soft));
+    }
+    .dashboard[data-section-surface="outline"] .report-body > .section[data-grouped="true"] > .section-heading { margin-bottom: calc(var(--space) * .8); }
     .dashboard[data-frame="wireframe"] .surface { border: var(--frame-width) solid var(--line); }
     .dashboard[data-page-type="dashboard"] {
       overflow: visible;
@@ -1642,7 +1693,8 @@
       box-shadow: none;
     }
 
-    .dashboard[data-page-type="report"] {
+    .dashboard[data-page-type="report"],
+    .dashboard[data-page-type="analysis-report"] {
       width: min(100%, var(--report-shell-max));
       margin-right: auto;
       margin-left: auto;
@@ -1652,20 +1704,27 @@
       box-shadow: var(--report-shell-shadow);
     }
 
-    .dashboard[data-page-type="report"][data-mode="dark"] {
+    .dashboard[data-page-type="report"][data-mode="dark"],
+    .dashboard[data-page-type="analysis-report"][data-mode="dark"] {
       --report-shell-shadow: 0 4px 18px rgba(0, 0, 0, .22);
     }
 
     .dashboard[data-page-type="dashboard"][data-content-width="readable"] .hero-copy,
     .dashboard[data-page-type="dashboard"][data-content-width="readable"] .report-body { width: min(100%, var(--readable-content-max)); margin-right: auto; margin-left: auto; }
     .dashboard[data-page-type="report"] .hero-copy,
-    .dashboard[data-page-type="report"] .report-body { width: 100%; }
+    .dashboard[data-page-type="report"] .report-body,
+    .dashboard[data-page-type="analysis-report"] .hero-copy,
+    .dashboard[data-page-type="analysis-report"] .report-body { width: 100%; }
     .dashboard[data-content-width="fluid"] .hero-copy,
     .dashboard[data-content-width="fluid"] .report-body { width: 100%; }
-    .dashboard[data-page-type="report"] .report-body { gap: calc(var(--space) * 1.8); }
-    .dashboard[data-page-type="report"] .metric-grid[data-layout="responsive"] { gap: var(--card-gap); overflow: visible; border-radius: 0; background: transparent; box-shadow: none; }
-    .dashboard[data-page-type="report"] .metric-grid[data-layout="responsive"] .metric { border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
-    .dashboard[data-page-type="report"] .content-grid[data-layout="responsive"] { grid-template-columns: 1fr; }
+    .dashboard[data-page-type="report"] .report-body,
+    .dashboard[data-page-type="analysis-report"] .report-body { gap: calc(var(--space) * 1.8); }
+    .dashboard[data-page-type="report"] .metric-grid[data-layout="responsive"],
+    .dashboard[data-page-type="analysis-report"] .metric-grid[data-layout="responsive"] { gap: var(--card-gap); overflow: visible; border-radius: 0; background: transparent; box-shadow: none; }
+    .dashboard[data-page-type="report"] .metric-grid[data-layout="responsive"] .metric,
+    .dashboard[data-page-type="analysis-report"] .metric-grid[data-layout="responsive"] .metric { border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .dashboard[data-page-type="report"] .content-grid[data-layout="responsive"],
+    .dashboard[data-page-type="analysis-report"] .content-grid[data-layout="responsive"] { grid-template-columns: 1fr; }
 
     .layout-group[data-layout="custom"] { grid-template-columns: repeat(12, minmax(0, 1fr)); }
     .layout-group[data-layout="custom"] > .layout-item { grid-column: span var(--item-span, 12); }
@@ -1675,9 +1734,27 @@
     .layout-group[data-layout="stack"] { grid-template-columns: minmax(0, 1fr); }
     .layout-group[data-layout]:not([data-layout="responsive"]):not([data-layout="custom"]) > .layout-item { grid-column: auto; }
     .dashboard[data-page-type="report"] .report-body > .section,
-    .dashboard[data-page-type="report"] .layout-group > .layout-item { order: initial !important; }
-    .dashboard[data-page-type="report"] .metric-grid:not([data-layout="responsive"]) { overflow: visible; gap: var(--card-gap); border-radius: 0; background: transparent; box-shadow: none; }
-    .dashboard[data-page-type="report"] .metric-grid:not([data-layout="responsive"]) .metric { border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .dashboard[data-page-type="report"] .layout-group > .layout-item,
+    .dashboard[data-page-type="analysis-report"] .report-body > .section,
+    .dashboard[data-page-type="analysis-report"] .layout-group > .layout-item { order: initial !important; }
+    .dashboard[data-page-type="report"] .metric-grid:not([data-layout="responsive"]),
+    .dashboard[data-page-type="analysis-report"] .metric-grid:not([data-layout="responsive"]) { overflow: visible; gap: var(--card-gap); border-radius: 0; background: transparent; box-shadow: none; }
+    .dashboard[data-page-type="report"] .metric-grid:not([data-layout="responsive"]) .metric,
+    .dashboard[data-page-type="analysis-report"] .metric-grid:not([data-layout="responsive"]) .metric { border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .dashboard[data-kpi-card-organization="joined"] .report-body > .section:has(> .metric-grid) { --kpi-group-inset: var(--card-gap); padding: var(--kpi-group-inset) !important; border-radius: var(--radius) !important; background: var(--surface) !important; box-shadow: var(--shadow) !important; }
+    .dashboard[data-kpi-card-organization="joined"][data-frame="wireframe"] .report-body > .section:has(> .metric-grid) { border: var(--frame-width) solid var(--line); }
+    .dashboard[data-kpi-card-organization="joined"] .report-body > .section:has(> .metric-grid) > .section-heading { display: flex !important; gap: 8px; margin: 0 0 var(--kpi-group-inset); padding: 2px 4px; border: 0; border-radius: 0; background: transparent; }
+    .dashboard[data-kpi-card-organization="joined"] .report-body > .section:has(> .metric-grid) > .section-heading::before { display: none; }
+    .dashboard[data-kpi-card-organization="joined"][data-card-title-leading="marker"] .report-body > .section:has(> .metric-grid) > .section-heading::before,
+    .dashboard[data-kpi-card-organization="joined"][data-card-title-leading="marker-glow"] .report-body > .section:has(> .metric-grid) > .section-heading::before { display: block; width: 4px; height: 12px; flex: 0 0 4px; border-radius: 2px; background: var(--accent-structure); }
+    .dashboard[data-kpi-card-organization="joined"][data-card-title-leading="marker-glow"] .report-body > .section:has(> .metric-grid) > .section-heading::before { width: 6px; flex-basis: 6px; border-radius: 3px; box-shadow: 0 0 0 3px var(--accent-soft); }
+    .dashboard[data-kpi-card-organization="joined"] .report-body > .section:has(> .metric-grid) > .section-heading h2 { color: var(--text-main); font-size: var(--card-title-size); font-weight: 700; }
+    .dashboard[data-kpi-card-organization="joined"] .report-body > .section:has(> .metric-grid) > .section-heading :is(small, .section-rule, .section-number) { display: none; }
+    .dashboard[data-kpi-card-organization="joined"]:not([data-card-title-leading="icon"]) .report-body > .section:has(> .metric-grid) > .section-heading .section-icon { display: none; }
+    .dashboard[data-kpi-card-organization="joined"][data-card-title-leading="icon"] .report-body > .section:has(> .metric-grid) > .section-heading .section-icon { display: grid; }
+    .dashboard[data-kpi-card-organization="joined"] .metric-grid { gap: var(--kpi-group-inset) !important; overflow: visible !important; padding: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+    .dashboard[data-kpi-card-organization="joined"] .metric-grid .metric { border: 1px solid color-mix(in srgb, var(--line) 68%, transparent) !important; border-radius: max(4px, calc(var(--radius) - 3px)) !important; box-shadow: none !important; }
+    .dashboard[data-kpi-card-organization="separate"] .metric-grid { background: transparent; }
     .dashboard[data-surface-boundary="fallback"] .surface { border: 1px solid var(--line); }
 
     .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -1841,6 +1918,9 @@
     }
 
     @media (max-width: 760px) {
+      body.studio-project-entry-ready .studio-project-control { top: 12px; right: 12px; bottom: auto; left: auto; width: 36px; min-width: 36px; height: 36px; padding: 0; }
+      body.studio-project-entry-ready .studio-project-control span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      body[data-design-mode="true"].studio-project-entry-ready .studio-project-control { display: none; }
       .token-toolbar { grid-template-columns: minmax(0, 1fr); }
       .toolbar-band--full { grid-column: auto; }
       .report-hero { grid-template-columns: minmax(0, 1fr); }
@@ -1899,8 +1979,8 @@
       .project-workspace-tabs { overflow-x: auto; }
       .project-workspace-tabs button { flex: 0 0 auto; }
       .project-list-toolbar { align-items: flex-start; flex-direction: column; }
-      .project-list-filters { grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 1fr)); }
-      .project-list-filters input { grid-column: 1 / -1; }
+      .project-list-filters { grid-template-columns: minmax(0, 1fr); }
+      .project-list-filters input { grid-column: 1; }
       .project-row { grid-template-columns: minmax(0, 1fr); }
       .project-row-actions { justify-content: flex-start; }
       .publication-create-row { grid-template-columns: minmax(0, 1fr); }
@@ -1928,6 +2008,8 @@
       .segmented { overflow-x: auto; }
       .preset-tabs { max-width: 100%; flex-wrap: nowrap; }
       .hero-copy { padding: 22px 18px; }
+      .hero-refresh-tools { top: 14px; right: 14px; }
+      .hero-refresh-status { display: none; }
       .hero-title { font-size: min(var(--hero-title-size, 32px), 32px); }
       .brand:not([hidden]) ~ .hero-title { margin-top: 16px; }
       .dashboard[data-subtitle="above"] .brand:not([hidden]) ~ .hero-kicker { margin-top: 14px; }
@@ -1956,6 +2038,8 @@
       .layout-section-tools .custom-select { width: 84px; min-width: 84px; }
       .layout-resize-handle { display: none !important; }
       .metric strong { font-size: calc(25px * var(--font-scale)); }
+      .metric:has(> .kpi-sparkline) > :is(strong, em) { max-width: 100%; }
+      .kpi-sparkline { position: relative !important; right: auto; bottom: auto; width: 100%; height: 54px; margin-top: 12px; }
       .summary { padding: 18px 13px; }
     }
   </style>
@@ -2135,7 +2219,7 @@
           <label class="control-group"><span>圆角</span><span class="range-control"><input id="radiusControl" type="range" min="0" max="16" step="1" value="12"><output id="radiusValue" class="range-value">12px</output></span></label>
           <label class="control-group"><span>标题字号</span><select class="control-select" id="cardTitleFontControl"><option value="12">12px</option><option value="14" selected>14px</option><option value="16">16px</option><option value="18">18px</option><option value="20">20px</option></select></label>
           <label class="control-group"><span>副标题</span><select class="control-select" id="cardSubtitleControl"><option value="none">无</option><option value="below" selected>标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label>
-          <label class="control-group"><span>标题装饰</span><select class="control-select" id="cardTitleLeadingControl"><option value="none">无</option><option value="marker">竖线</option><option value="icon">图标</option><option value="number">序号</option></select></label>
+          <label class="control-group"><span>标题装饰</span><select class="control-select" id="cardTitleLeadingControl"><option value="none">无</option><option value="marker">竖线</option><option value="marker-glow">发光短标</option><option value="icon">图标</option><option value="number">序号</option></select></label>
           <div class="control-group" id="cardTitleIconComposerField" hidden><span>标题图标</span><span class="card-title-icon-composer"><select class="control-select" id="cardTitleDecorationControl" aria-label="标题图标样式"><optgroup label="无底"><option value="line">线型</option><option value="filled">面型</option></optgroup><optgroup label="有底"><option value="line-soft">浅底线型</option><option value="filled-soft">浅底面型</option><option value="line-solid">深底线型</option><option value="filled-solid">深底面型</option></optgroup></select><select class="control-select" id="cardTitleColorControl" aria-label="标题图标颜色"><option value="neutral">中性色</option><option value="accent">主题色</option><option value="gradient-accent">主题渐变</option><option value="colorful">多色</option><option value="gradient-colorful">多色渐变</option></select></span></div>
           <label class="control-group"><span>卡片边框</span><select class="control-select" id="frameControl"><option value="none" selected>无</option><option value="hairline">极弱</option><option value="soft">柔和</option><option value="standard">标准</option><option value="strong">强调</option></select></label>
           <label class="control-group"><span>阴影</span><select class="control-select" id="shadowControl"><option value="none">无</option><option value="weak" selected>轻</option><option value="medium">中</option><option value="strong">重</option></select></label>
@@ -2159,7 +2243,7 @@
           <div class="conditional-field" id="sectionKpiControlsField" hidden></div>
           <div class="conditional-field section-icon-picker-field" id="sectionIconPickerField" hidden><label class="control-group"><span>标题图标</span><button class="section-icon-picker-button" id="sectionIconPickerTrigger" type="button"><span id="sectionIconPickerPreview"></span><span id="sectionIconPickerName">自动匹配</span></button></label></div>
           <div class="kpi-style-samples" id="cardKpiStyleSamples" hidden><span class="kpi-style-samples-label">图标样式</span><button class="kpi-style-sample" type="button" data-style="inherit"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>跟随全局</span></button><span class="kpi-style-samples-group">无底</span><button class="kpi-style-sample" type="button" data-style="none"><span class="kpi-style-sample-preview"></span><span>无</span></button><button class="kpi-style-sample" type="button" data-style="line-neutral"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>极简线型</span></button><button class="kpi-style-sample" type="button" data-style="line-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>主题线型</span></button><button class="kpi-style-sample" type="button" data-style="gradient-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>单色渐变</span></button><button class="kpi-style-sample" type="button" data-style="gradient-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色渐变</span></button><span class="kpi-style-samples-group">有底</span><button class="kpi-style-sample" type="button" data-style="line-soft"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>浅底线型</span></button><button class="kpi-style-sample" type="button" data-style="filled-solid"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>反白面型</span></button><button class="kpi-style-sample" type="button" data-style="filled-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色反白</span></button></div>
-          <div class="conditional-field" id="cardChartTypeField" hidden><label class="control-group"><span>图表类型</span><select class="control-select" id="cardChartTypeControl"><option value="line">折线图</option><option value="time-series">时序图</option><option value="area">面积图</option><option value="bar">基础柱图</option><option value="grouped-bar">分组柱图</option><option value="stacked-bar">堆叠柱图</option><option value="percent-stacked-bar">百分比堆叠柱图</option><option value="histogram">直方图</option><option value="horizontal-bar">基础条图</option><option value="grouped-horizontal-bar">分组条图</option><option value="stacked-horizontal-bar">堆叠条图</option><option value="percent-stacked-horizontal-bar">百分比堆叠条图</option><option value="diverging-bar">双向条图</option><option value="ranking-bar">排名图</option><option value="gantt">甘特图</option><option value="sector-pie">饼图</option><option value="pie">环图</option><option value="rose">玫瑰图</option><option value="radar">雷达图</option><option value="funnel">漏斗图</option></select></label></div>
+          <div class="conditional-field" id="cardChartTypeField" hidden><label class="control-group"><span>图表类型</span><select class="control-select" id="cardChartTypeControl"><option value="line">折线图</option><option value="time-series">时序图</option><option value="area">面积图</option><option value="bar">基础柱图</option><option value="grouped-bar">分组柱图</option><option value="stacked-bar">堆叠柱图</option><option value="percent-stacked-bar">百分比堆叠柱图</option><option value="histogram">直方图</option><option value="horizontal-bar">基础条图</option><option value="grouped-horizontal-bar">分组条图</option><option value="stacked-horizontal-bar">堆叠条图</option><option value="percent-stacked-horizontal-bar">百分比堆叠条图</option><option value="diverging-bar">双向条图</option><option value="ranking-bar">排名图</option><option value="gantt">甘特图</option><option value="sector-pie">饼图</option><option value="pie">环图</option><option value="rose">玫瑰图</option><option value="bullet">子弹图</option><option value="gauge">仪表盘</option><option value="radar">雷达图</option><option value="funnel">漏斗图</option></select></label></div>
           <div class="conditional-field" id="cardChartPaletteField" hidden><label class="control-group"><span>图表配色</span><select class="control-select" id="cardChartPaletteControl"><option value="inherit">跟随全局</option><option value="monochrome">单色</option><option value="bichrome">双色</option><option value="categorical">多色</option></select></label></div>
           <div class="conditional-field" id="cardChartLegendField" hidden><label class="control-group"><span>图例</span><select class="control-select" id="cardChartLegendControl"><option value="auto">自动</option><option value="visible">显示</option><option value="hidden">隐藏</option></select></label></div>
           <div class="conditional-field" id="cardSubtitleField" hidden><label class="control-group"><span>副标题排布</span><select class="control-select" id="cardSubtitleOverrideControl"><option value="inherit">跟随全局</option><option value="none">无</option><option value="below">标题下方</option><option value="title-right">标题右侧</option><option value="card-right">卡片右侧</option><option value="icon">信息图标</option></select></label><label class="control-group"><span>副标题文字</span><input class="control-input" id="cardSubtitleTextControl" type="text" maxlength="80" placeholder="输入副标题"></label></div>
@@ -2185,7 +2269,11 @@
           <div class="kpi-style-samples" id="kpiStyleSamples"><span class="kpi-style-samples-label">图标样式</span><span class="kpi-style-samples-group">无底</span><button class="kpi-style-sample" type="button" data-style="none"><span class="kpi-style-sample-preview"></span><span>无</span></button><button class="kpi-style-sample" type="button" data-style="line-neutral"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>极简线型</span></button><button class="kpi-style-sample" type="button" data-style="line-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>主题线型</span></button><button class="kpi-style-sample" type="button" data-style="gradient-theme"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>单色渐变</span></button><button class="kpi-style-sample" type="button" data-style="gradient-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色渐变</span></button><span class="kpi-style-samples-group">有底</span><button class="kpi-style-sample" type="button" data-style="line-soft"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>浅底线型</span></button><button class="kpi-style-sample" type="button" data-style="filled-solid"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>反白面型</span></button><button class="kpi-style-sample" type="button" data-style="filled-multi"><span class="kpi-style-sample-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 3-3M6 19h12"/></svg></span><span>多色反白</span></button></div>
           <div class="kpi-icon-composer"><span class="kpi-icon-composer-label">KPI 图标</span><select class="control-select" id="kpiIconControl" aria-label="KPI 图标"><option value="none" selected>无</option><option value="outline">线型</option><option value="filled">面型</option></select><span class="kpi-icon-weight-field" id="kpiWeightField"><select class="control-select" id="kpiWeightControl" aria-label="KPI 图标粗细"><option value="thin">细</option><option value="regular" selected>标准</option><option value="bold">粗</option></select></span><span class="kpi-icon-color-field" id="kpiIconColorField" hidden><select class="control-select" id="kpiIconColorControl" aria-label="KPI 图标颜色"><option value="auto" selected>跟随卡片</option><option value="neutral">中性色</option><option value="accent">主题色</option><option value="colorful">多色</option><option value="gradient-accent">主题渐变</option><option value="gradient-colorful">多色渐变</option></select></span><span class="kpi-icon-container-field" id="kpiContainerField" hidden><select class="control-select" id="kpiContainerControl" aria-label="KPI 图标底色"><option value="none" selected>无</option><option value="outline">线框底</option><option value="soft">浅色底</option><option value="solid">反白底</option><option value="gradient">单色渐变</option><option value="bigradient">双色渐变</option><option value="glow">光感渐变</option></select></span><span class="kpi-icon-shape-field" id="kpiShapeField" hidden><select class="control-select" id="kpiShapeControl" aria-label="KPI 图标形状"><option value="rect" selected>矩形</option><option value="circle">圆形</option></select></span><span class="kpi-icon-size-field" id="kpiSizeField" hidden><select class="control-select" id="kpiSizeControl" aria-label="KPI 图标大小"><option value="medium" selected>标准</option><option value="large">大</option></select></span></div>
           <label class="control-group"><span>图标位置</span><select class="control-select" id="kpiLayoutControl"><option value="left-top">左上</option><option value="left-middle">左中</option><option value="right-top" selected>右上</option><option value="right-middle">右中</option></select></label>
+          <label class="control-group"><span>卡片组织</span><select class="control-select" id="kpiCardOrganizationControl"><option value="separate" selected>独立卡片</option><option value="joined">整组一体</option></select></label>
           <label class="control-group"><span>卡片底色</span><select class="control-select" id="kpiCardBackgroundControl"><option value="default" selected>默认</option><option value="white">白色</option><option value="single">单色</option><option value="multi">多色</option></select></label>
+          <label class="control-group"><span>趋势图</span><select class="control-select" id="kpiSparklineDisplayControl"><option value="auto" selected>自动</option><option value="show">显示</option><option value="hidden">隐藏</option></select></label>
+          <label class="control-group"><span>趋势周期</span><select class="control-select" id="kpiSparklinePointsControl"><option value="7" selected>7 点</option><option value="12">12 点</option><option value="30">30 点</option></select></label>
+          <label class="control-group"><span>趋势样式</span><select class="control-select" id="kpiSparklineStyleControl"><option value="line">折线</option><option value="smooth">平滑线</option><option value="area" selected>渐变面积</option></select></label>
         </div>
       </div>
       </section>
@@ -2295,7 +2383,7 @@
       <section class="data-schema-panel project-panel">
         <header class="data-schema-header"><span><strong id="projectDialogTitle">项目中心</strong><br><span>管理已有项目，或通过 AI 创建新项目</span></span><div class="data-schema-header-actions"><button class="studio-session-control" id="studioAuthControl" type="button" aria-label="退出登录" title="退出登录" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"></path><path d="M13 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg></button><button class="data-schema-close" id="projectDialogClose" type="button" aria-label="关闭项目中心">×</button></div></header>
         <div class="project-workspace-tabs"><button id="projectListTab" type="button" aria-pressed="true">已有项目</button><button id="projectNewAi" type="button" aria-pressed="false">新建项目</button><button id="projectAiEditTab" type="button" aria-pressed="false" hidden>AI 编辑</button><button id="organizationControl" type="button">我的 AI 设置</button></div>
-        <div class="project-list-view" id="projectListView"><div class="project-list-toolbar"><span class="data-schema-status" id="projectStatus">项目以服务端版本为准</span><span class="project-list-count" id="projectListCount"></span></div><div class="project-list-filters"><input class="studio-ui-input" id="projectSearch" type="search" placeholder="搜索项目名称" aria-label="搜索项目名称"><select class="studio-ui-select" id="projectSort" aria-label="项目排序"><option value="updated">最后修改</option><option value="name">项目名称</option></select><select class="studio-ui-select" id="projectOwnership" aria-label="项目归属"><option value="all">全部项目</option><option value="editable">我可编辑</option></select></div><div class="project-list" id="projectList"></div></div>
+        <div class="project-list-view" id="projectListView"><div class="project-list-toolbar"><span class="data-schema-status" id="projectStatus">项目以服务端版本为准</span><span class="project-list-count" id="projectListCount"></span></div><div class="project-list-filters"><input class="studio-ui-input" id="projectSearch" type="search" placeholder="搜索项目名称" aria-label="搜索项目名称"><select class="studio-ui-select" id="projectSort" aria-label="项目排序"><option value="updated">最后修改</option><option value="name">项目名称</option></select><select class="studio-ui-select" id="projectOwnership" aria-label="项目归属" hidden><option value="all">全部项目</option><option value="editable">我可编辑</option></select></div><div class="project-list" id="projectList"></div></div>
         <div class="project-composer-view" id="projectComposerView" hidden></div>
         <div class="project-settings-view" id="projectSettingsView" hidden></div>
         <footer class="data-schema-footer"><span class="data-schema-status">接受 AI 首稿后自动创建项目；后续修改保存为新版本</span><div class="data-schema-actions" id="projectPrimaryActions"><button id="projectDialogCancel" type="button">取消</button></div></footer>
@@ -2377,7 +2465,7 @@
     </div>
 
     <section class="canvas-generation-bar" id="canvasGenerationBar" data-state="working" role="status" aria-live="polite" hidden><div class="canvas-generation-copy"><span class="canvas-generation-indicator" aria-hidden="true"></span><strong class="canvas-generation-title" id="canvasGenerationTitle">正在生成首稿</strong><span class="canvas-generation-message" id="canvasGenerationMessage"></span></div><div class="canvas-generation-actions"><button id="canvasGenerationReopen" type="button" hidden>调整设置</button><button id="canvasGenerationDismiss" type="button" hidden>放弃首稿</button><button class="canvas-generation-primary" id="canvasGenerationAccept" type="button" hidden>接受首稿</button><button id="canvasGenerationStop" type="button">停止生成</button></div></section>
-    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-background-type="none" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-icon="none" data-kpi-icon-weight="regular" data-kpi-icon-color="auto" data-kpi-icon-container="none" data-kpi-layout="right-top" data-chart-palette="auto" data-page-texture="none" data-surface-boundary="normal">
+    <article class="dashboard" id="dashboardPreview" data-page-type="dashboard" data-content-width="fluid" data-header="minimal" data-header-background-type="none" data-header-align="left" data-subtitle="none" data-language="zh" data-section-visibility="hidden" data-section-leading="none" data-section-copy="title" data-section-divider="none" data-section-surface="none" data-frame="none" data-card-title-icon="none" data-card-title-icon-color="neutral" data-kpi-icon="none" data-kpi-icon-weight="regular" data-kpi-icon-color="auto" data-kpi-icon-container="none" data-kpi-layout="right-top" data-kpi-card-organization="separate" data-chart-palette="auto" data-page-texture="none" data-surface-boundary="normal">
       <header class="report-hero">
         <div class="hero-fx-layer" aria-hidden="true">
           <span class="hero-aurora hero-aurora-1"></span>
@@ -2394,6 +2482,7 @@
           <circle class="particle" cx="94%" cy="58%" r="2.3" style="--duration:7s;--delay:-2.5s;--drift-x:15px;--drift-y:14px"></circle>
         </svg>
         <div class="hero-copy">
+          <div class="hero-refresh-tools" id="dashboardRefreshTools" hidden><span class="hero-refresh-status" id="dashboardRefreshStatus">未刷新</span><button class="hero-refresh-button" id="dashboardRefreshButton" type="button" aria-label="刷新数据" title="当前没有在线数据" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-4L4 9"></path><path d="M4 4v5h5"></path><path d="M4 13a8 8 0 0 0 14.8 4L20 15"></path><path d="M20 20v-5h-5"></path></svg></button></div>
           <div class="brand" id="brandSlot" hidden><img id="brandLogo" alt="品牌 Logo"></div>
           <p class="hero-kicker" data-i18n="subtitle">CUSTOMER ANALYTICS · PERIODIC REPORT</p>
           <h2 class="hero-title" data-i18n="title">客户经营分析报告</h2>

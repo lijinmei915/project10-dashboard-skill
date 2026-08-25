@@ -27,6 +27,8 @@ test("selects an automatic palette from chart semantics and series count", () =>
   assert.equal(automaticChartPaletteMode(series(1), "pie"), "categorical");
   assert.equal(automaticChartPaletteMode(series(2), "radar"), "categorical");
   assert.equal(automaticChartPaletteMode(series(1), "funnel"), "categorical");
+  assert.equal(automaticChartPaletteMode(series(3), "gauge"), "monochrome");
+  assert.equal(automaticChartPaletteMode(series(2), "bullet"), "monochrome");
 });
 
 test("builds accessible labels for every controlled chart type", () => {
@@ -48,6 +50,8 @@ test("builds accessible labels for every controlled chart type", () => {
   assert.equal(chartAriaLabel("构成", "sector-pie"), "构成 · 饼图");
   assert.equal(chartAriaLabel("占比", "pie"), "占比 · 环图");
   assert.equal(chartAriaLabel("规模", "rose"), "规模 · 玫瑰图");
+  assert.equal(chartAriaLabel("目标", "bullet"), "目标 · 子弹图");
+  assert.equal(chartAriaLabel("完成率", "gauge"), "完成率 · 仪表盘");
   assert.equal(chartAriaLabel("能力", "radar"), "能力 · 雷达图");
   assert.equal(chartAriaLabel("转化", "funnel"), "转化 · 漏斗图");
   assert.equal(chartAriaLabel("明细", "data-table"), "明细 · 表格");

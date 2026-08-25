@@ -353,7 +353,7 @@ test("Studio pointer drag reorders dashboard cards and clears transient state", 
   expect(errors).toEqual([]);
 });
 
-test("Studio project center opens, renames, and copies projects", async ({ page }) => {
+test("Studio project center opens, renames, copies, and keeps Report creation behind its API", async ({ page, context }) => {
   const run = createDeterministicDraft({ id: "project-center-ci", prompt: "生成项目中心验收看板", language: "zh", pageType: "dashboard", dataInputs: [] }, baseline, { runId: "run-project-center-ci", now: "2026-08-10T06:00:00.000Z" });
   const committed = commitGenerationPreview(run, { revisionId: "revision-project-center-ci", at: "2026-08-10T06:00:01.000Z" });
   const project = appendProjectRevision(createProject({ id: "project-center-ci", name: "项目中心验收", createdAt: "2026-08-10T06:00:00.000Z" }), committed.revision);
@@ -374,6 +374,46 @@ test("Studio project center opens, renames, and copies projects", async ({ page 
   page.once("dialog", (dialog) => dialog.accept("独立项目副本"));
   await page.locator(".project-row", { hasText: "重命名后的项目" }).getByRole("button", { name: "复制" }).click();
   await expect(page.locator(".project-row", { hasText: "独立项目副本" })).toBeVisible();
+
+  await expect(page.locator(".project-row", { hasText: "重命名后的项目" }).getByRole("button", { name: "生成报告" })).toHaveCount(0);
+  const reportResponse = await page.request.post(`/api/projects/${project.id}/report-copy`, { data: { id: "project-center-report-copy", name: "固定经营报告" } });
+  expect(reportResponse.status()).toBe(201);
+  const reportProject = (await reportResponse.json()).project;
+  expect(reportProject.id).not.toBe(project.id);
+  expect(reportProject.name).toBe("固定经营报告");
+  expect(reportProject.revisions).toHaveLength(1);
+  const reportWorkspace = reportProject.revisions[0].workspace;
+  expect(reportWorkspace.theme.pageType).toBe("report");
+  expect(reportWorkspace.interactions).toBeUndefined();
+  expect(reportWorkspace.resources?.datasets).toBeUndefined();
+  expect(reportWorkspace.document.controls).toBeUndefined();
+  expect(reportWorkspace.document.sections.flatMap(({ components }) => components).every((component) => !component.binding && !component.dataRef && !component.props.refreshPolicy)).toBe(true);
+
+  const reportRequests = [];
+  const reportPage = await context.newPage();
+  reportPage.on("request", (request) => reportRequests.push(request.url()));
+  await reportPage.goto(`/studio/projects/${reportProject.id}?design=1`);
+  await expect(reportPage.locator(".dashboard")).toHaveAttribute("data-page-type", "report");
+  await expect(reportPage.locator("[data-chart-rendered=true] .chart-render svg").first()).toBeVisible();
+  expect(await reportPage.locator("[data-chart-rendered=true] .chart-render canvas").count()).toBe(0);
+  expect(reportRequests.filter((url) => url.endsWith("/vendor/echarts.mjs"))).toEqual([]);
+  await reportPage.setViewportSize({ width: 390, height: 844 });
+  expect(await reportPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await reportPage.locator("#designDrawerClose").click();
+  await expect(reportPage.locator("#designDrawer")).toHaveAttribute("aria-hidden", "true");
+  await reportPage.waitForTimeout(250);
+  await reportPage.screenshot({ path: "/tmp/dashboard-m6-report-copy-mobile.png", fullPage: true });
+
+  const dashboardRequests = [];
+  reportPage.on("request", (request) => dashboardRequests.push(request.url()));
+  await reportPage.goto(`/studio/projects/${project.id}?design=1`);
+  await expect(reportPage.locator(".dashboard")).toHaveAttribute("data-page-type", "dashboard");
+  await expect(reportPage.locator("[data-chart-rendered=true] .chart-render canvas").first()).toBeVisible();
+  expect(dashboardRequests.some((url) => url.endsWith("/vendor/echarts.mjs"))).toBe(true);
+  const originalAfterReport = await reportPage.evaluate(() => window.DashboardStudioBridge.getCurrentProject());
+  expect(originalAfterReport.id).toBe(project.id);
+  expect(originalAfterReport.revisions).toHaveLength(1);
+  await reportPage.close();
 
   const cleanHtml = (await page.evaluate(() => window.DashboardFileExporter.getRevisionHtml())).html;
   expect(cleanHtml).not.toContain("project-center.mjs");
@@ -825,7 +865,8 @@ test("Studio refines, undoes, and restores immutable revisions", async ({ page }
   await page.locator('[data-item-id="opportunity-trend"]').click({ position: { x: 80, y: 50 } });
   if (await page.locator("#aiComposer").getAttribute("data-open") === "false") await page.locator("#aiComposerToggle").click();
   await expect(page.locator("#aiComposer")).toHaveAttribute("data-mode", "refine");
-  await expect(page.locator("#aiChartRefineTemplates [data-chart-refine][data-chart-type]")).toHaveCount(21);
+  await expect(page.locator("#aiChartRefineTemplates [data-chart-refine][data-chart-type]")).toHaveCount(23);
+  await expect(page.locator("#aiChartRefineTemplates")).toContainText("仪表盘");
   await expect(page.locator("#aiChartRefineTemplates")).toContainText("雷达图");
   await expect(page.locator("#aiChartRefineTemplates")).toContainText("漏斗图");
   await expect(page.locator("#aiChartRefineTemplates")).toContainText("表格");

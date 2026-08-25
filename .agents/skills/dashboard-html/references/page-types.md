@@ -1,14 +1,14 @@
 # Page Type Reference
 
-> 用途：区分 Dashboard 与 Report 的选择条件和默认编排；不定义颜色、字体或具体业务模块。
+> 用途：区分 Dashboard、在线分析报告与快照 Report 的选择条件和默认编排；不定义颜色、字体或具体业务模块。
 
 ## 配置
 
 ```txt
-pageType -> dashboard | report
+pageType -> dashboard | analysis-report | report
 ```
 
-`pageType` 只控制信息密度、阅读顺序、头部编排、章节节奏和模块关系。视觉 token 由 `themes.md` 决定，内容和布局原语由用户需求与 `topic.md` 决定。
+`pageType` 只控制信息密度、阅读顺序、头部编排、章节节奏和模块关系。`analysis-report` 是在线分析报告：保留固定结构、筛选和数据绑定，使用服务端 SVG，并支持受控刷新；`report` 是不可变快照，不再刷新。视觉 token 由 `themes.md` 决定，内容和布局原语由用户需求与 `topic.md` 决定。
 
 ## 选择规则
 
@@ -16,6 +16,7 @@ pageType -> dashboard | report
 |---|---|
 | 看板、监控、状态、概览、实时数据 | `dashboard` |
 | 报告、分析、复盘、总结、周期经营 | `report` |
+| 固定结构但需要继续查数、筛选或刷新 | `analysis-report` |
 | 用户明确指定 | 使用用户指定值 |
 | 无法判断 | `dashboard` |
 

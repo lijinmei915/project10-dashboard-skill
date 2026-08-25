@@ -23,7 +23,7 @@ This skill keeps dashboard output:
 
 用户可在提示词中指定：
 
-- `pageType`：`dashboard` 或 `report`；未指定时按用户主要阅读任务判断。
+- `pageType`：`dashboard`、`analysis-report` 或 `report`；未指定时按用户主要阅读任务判断。
 - `visualTheme`：整体视觉预设；未指定时使用 `fx-orange`。
 - `mode`：浅色或深色；未指定时使用浅色。
 - `headerStyle`：`auto`、`minimal`、`surface`、`tinted`、`brand`、`compact`、`band` 或 `hidden`；`auto` 下 Dashboard 使用极简透明头部，Report 使用 surface 头部。
@@ -37,7 +37,9 @@ This skill keeps dashboard output:
 - `cardTitleIcon`：普通卡片标题图标样式，可使用 `none / line / soft / solid`；默认 `none`，与 KPI 图标独立。
 - `cardTitleIconColor`：普通卡片标题图标配色，可使用 `neutral / accent`；默认中性色，并允许单卡覆盖。
 - `kpiLayout`：指标卡内容排列，可使用 `stacked / horizontal`；默认上下排列，并允许单张 KPI 卡片覆盖。
-- `chartType`：使用稳定机器 ID。当前支持折线、面积、柱图家族、条图家族、直方图、排名图、甘特图和环形图；完整 ID、唯一业务语义与数据形状见 `references/charts.md`，用户明确指定时必须优先采用。
+- `kpiCardOrganization`：指标卡组织方式，可使用 `separate / joined`；默认为独立卡片，并与指标卡底色独立配置。
+- KPI 迷你趋势：只读取真实历史序列；视觉设置支持 `auto / show / hidden`、`7 / 12 / 30` 点和 `line / smooth / area`。少于 2 个有效点时自动隐藏，不得根据当前值、环比或随机数伪造走势。
+- `chartType`：使用稳定机器 ID。当前支持折线、面积、柱图家族、条图家族、直方图、排名图、甘特图、饼图家族、子弹图、仪表盘、雷达图、漏斗图和表格；完整 ID、唯一业务语义与数据形状见 `references/charts.md`，用户明确指定时必须优先采用。
 - `chartPalette`：图表配色方式，可使用 `auto / monochrome / bichrome / categorical`；标准看板默认 `auto`，单系列使用单色、双系列使用双色、三系列及以上与饼图分类使用多色。显式单色和双色按主题色相从固定 AntV/G2 色板取最近的一色或两色，多色使用完整色板。
 - 图表交互：筛选可放在页面、分组或单个图表标题区；多系列图表默认显示可点击图例，点击仅临时隐藏/显示系列并保存当前状态。
 - `accent`：任意明确的主题色名称或 CSS 色值，例如 `蓝色`、`墨绿`、`#0f766e`。
@@ -57,6 +59,7 @@ This skill keeps dashboard output:
 - Output must stay in standalone HTML and must remain usable on desktop and mobile.
 - Complete icon libraries, aliases, and search stay in the Agent runtime. Output only the selected sanitized inline SVGs; never add an icon-library or API dependency to the exported HTML.
 - Treat icon and chart libraries as generation-time capabilities. Follow `references/runtime.md` for full, host-assisted, and portable fallback modes; never leave empty visual containers when a capability is unavailable.
+- Custom charts must come from the packaged, versioned extension registry. Never accept user- or model-supplied ECharts Option, `renderItem`, formatter, or JavaScript.
 - Section title icons are selected per section. Do not force one user-selected icon across every section.
 
 ## Workflow

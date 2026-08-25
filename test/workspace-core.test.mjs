@@ -51,6 +51,64 @@ test("validates and deterministically exports every registered content component
   assert.match(first, /文本正文/);
 });
 
+test("exports a zero-value gauge as standalone SVG without a legend or chart runtime", () => {
+  const gauge = { id: "completion-gauge", type: "chart", title: "目标完成率", props: { chartType: "gauge", labels: ["完成率"], series: [{ name: "目标完成率", values: [0] }, { name: "忽略系列", values: [88] }], gauge: { min: 0, max: 100, unit: "%", precision: 1, thresholds: [60, 85] } } };
+  const workspace = {
+    ...baseline,
+    document: { title: "仪表盘验收", sections: [{ id: "metrics", title: "指标", components: [gauge] }] },
+    layout: { sections: [{ id: "metrics", layout: "grid", items: [{ id: gauge.id, span: 6 }] }] }
+  };
+  const html = renderStandaloneWorkspace(workspace);
+  assert.match(html, /0\.0%/);
+  assert.match(html, /data-component-id="completion-gauge"[\s\S]*?<svg class="chart"/);
+  assert.doesNotMatch(html, /class="chart-legend"/);
+  assert.doesNotMatch(html, /echarts|\/api\/charts\/render/);
+});
+
+test("validates controlled KPI trend data and bindings", () => {
+  const kpi = {
+    id: "revenue-kpi", type: "kpi", title: "收入", dataRef: "sales",
+    binding: { kind: "aggregate", field: "revenue", operation: "sum" },
+    trendBinding: { kind: "series", categoryField: "period", valueField: "revenue", operation: "sum", limit: 7 },
+    props: { value: "300", sparkline: { labels: ["一月", "二月"], values: [100, 200], unit: "元" } }
+  };
+  const workspace = {
+    ...baseline,
+    document: { title: "趋势合同", sections: [{ id: "metrics", title: "指标", components: [kpi] }] },
+    layout: { sections: [{ id: "metrics", layout: "grid", items: [{ id: kpi.id, span: 12 }] }] },
+    resources: { datasets: { sales: { portable: true, records: [{ period: "一月", revenue: 100 }, { period: "二月", revenue: 200 }] } } }
+  };
+  assert.equal(validateWorkspace(workspace).valid, true);
+
+  const malformedSparkline = structuredClone(workspace);
+  malformedSparkline.document.sections[0].components[0].props.sparkline.values = [100];
+  assert(validateWorkspace(malformedSparkline).issues.some(({ path }) => path.endsWith("/props/sparkline")));
+
+  const missingTrendField = structuredClone(workspace);
+  missingTrendField.document.sections[0].components[0].trendBinding.categoryField = "missing-period";
+  assert(validateWorkspace(missingTrendField).issues.some(({ path, code }) => path.endsWith("/trendBinding") && code === "reference"));
+
+  const chartWithTrend = structuredClone(workspace);
+  chartWithTrend.document.sections[0].components[0].type = "chart";
+  assert(validateWorkspace(chartWithTrend).issues.some(({ path }) => path.endsWith("/trendBinding")));
+});
+
+test("exports KPI history as static SVG without a client chart runtime", () => {
+  const kpi = { id: "revenue-kpi", type: "kpi", title: "收入", props: { value: "300", sparkline: { labels: ["一月", "二月", "三月"], values: [100, 180, 160], unit: "元" } } };
+  const workspace = {
+    ...baseline,
+    theme: { ...baseline.theme, pageType: "report", kpiSparklineDisplay: "show", kpiSparklinePoints: 7, kpiSparklineStyle: "area" },
+    document: { title: "指标趋势报告", sections: [{ id: "metrics", title: "指标", components: [kpi] }] },
+    layout: { sections: [{ id: "metrics", layout: "grid", items: [{ id: kpi.id, span: 12 }] }] }
+  };
+  const html = renderStandaloneWorkspace(workspace);
+  assert.match(html, /<svg class="kpi-sparkline-static"/);
+  assert.match(html, /<linearGradient id="kpi-sparkline-fill-revenue-kpi"/);
+  assert.match(html, /class="kpi-sparkline-area-shape" d="M [^"]* Q [^"]* L 176 57 L 4 57 Z"/);
+  assert.match(html, /class="kpi-sparkline-line-shape" d="M [^"]* Q /);
+  assert.doesNotMatch(html, /kpi-sparkline-runtime|vendor\/echarts|echarts\.init/);
+});
+
 test("migrates workspace v1 deterministically without mutating input", () => {
   const legacy = { version: 1, theme: { preset: "fx-orange", pageType: "report", language: "zh", accent: "#e8590c", mode: "light" }, layout: { sections: [] } };
   const migrated = migrateWorkspace(legacy);
@@ -198,6 +256,8 @@ test("maps explicit and semantic chart requests to the controlled catalog", () =
     ["用饼图展示渠道销售额占比", "sector-pie"],
     ["用环图展示渠道销售额占比", "pie"],
     ["用玫瑰图展示品类规模", "rose"],
+    ["用子弹图比较实际收入和目标收入", "bullet"],
+    ["用仪表盘展示目标完成率", "gauge"],
     ["用雷达图展示团队能力画像", "radar"],
     ["用漏斗图展示销售转化路径", "funnel"],
     ["用数据表展示区域明细", "data-table"]
@@ -494,6 +554,42 @@ test("validates persisted chart legend visibility state", () => {
   assert(result.issues.some(({ path }) => path === "/interactions/chartSeriesVisibility/unknown"));
 });
 
+test("generates and validates controlled chart selection state", () => {
+  const run = createDeterministicDraft({
+    id: "request-cross-filter",
+    prompt: "生成销售看板，点击趋势图后整页图表联动",
+    language: "zh",
+    pageType: "dashboard",
+    dataInputs: []
+  }, baseline, { runId: "run-cross-filter", now: "2026-08-23T00:00:00.000Z" });
+  const workspace = run.preview.workspace;
+  const chart = workspace.document.sections.flatMap(({ components }) => components).find(({ type }) => type === "chart");
+  assert.deepEqual(chart.props.selection, { enabled: true, targetScope: "page" });
+  workspace.interactions = { chartSelections: { [chart.id]: chart.props.labels[0] } };
+  assert.equal(validateWorkspace(workspace).valid, true);
+  workspace.interactions.chartSelections.unknown = "华东";
+  const result = validateWorkspace(workspace);
+  assert.equal(result.valid, false);
+  assert(result.issues.some(({ path }) => path === "/interactions/chartSelections/unknown"));
+});
+
+test("validates bounded refresh policies only on bound components", () => {
+  const workspace = structuredClone(createDeterministicDraft({
+    id: "request-refresh-policy", prompt: "生成销售看板", language: "zh", pageType: "dashboard", dataInputs: []
+  }, baseline).preview.workspace);
+  const component = workspace.document.sections.flatMap(({ components }) => components).find(({ binding }) => binding);
+  component.props.refreshPolicy = { mode: "poll", intervalMs: 30_000, pauseWhenHidden: true };
+  assert.equal(validateWorkspace(workspace).valid, true);
+  component.props.refreshPolicy.intervalMs = 100;
+  let result = validateWorkspace(workspace);
+  assert.equal(result.valid, false);
+  assert(result.issues.some(({ path }) => path.endsWith("/props/refreshPolicy")));
+  component.props.refreshPolicy = { mode: "dataset-event", intervalMs: 30_000, pauseWhenHidden: true };
+  result = validateWorkspace(workspace);
+  assert.equal(result.valid, false);
+  assert(result.issues.some(({ path }) => path.endsWith("/props/refreshPolicy")));
+});
+
 test("one filter state deterministically updates KPI, chart, table, and rankings", () => {
   const run = createDeterministicDraft({
     id: "request-linked-data",
@@ -513,6 +609,8 @@ test("one filter state deterministically updates KPI, chart, table, and rankings
   const eastTable = materializeComponent(workspace, "customer-health");
   const eastRanking = materializeComponent(workspace, "source-ranking");
   assert.notEqual(eastKpi.props.value, allKpi.props.value);
+  assert(allKpi.props.sparkline.values.length >= 2);
+  assert(eastKpi.props.sparkline.values.reduce((sum, value) => sum + value, 0) < allKpi.props.sparkline.values.reduce((sum, value) => sum + value, 0));
   assert(eastChart.props.values.reduce((sum, value) => sum + value, 0) < allChart.props.values.reduce((sum, value) => sum + value, 0));
   assert(eastTable.props.rows.length < allTable.props.rows.length);
   assert(eastRanking.props.items.reduce((sum, item) => sum + item.value, 0) < allRanking.props.items.reduce((sum, item) => sum + item.value, 0));
@@ -676,7 +774,12 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
 
   const chartCatalogResponse = await fetch(`${endpoint}/api/charts/catalog?q=${encodeURIComponent("占比")}`);
   assert.equal(chartCatalogResponse.status, 200);
-  assert.deepEqual((await chartCatalogResponse.json()).charts.map(({ type }) => type), ["percent-stacked-bar", "sector-pie"]);
+  const chartCatalogPayload = await chartCatalogResponse.json();
+  assert.deepEqual(chartCatalogPayload.charts.map(({ type }) => type), ["percent-stacked-bar", "sector-pie"]);
+  assert.deepEqual(chartCatalogPayload.palette, {
+    version: "1.2.0",
+    categorical: ["#5b8ff9", "#45b8d8", "#43c59e", "#96bf45", "#f3a83b", "#f06b72", "#de72b4", "#9270e8"]
+  });
 
   const capabilityResponse = await fetch(`${endpoint}/api/components/catalog`);
   assert.equal(capabilityResponse.status, 200);
@@ -684,17 +787,17 @@ test("serves draft, structural refine, history restore, commit, and undo over HT
   assert.equal(capabilities.version, 1);
   assert.deepEqual(capabilities.components.map(({ type }) => type), ["summary", "kpi", "chart", "table", "list", "text"]);
   assert.deepEqual(capabilities.controls.map(({ type }) => type), ["filter-bar", "view-tabs"]);
-  assert.deepEqual(capabilities.charts.map(({ type }) => type), ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"]);
+  assert.deepEqual(capabilities.charts.map(({ type }) => type), ["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"]);
 
   const horizontalCatalogResponse = await fetch(`${endpoint}/api/charts/catalog?q=${encodeURIComponent("排行图")}`);
   assert.equal(horizontalCatalogResponse.status, 200);
   assert((await horizontalCatalogResponse.json()).charts.some(({ type }) => type === "ranking-bar"));
 
-  for (const type of ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"]) {
+  for (const type of ["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"]) {
     const chartResponse = await fetch(`${endpoint}/api/charts/render`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, labels: type === "time-series" ? ["2026-01-01", "2026-02-01", "2026-03-01"] : ["一月", "二月", "三月"], series: type === "histogram" ? [{ name: "订单金额", values: [18, 26, 31, 22, 19, 35, 28] }] : [{ name: "今年", values: [18, 26, 31] }, { name: "去年", values: [14, 21, 25] }], thresholds: type === "time-series" ? [20, 30] : [], mode: "dark", width: 480, height: 240 })
+      body: JSON.stringify({ type, labels: type === "time-series" ? ["2026-01-01", "2026-02-01", "2026-03-01"] : type === "gauge" ? ["完成率"] : ["一月", "二月", "三月"], series: type === "histogram" ? [{ name: "订单金额", values: [18, 26, 31, 22, 19, 35, 28] }] : type === "gauge" ? [{ name: "目标完成率", values: [76.8] }] : [{ name: "今年", values: [18, 26, 31] }, { name: "去年", values: [14, 21, 25] }], thresholds: type === "time-series" ? [20, 30] : [], gauge: type === "gauge" ? { min: 0, max: 100, unit: "%", precision: 1, thresholds: [60, 85] } : {}, bullet: type === "bullet" ? { min: 0, max: 120, unit: "%", precision: 0, ranges: [60, 85, 100] } : {}, mode: "dark", width: 480, height: 240 })
     });
     assert.equal(chartResponse.status, 200);
     assert.match((await chartResponse.json()).svg, /^<svg[^>]+>/);

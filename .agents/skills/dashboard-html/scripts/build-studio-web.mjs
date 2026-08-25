@@ -12,6 +12,9 @@ const outputRoot = path.resolve(outputFlag >= 0 ? process.argv[outputFlag + 1] :
 const studioSource = path.join(repoRoot, "studio");
 const studioOutput = path.join(outputRoot, "studio");
 const coreSource = path.join(scriptDir, "workspace-core.mjs");
+const chartSpecSource = path.join(scriptDir, "chart-spec-runtime.mjs");
+const customChartExtensionSource = path.join(scriptDir, "custom-chart-extension-runtime.mjs");
+const echartsSource = path.join(repoRoot, "node_modules/echarts/dist/echarts.esm.min.mjs");
 const sourceModules = (await readdir(studioSource)).filter((name) => /\.(?:mjs|js)$/.test(name)).sort();
 
 function sha256(bytes) {
@@ -20,28 +23,32 @@ function sha256(bytes) {
 
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(studioOutput, { recursive: true });
+await mkdir(path.join(outputRoot, "vendor"), { recursive: true });
 await copyFile(path.join(repoRoot, ".dashboard-preset-preview.html"), path.join(outputRoot, "index.html"));
 await copyFile(path.join(repoRoot, ".studio-resources.html"), path.join(outputRoot, "studio", "resources.html"));
 
 for (const name of sourceModules) {
   const sourcePath = path.join(studioSource, name);
   const destinationPath = path.join(studioOutput, name);
-  if (name !== "workspace-core-client.mjs") {
+  if (!["workspace-core-client.mjs", "chart-spec-client.mjs"].includes(name)) {
     await copyFile(sourcePath, destinationPath);
     continue;
   }
   const source = await readFile(sourcePath, "utf8");
-  const built = source.replace(
-    '"../.agents/skills/dashboard-html/scripts/workspace-core.mjs"',
-    '"./workspace-core-runtime.mjs"'
-  );
-  if (built === source) throw new Error("Studio core client no longer contains the expected portable-core import");
+  const [repositoryImport, browserImport] = name === "workspace-core-client.mjs"
+    ? ['"../.agents/skills/dashboard-html/scripts/workspace-core.mjs"', '"./workspace-core-runtime.mjs"']
+    : ['"../.agents/skills/dashboard-html/scripts/chart-spec-runtime.mjs"', '"./chart-spec-runtime.mjs"'];
+  const built = source.replace(repositoryImport, browserImport);
+  if (built === source) throw new Error(`${name} no longer contains the expected portable-runtime import`);
   await writeFile(destinationPath, built, "utf8");
 }
 
 await copyFile(coreSource, path.join(studioOutput, "workspace-core-runtime.mjs"));
+await copyFile(chartSpecSource, path.join(studioOutput, "chart-spec-runtime.mjs"));
+await copyFile(customChartExtensionSource, path.join(studioOutput, "custom-chart-extension-runtime.mjs"));
+await copyFile(echartsSource, path.join(outputRoot, "vendor/echarts.mjs"));
 
-const files = ["index.html", "studio/resources.html", ...sourceModules.map((name) => `studio/${name}`), "studio/workspace-core-runtime.mjs"].sort();
+const files = ["index.html", "studio/resources.html", ...sourceModules.map((name) => `studio/${name}`), "studio/workspace-core-runtime.mjs", "studio/chart-spec-runtime.mjs", "studio/custom-chart-extension-runtime.mjs", "vendor/echarts.mjs"].sort();
 const assets = {};
 for (const relativePath of files) {
   const bytes = await readFile(path.join(outputRoot, relativePath));

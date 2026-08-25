@@ -161,9 +161,13 @@ function projectRepository(pool) {
       return publicProject(project);
     },
     async list() {
-      return (await entities(pool, "project")).map(({ id, name, createdAt, updatedAt, organizationId = null, access, status = "active", archivedAt, currentRevisionId, revisions }) => ({
-        id, name, createdAt, updatedAt, organizationId, access: access || { ownerId: null, members: [] }, status, ...(archivedAt ? { archivedAt } : {}), currentRevisionId, revisionCount: revisions.length
-      }));
+      return (await entities(pool, "project")).map(({ id, name, createdAt, updatedAt, organizationId = null, access, status = "active", archivedAt, currentRevisionId, revisions }) => {
+        const currentRevision = revisions.find((revision) => revision.id === currentRevisionId);
+        return {
+          id, name, createdAt, updatedAt, organizationId, access: access || { ownerId: null, members: [] }, status, ...(archivedAt ? { archivedAt } : {}),
+          currentRevisionId, revisionCount: revisions.length, pageType: currentRevision?.workspace?.theme?.pageType ?? null
+        };
+      });
     },
     update(id, { expectedRevisionId, expectedUpdatedAt, seed = null, outbox = null } = {}, updater) {
       return transaction(pool, async (client) => {

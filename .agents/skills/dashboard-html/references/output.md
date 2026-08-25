@@ -6,7 +6,7 @@
 
 - 输出完整独立 HTML（含 `<!DOCTYPE html>`、`html`、`head`、`body`），复用 `assets/templates/starter.html` 的视觉 token、主题逻辑和响应式基础，而非固定模块。
 - 默认保留 page header 和 card / surface 信息组织；Dashboard 使用全宽流式内容区，Report 使用阅读宽度，除非用户明确覆盖。
-- 支持 `pageType: dashboard | report`；按 `references/page-types.md` 选择默认编排，不把页面类型绑定到视觉预设。
+- 支持 `pageType: dashboard | analysis-report | report`；按 `references/page-types.md` 选择默认编排，不把页面类型绑定到视觉预设。
 - 支持 `visualTheme`、`headerStyle`、`pageBackground` 和 `sectionStyle` 的明确选择；未指定时使用 `fx-orange`、自动头部、主题默认底色和普通分组样式。
 - 头部与分组标题使用 starter 已有的可选槽位；未提供 Logo、编号、更新时间、辅助说明或操作时隐藏对应槽位。
 - Dashboard 中每张独立卡片已有标题或 KPI 标签时，可隐藏分组标题且不得留下占位高度；Report 默认保留章节标题。

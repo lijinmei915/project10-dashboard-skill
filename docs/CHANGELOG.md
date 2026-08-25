@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: log
-last_verified: 2026-08-22
+last_verified: 2026-08-24
 depends_on: [PROJECT.md, HANDOFF.md]
 ---
 
@@ -10,6 +10,47 @@ depends_on: [PROJECT.md, HANDOFF.md]
 > 用途：记录影响仓库结构、文档体系或 skill 资产组织方式的变更。
 > 什么时候更新：发生结构性调整时。
 > 不要写什么：纯文案小修、一次性讨论过程、未落地设想。
+
+## 2026-08-24
+
+- 修复项目中心删除操作：删除按钮统一使用危险操作样式；确认取消、请求失败或项目元数据过期后按钮可再次操作；提交前读取最新项目版本，减少并发编辑造成的误报失败。
+- 产品入口收敛为 `Dashboard / Report` 两类：Report 默认生成可刷新在线分析报告，内部 `analysis-report` 仅作为兼容运行时保留；分享、下载和审计继续通过服务端生成 `Report · 静态快照`。
+- 新增第三种页面模式 `analysis-report`（在线报告）：保留固定结构、筛选、在线数据绑定和刷新策略，图表/KPI 趋势使用服务端 SVG；Dashboard 继续使用客户端 ECharts，`report` 保持不可变快照语义。
+- 项目中心和 AI 工作台增加“在线报告”选择与类型标识；在线报告可由服务端授权转换为新的快照 Report，转换会清理绑定、交互和刷新状态。
+- 完成在线报告契约、生成器、编辑器刷新状态、项目复制、发布打印规则和 Node 回归覆盖。
+
+- Dashboard 内容区新增页面级“刷新数据”入口：位于标题区域右上角，按 Dataset 合并触发在线 KPI、图表、表格和排行刷新；刷新期间保留旧数据，失败时显示保留上次数据，mock/无在线 Dataset 时按钮置灰。运行时新增受控 `refreshNow()`，不改变轮询、SSE 和 last-known-good 机制。
+- Report 标题区同步保留刷新图标以维持页面工具位置一致，但明确置灰并提示“报告为快照，不支持刷新”，避免把静态 Report 误解为在线数据页面。
+- 项目名称新增组织范围唯一性：创建、复制、Report 副本、AI 首次提交和重命名均按 trim、NFKC 归一化和不区分大小写校验；服务端使用组织级写入队列防止并发重名，冲突返回 409，删除后名称可复用。
+- KPI 面积趋势升级为参考式纵向透明渐变：客户端 ECharts 使用 1.5px 平滑曲线和三段透明度衰减，Report 与独立导出使用同一平滑 SVG 边界与渐变；标准看板默认改为“渐变面积”，仍保留纯折线和平滑线选项。趋势线统一跟随当前主题强调色，不受图标和卡片多色设置影响；桌面端固定在卡片右下角，移动端继续回到文档流整行展示。
+- 内置看板的三张 KPI 增加明确标记为 mock 的 7 周趋势数据，便于直接预览 Tooltip、指针和趋势样式；真实项目仍只使用 `props.sparkline` 或受控 `trendBinding` 产生的历史序列，不自动伪造数据。局部 KPI 设置增加独立“趋势线”分组，提高显示、周期和样式配置的可发现性。
+- KPI 新增真实迷你趋势能力：Workspace 用独立 `trendBinding` 表达历史聚合，便携和在线数据运行时按同一筛选范围物化 `props.sparkline`；在线 KPI 分别查询当前值与趋势并合并，实时刷新继续保留 last-known-good。
+- Dashboard KPI 趋势使用受控客户端 ECharts，支持 Tooltip、axisPointer、点击意图及生命周期回收；视觉设置提供自动/显示/隐藏、7/12/30 点和折线/平滑线/面积线。Report 编辑页与便携导出只输出静态 SVG，不加载客户端图表运行时；620px 以下改为趋势图整行置于数值下方，避免窄卡片交叠。
+- Report 副本在授权数据物化后同步移除 `binding / trendBinding / dataRef`，保留有效静态趋势，避免孤立趋势绑定导致副本校验失败。专项合同、数据、运行时、构建与导出回归已补齐。
+
+## 2026-08-23
+
+- Dashboard 系统预设完成主题化：企业分析启用浅蓝头部、紧凑密度、发光分组短标、分组边界、卡片极弱边框和单色图表；极简看板启用居中阅读头部、可读宽度、暖色微粒纹理、宽松间距、低对比分组底和固定多色图表。运行时恢复 `sectionSurface` 映射，主题字段不再被固定为 `none`；浏览器已验证桌面与 390px 移动宽度无横向溢出，预览后恢复原配置且未保存试验选择。
+- 交互式 BI M7 完成：新增版本化受控图表扩展注册表和首个 `bullet` 子弹图。扩展 manifest 声明唯一语义、数据形状、能力、Dashboard/Report 运行时和标准降级；ChartSpec 新增纯 JSON `bullet` 配置，本地 Builder 生成 ECharts Custom Series，普通用户和 AI 不能提交 Option、formatter、`renderItem` 或 JavaScript。
+- 子弹图已贯通目录、自然语言起稿、Workspace Schema、Studio 类型选择、资源中心、客户端 Canvas、服务端 SVG 和独立 Studio 构建。异常 Builder 只降级当前图为横向条图；重复 ID、未知 capability 和可执行 manifest 输入失败关闭。完整 Node、生成评测、Playwright 及390px移动端双运行时验收通过。
+- 自定义图表治理加固：manifest 递归冻结并拒绝重复 capability、未知 runtime 与非标准 fallback；目录和注册表由构建合同逐字段同步。Bullet 严格校验两组等长实际/目标数据，生成器不再附加无法表达目标值的单指标 binding，异常 Builder 按 manifest 声明的标准图表降级。
+- KPI 多色线型、面型、浅底、光感和反白统一改用版本化 8 色 `categorical` 色板；移除独立写死的 fx-ui 四组颜色。多色卡片按数量均匀抽色，多色光感从每个分类基准色派生同色相亮阶，选择器四格预览同样均匀抽取。
+- Studio 的 Report 下载与 Publication 创建现向便携导出器注入同一个服务端 ECharts SSR；不可变 artifact 标记 `data-chart-renderer="echarts-ssr"`。无宿主能力的便携 Skill 继续保留确定性静态 SVG 降级，不引入客户端 ECharts 或额外运行依赖。
+- 图表资源库新增 `gauge` 仪表盘，使用“单值 + 范围 + 可选阈值”的稳定语义，贯通 AI 起稿与精修、Workspace、Studio 类型选择、资源中心指标图分类、ECharts SSR、便携 SVG 和 standalone 动态重算；目录扩展至 22 种，单值仪表盘不显示图例。仪表主弧按“主题色已完成 + 连续灰色未完成”表达，阈值保留在数据协议中但不覆盖主弧。
+- 资源中心图表预览移除私有四色数组，改由 `/api/charts/catalog` 下发版本化正式色板；仪表盘固定单色，饼图、玫瑰图、雷达图和漏斗图固定分类多色，其余图表按一/二/三组以上系列自动使用单色、双色或分类色。预览与 Studio 继续共用 ECharts SSR，不引入 Chart.js 第二渲染协议。
+- 交互式 BI 长目标进入 M0：新增纯 JSON `ChartSpec v1`、共享 ECharts Option Builder 和双渲染架构规范；Dashboard 定位为在线客户端运行时，Report 保持服务端 SVG，类型转换生成副本。ChartSpec 类型与22种目录、Workspace合同自动校验，AI输入中的可执行值和未知字段失败关闭。
+- 交互式 BI M1 完成：新增客户端 ECharts 生命周期运行时，Dashboard 的21种绘图类型使用 Canvas 并支持实例复用、增量更新、ResizeObserver、迟到结果失效和销毁；Report 与表格保持静态 SVG，客户端失败自动降级。开发服务与独立 Studio 构建统一提供版本锁定的 `/vendor/echarts.mjs`，Report 直开不请求该资产。
+- Workspace 恢复期间暂停图表渲染，待页面类型、主题、文档与布局原子恢复后统一绘制，消除 Report 初始状态短暂按 Dashboard 加载 ECharts 的竞态。新增 Node 生命周期测试、Studio 构建/静态服务测试和 Playwright 21图表/Report 零 vendor 请求回归。
+- 交互式 BI M2 完成：新增 Dashboard 在线语义查询运行时，把现有受控 binding 映射为授权维度/指标 ID，支持取消、迟到结果门禁、并发元数据去重、服务端查询缓存和 last-known-good；非便携 Dashboard 的 Workspace 只保留 `{ portable: false }`，在线结果仅作为内存视图覆盖，Report 保持快照路径。
+- 在线卡片新增 loading/ready/stale/error 状态与数据更新时间。Playwright 证明刷新后的 KPI、图表、排行和表格均使用在线数据，查询失败后旧 Canvas 与数值继续可见并标记 stale，本地 Workspace 全程无 records；跨组织查询继续统一返回 404。
+- 交互式 BI M3 完成：新增纯 `AnalysisState` 选择状态模块和 ChartSpec `selection` 合同，ECharts 点击只产生受控意图；Editor 按 component/section/page 作用域和同 Dataset 边界驱动 portable 物化或在线语义查询，不允许图表相互直接调用。
+- 图表标题新增当前选择提示与清除入口，选择状态经显式保存进入 Workspace 并可在刷新后恢复。Node 覆盖三种范围、切换清除和非法来源；Playwright 覆盖真实柱体选择、整页 KPI 联动、保存恢复、无循环查询、390px 无溢出及后续503降级。
+- 交互式 BI M4 完成：Semantic Model 新增受控维度层级，Workspace 图表只引用层级 ID；`drilldown-state` 以路径深度推导当前维度，在线查询逐层复验授权模型并携带全部祖先过滤，不允许客户端自造字段或越过末层。
+- 图表新增可恢复面包屑与三层 ECharts 点击下钻。Node 覆盖层级校验和纯状态转换；Playwright 覆盖区域到省份到城市、语义 ID 查询、祖先过滤、保存恢复和返回根层。390px 验收发现并修复面包屑负上边距导致的2px标题盒重叠，页面无横向溢出。
+- 交互式 BI M5 完成：新增按 Dataset 合并的实时刷新协调器和授权 Dataset SSE。在线 Dashboard 默认事件刷新，并支持5秒到24小时轮询、页面隐藏暂停、显式后台例外、有界指数退避、游标重连、事件去重及多 Dataset 定向缓存失效；SSE 不携带 records 或查询结果。
+- 数据刷新继续使用授权语义查询和 last-known-good，只更新内存视图。客户端 ECharts 更新同 zoom 模式时保留当前缩放窗口；Playwright 以真实刷新 API 和 SSE 验证 KPI 1,000→1,500，同时保持华东选择、Workspace interactions 和 zoom 20-80，390px 无横向溢出，后续503仍保留旧数据。
+- 交互式 BI M6 完成：项目中心可从 Dashboard 创建独立固定 Report Project。服务端对在线 Dataset 重新执行行级授权，物化当前筛选、图表选择、下钻和图例结果，再移除 controls、binding、dataRef、records、刷新/缩放策略与 interactions；源 Dashboard 不追加 revision、不改内容。
+- Project 列表新增不含 revision 正文的 `pageType` 安全摘要，修复真实列表无法显示“生成报告”的问题。项目深链在权威 revision 恢复前暂停默认 Dashboard 绘制，避免 Report 路由短暂请求客户端 ECharts；浏览器回归验证 Report 为 SVG且 vendor 请求为0，原 Dashboard 仍为 Canvas，390px无横向溢出。
 
 ## 2026-08-22
 
@@ -437,3 +478,13 @@ depends_on: [PROJECT.md, HANDOFF.md]
 - 完整候选通过 Workspace 校验后在画布按分区渐进呈现，减少动态效果模式直接完整显示；原子 Workspace 不随动画拆分。
 - Provider 首次候选在计划或 Bundle 结构校验失败时也可自动 repair 一次；Generation Job 对首次生成与 repair 施加共享的 5 分钟整体硬上限，并保留受控 HTTP 错误分类。
 - 完整门禁通过：Generation eval 10/10、Node 189 passed / 6 PostgreSQL skips、Skill 包 31 文件且 SHA-256 可复现。
+- 项目中心增加永久删除：管理员/所有者可在二次确认后删除项目及全部版本，服务端通过元数据版本校验避免误删并记录删除审计。
+- 项目中心暂时隐藏“生成报告”操作入口，Report 副本 API 与底层导出能力保留，后续可重新启用。
+- 卡片标题装饰新增“发光短标”，复用分组标题的主题色短标尺寸与柔光规则，并保持旧配置默认行为不变。
+- KPI 卡片外观新增“独立卡片 / 整组一体”组织方式，可与白色、单色和多色底色自由组合；旧配置默认保持独立卡片。
+- “整组一体” KPI 改为统一组底容器，内部卡片与组底四周使用等值内边距，卡片之间使用同等间距，取消紧贴的表格式分隔。
+- “整组一体” KPI 强制显示整组标题；外层继承卡片圆角、阴影和边框，标题继承卡片标题字号、短标、发光短标、图标形态及配色。
+- 整组 KPI 的四周内边距、标题到内容距离和内部卡间距统一跟随全局卡片间距，与同层卡片之间的留白保持一致。
+- 将当前 Dashboard 视觉配置固化到“标准看板”专属预设：整组多色 KPI、彩色光感图标、卡片标题短标和标题右侧副标题；Report “品牌报告”不受影响。
+- 修复 Dashboard 信息条“圆点 / 竖线”连接符不生效：仅隐藏示例数据来源的附加连接符，保留数据截止与创建人之间的可配置连接符。
+- 项目中心暂时隐藏“全部项目 / 我可编辑”归属筛选，界面暂不暴露权限概念；底层访问控制保留。

@@ -91,6 +91,7 @@ function groundingChecks(workspace, provenance, grounding, dataContext) {
   const visibleValuesMatch = dataBearing.every((component) => {
     const binding = component.binding;
     if (!binding) return !grounding.portable && snapshotVisibleValuesMatch(component);
+    if (!grounding.portable && ["dashboard", "analysis-report"].includes(workspace.theme.pageType)) return snapshotVisibleValuesMatch(component);
     if (binding.kind === "aggregate") {
       const metric = metrics.get(binding.field);
       const value = totals?.rows?.[0]?.[totalIndex.get(metric?.id)];
@@ -116,15 +117,16 @@ function groundingChecks(workspace, provenance, grounding, dataContext) {
     }
     return false;
   });
-  const hasPortableDataset = Boolean(workspace.resources?.datasets?.[expectedRef]);
+  const datasetResource = workspace.resources?.datasets?.[expectedRef];
+  const shouldBind = grounding.portable || ["dashboard", "analysis-report"].includes(workspace.theme.pageType);
   return [
     check("grounding-data-reference", dataBearing.length > 0 && dataBearing.every(({ dataRef }) => dataRef === expectedRef), 8, `${dataBearing.length} components`),
     check("grounding-provenance", dataBearing.every(({ id }) => provenance?.components?.[id]?.dataInputId === expectedRef), 5),
-    check("grounding-bindings", grounding.portable ? bindings.length === dataBearing.length : bindings.length === 0, 6, `${bindings.length}/${dataBearing.length} bound`),
+    check("grounding-bindings", shouldBind ? bindings.length === dataBearing.length : bindings.length === 0, 6, `${bindings.length}/${dataBearing.length} bound`),
     check("grounding-fields", bindings.every((binding) => bindingFields(binding).every((field) => fields.has(field))), 6),
     check("grounding-operations", operationsMatch, 5),
     check("grounding-visible-values", visibleValuesMatch, 10),
-    check("grounding-portability", hasPortableDataset === Boolean(grounding.portable), 5, hasPortableDataset ? "included" : "excluded"),
+    check("grounding-portability", Boolean(datasetResource) === shouldBind && datasetResource?.portable === Boolean(grounding.portable) && (grounding.portable ? Array.isArray(datasetResource?.records) : !datasetResource?.records), 5, datasetResource?.portable ? "portable" : datasetResource ? "online" : "snapshot"),
     check("grounding-no-sample-label", !workspace.document?.sampleDataLabel && !JSON.stringify(workspace.document).includes("示例数据"), 5)
   ];
 }

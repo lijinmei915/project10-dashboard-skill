@@ -1,7 +1,7 @@
 ---
 layer: knowledge
 type: guide
-last_verified: 2026-08-22
+last_verified: 2026-08-23
 depends_on: [.agents/skills/dashboard-html/references/testing.md]
 ---
 
@@ -33,6 +33,11 @@ npm run test:browser
 - `eval:generation` 强制本地确定性 provider，避免 CI 宿主变量意外触发远程费用。真实模型发布候选需显式设置 `DASHBOARD_AI_PROVIDER=openai`、`DASHBOARD_AI_MODEL` 和 `OPENAI_API_KEY` 后运行 `npm run eval:generation:provider`；报告不包含 prompt、workspace、Provider 原文或密钥，也不会提交版本。
 - Node HTTP 回归使用临时 Studio 构建启动正式静态模式：验证全部 `/studio/*` 无扩展名深链回退同一 HTML、模块保持 JavaScript MIME、缺失模块不回退 HTML、所有静态响应为 `no-cache`，且 `/api/*`、`/p/*`、`/embed/*` 仍由服务端权威路由处理。
 - `npm run test:browser` 启动隔离的 8766 服务；启动前清理 `test-results` 下的 Project、Dataset、Publication 和 Job 测试仓库，使用固定 Playwright Chromium 验证 Studio 生成/接受/手工保存/精修/撤销/历史恢复/发布管理/版本导出及 standalone 筛选、Tab 和响应式。
+- `npx playwright test test/browser/client-echarts-runtime.spec.mjs` 专项验证 22 种客户端 ECharts 配方的 Canvas 尺寸、实例更新与完整销毁，验证直接打开 Report 只渲染 SVG 且不请求 `/vendor/echarts.mjs`，并验证非便携 Dashboard 的在线语义查询、Workspace 零 records、503 last-known-good 降级及三层授权下钻。
+- 下钻浏览器用例必须证明区域到省份到城市的每层查询使用语义 ID、保留全部祖先过滤、保存刷新后恢复路径、面包屑可返回根层；390px 下页面不得横向溢出，标题与面包屑不得重叠。移动证据输出到 `/tmp/dashboard-m4-drilldown-mobile.png`。
+- 实时刷新用例必须通过正式 Dataset refresh API 触发 SSE，证明客户端按事件重查而不把 records 放入 Workspace；刷新前后的筛选、选择、图例状态容器和 ECharts zoom 必须一致，失败继续显示 last-known-good。390px 稳定帧输出到 `/tmp/dashboard-m5-live-refresh-mobile.png`。
+- `node --test test/online-data-runtime.test.mjs test/data-access-policy-service.test.mjs test/data-source-service.test.mjs` 验证物理 binding 到语义 ID 的受控映射、并发元数据去重、取消/迟到门禁、缓存、故障保留、查询结构和跨组织 404 隔离。
+- `node --test test/analysis-state.test.mjs test/client-echarts-runtime.test.mjs test/chart-spec-runtime.test.mjs` 验证选择意图翻译、component/section/page 目标解析、同 Dataset 边界、重复选择清除、ChartSpec 纯 JSON 合同及实例销毁时事件解绑。
 - 浏览器回归同时从临时构建的独立 Studio `/studio/projects` 验证 token 登录、AI 首稿和组织治理视图，在 `/studio/projects/:projectId` 验证项目深链恢复，并从 `/studio/publications/:publicationId` 恢复所属项目和目标发布后继续 artifact/render/revoke 流程；旧预览文件名只保留兼容测试。
 - 版本导出浏览器流程会显式关闭 `showSaveFilePicker`，验证标准下载降级路径真实产生 HTML 文件、文件名包含“版本成品”，且内容不含 Export Center、AI Composer 或设计器代码。
 - 构建结果只是发布候选，不会自动发布或创建版本标签。
@@ -65,7 +70,7 @@ npm run test:browser
 - 便携 ZIP 是否不含 Studio 服务、测试 fixture、`node_modules` 或完整图标/图表运行时
 - `filter-bar / view-tabs` 是否只按明确意图生成、引用存在的目标，并在保存和 standalone 导出后保持可用
 - 自定义视觉预设是否通过统一预设栏末尾的 `+` 创建、在细分隔线后以直选 Tab 展示，并在悬停、聚焦或选中时提供不改变 Tab 宽度的管理入口和“已修改”反馈
-- 图表卡片是否只使用折线、面积、柱状、条形、环形五类受控类型，并能经显式提示词、语义推断和局部设置稳定切换
+- 图表卡片是否只使用目录内受控类型，并能经显式提示词、语义推断和局部设置稳定切换；仪表盘需额外验证 0 值、范围、单位、阈值、无图例和 standalone 降级
 - OIDC 邀请是否只接受受限时、单次 secret 启动的已验证目标身份；secret 不进入组织公开响应、持久化、审计或浏览器 session，错误 subject 不得绑定 identity 或创建成员
 - ECharts 服务不可用时是否显示同数据的便携 SVG，而不是空图、错误文本或失效筛选
 - 默认确定性与远程 provider 是否走同一 bundle 校验；远程 request、单次修复、限流、超时和未配置错误是否不泄漏密钥或改变当前 workspace
@@ -73,6 +78,7 @@ npm run test:browser
 - 上传数据是否只以服务端身份进入生成请求；只有显式便携数据才进入 workspace、revision 和 standalone
 - 字段类型修正是否从 rawRecords 重算并保留前导零；语义更新是否拒绝 stale 写入
 - 用户确认的维度、指标、聚合、格式和时间粒度是否实际改变生成 binding 与成品，而不是只更新表单
+- 开启图表选择联动后，点击分类是否只影响声明范围内且引用同一 Dataset 的组件；同值再次点击和标题提示是否可清除；保存刷新后是否恢复，查询数是否稳定不形成重绘循环
 
 ## M1 浏览器回归记录
 
@@ -250,3 +256,21 @@ npm run test:browser
 | 凭证不进入浏览器、workspace、成品或模型上下文 | 浏览器仅提交 credentialRef；服务端认证头测试；Dataset/context/run/workspace/artifact 泄漏断言 | 通过 |
 
 边界不计为 M3 失败：真实远程模型质量需要有效 API key；组织身份、RBAC、数据库连接器、分布式队列和分页报告属于 M4 或后续专项。
+
+## 交互式 BI M6 验收
+
+- `test/report-project-copy.test.mjs` 覆盖在线 Dashboard/Online Analysis Report 转固定 Report、当前筛选/选择/两层下钻物化、运行态清理、源 Project 深比较不变、快照 Report 拒绝、Dataset 缺失与权限拒绝失败关闭；同时验证在线报告生成保留非便携绑定且不写入 records。
+- HTTP 回归覆盖新 Project 创建、重复 ID `409`、行级授权重新执行、`project.report-created` 审计和列表 `pageType` 脱敏摘要。
+- Playwright 验证项目中心不展示“生成报告”入口，并通过受控 API 验证新 Project ID、单一 revision、Report SVG、`/vendor/echarts.mjs` 请求数为0；重新打开源 Dashboard 后仍为 Canvas 且 revision 数不变。
+- 390px Chromium 验证横向溢出为0，并输出 `/tmp/dashboard-m6-report-copy-mobile.png`；截图前等待设置抽屉动画收口。
+- 完整门禁：Generation eval `10/10`、平均 `100`；Node `229 passed / 6 PostgreSQL skips / 0 failed`；Playwright `23/23`。
+
+## 交互式 BI M7 验收
+
+- `test/custom-chart-extension-runtime.test.mjs` 覆盖 manifest 版本、稳定 ID、递归不可变、重复 ID/capability、未知 capability/runtime、非标准 fallback、可执行输入、ChartSpec 零 `renderItem`、Bullet 双系列等长合同、本地 Builder 和按 manifest 执行的异常降级。
+- `test/chart-spec-runtime.test.mjs` 与服务端图表 API 覆盖 23 种受控类型，其中 22 种 ECharts 配方包含 `bullet` Custom Series，Report SSR 返回非空 SVG。
+- Playwright 在 390px Chromium 中验证同一 Bullet Workspace：Dashboard 使用非空 Canvas，Online Analysis Report 与 Report 使用服务端 SVG 且不请求 `/vendor/echarts.mjs`；在线报告刷新入口可用，快照 Report 刷新入口禁用；三者横向溢出均为 0。
+- 移动端视觉证据：`/tmp/dashboard-m7-bullet-mobile.png`、`/tmp/report-m7-bullet-mobile.png`。实际条、目标线和灰色绩效区间在双运行时保持一致。
+- Report 下载与 Publication 合同额外验证宿主 `renderChartSvg` 收到完整 Bullet 配置，并把 `data-chart-renderer="echarts-ssr"` 固化进不可变 artifact；无宿主能力时才走便携降级。
+- 构建合同逐项比对自定义图表目录与注册表的 semantic、dataShape、manifestVersion、capability 和 fallbackType，并拒绝未注册扩展。
+- 完整门禁：Generation eval `10/10`、平均 `100`；Node `237 passed / 6 PostgreSQL skips / 0 failed`；Playwright `24/24`。

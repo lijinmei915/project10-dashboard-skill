@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as echarts from "echarts";
+import { chartSpecRenderConfig, createEchartsOption, normalizeChartSpec } from "./chart-spec-runtime.mjs";
 import { commitGenerationPreview } from "./generation-pipeline.mjs";
 import { createProviderFromEnv, providerHealth, ProviderError, runGenerationWithProvider } from "./provider-gateway.mjs";
 import { createOrganizationProviderManager, createProviderProfileRepository } from "./provider-profile-service.mjs";
@@ -36,7 +37,7 @@ import { AuthError, createStudioAuthService } from "./studio-auth-service.mjs";
 import { createAccountRepository } from "./studio-account-repository.mjs";
 import { createAuthRateLimiter } from "./auth-rate-limiter.mjs";
 import { authorizeProject, projectAccessRole, updateProjectAccess } from "./project-access-service.mjs";
-import { copyProject, updateProjectMetadata } from "./project-management-service.mjs";
+import { copyProject, createReportProjectCopy, updateProjectMetadata } from "./project-management-service.mjs";
 import { createAuditEvent, createAuditRepository } from "./studio-audit-repository.mjs";
 import { createAuditOutboxDispatcher } from "./studio-audit-outbox.mjs";
 import { createAuditAnchorDispatcher } from "./studio-audit-anchor-dispatcher.mjs";
@@ -52,6 +53,7 @@ const rootDir = path.resolve(scriptDir, "../../../..");
 const iconRoot = path.join(rootDir, "node_modules/@phosphor-icons/core/assets");
 const aliasesPath = path.resolve(scriptDir, "../data/icon-aliases.zh.json");
 const chartCatalogPath = path.resolve(scriptDir, "../data/chart-catalog.json");
+const palettePath = path.resolve(scriptDir, "../assets/palette.v1.json");
 const componentRegistryPath = path.resolve(scriptDir, "../data/component-registry.json");
 const designStandardsPath = path.resolve(scriptDir, "../data/design-standards.json");
 const port = Number(process.env.PORT || 8765);
@@ -138,6 +140,7 @@ const mimeTypes = new Map([
 
 const aliases = JSON.parse(await readFile(aliasesPath, "utf8"));
 const chartCatalog = JSON.parse(await readFile(chartCatalogPath, "utf8"));
+const dashboardPalette = JSON.parse(await readFile(palettePath, "utf8"));
 const componentRegistry = JSON.parse(await readFile(componentRegistryPath, "utf8"));
 const designStandards = JSON.parse(await readFile(designStandardsPath, "utf8"));
 const regularFiles = await readdir(path.join(iconRoot, "regular"));
@@ -238,6 +241,58 @@ async function sendGenerationEventStream(request, response, generationJobService
   }
 }
 
+function datasetEvent(source) {
+  return {
+    id: encodeURIComponent(String(source.updatedAt || "unknown")),
+    payload: {
+      datasetId: source.id,
+      version: Number(source.semanticModel?.version) || 1,
+      updatedAt: source.updatedAt || null
+    }
+  };
+}
+
+async function sendDatasetEventStream(request, response, dataSourceRepository, dataAccessPolicyService, datasetId, actor) {
+  const initialSource = await dataSourceRepository.get(datasetId);
+  if (!initialSource) return sendJson(response, 404, { error: "Data source not found" });
+  const initial = datasetEvent(dataAccessPolicyService.scope(initialSource, actor).source);
+  const requestedCursor = String(request.headers["last-event-id"] || new URL(request.url, "http://localhost").searchParams.get("after") || "");
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-store",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  response.flushHeaders?.();
+  response.write("retry: 1000\n\n");
+  const initialType = requestedCursor && requestedCursor !== initial.id ? "dataset.updated" : "dataset.snapshot";
+  response.write(`id: ${initial.id}\nevent: ${initialType}\ndata: ${JSON.stringify(initial.payload)}\n\n`);
+  let cursor = initial.id;
+  let closed = false;
+  let lastHeartbeat = Date.now();
+  request.once("close", () => { closed = true; });
+  try {
+    while (!closed) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const currentSource = await dataSourceRepository.get(datasetId);
+      if (!currentSource) break;
+      const current = datasetEvent(dataAccessPolicyService.scope(currentSource, actor).source);
+      if (current.id !== cursor) {
+        cursor = current.id;
+        response.write(`id: ${current.id}\nevent: dataset.updated\ndata: ${JSON.stringify(current.payload)}\n\n`);
+      }
+      if (Date.now() - lastHeartbeat >= 10_000) {
+        response.write(`event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`);
+        lastHeartbeat = Date.now();
+      }
+    }
+  } catch {
+    // Closing the stream lets the browser reconnect without changing data state.
+  } finally {
+    if (!closed && !response.writableEnded) response.end();
+  }
+}
+
 function sendArtifact(response, artifact, { disposition = "attachment", cacheControl = "private, no-cache", headers = {} } = {}) {
   response.writeHead(200, {
     "Content-Type": artifact.mediaType,
@@ -276,131 +331,10 @@ async function readJsonBody(request, maxBytes = 256 * 1024) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-function normalizeChartRequest(input) {
-  const allowedTypes = new Set(chartCatalog.map(({ type }) => type));
-  if (!allowedTypes.has(input.type)) throw new Error("Unsupported chart type");
-  const labels = Array.isArray(input.labels) ? input.labels.slice(0, 100).map(String) : [];
-  const series = Array.isArray(input.series) ? input.series.slice(0, 12).map((item, index) => ({
-    name: String(item?.name || `Series ${index + 1}`).slice(0, 80),
-    values: Array.isArray(item?.values) ? item.values.slice(0, 100).map((value) => Number.isFinite(Number(value)) ? Number(value) : 0) : []
-  })) : [];
-  if (!series.length || !series.some(({ values }) => values.length)) throw new Error("Chart series is required");
-  return {
-    type: input.type,
-    labels,
-    series,
-    mode: input.mode === "dark" ? "dark" : "light",
-    width: Math.max(240, Math.min(1600, Number(input.width) || 720)),
-    height: Math.max(180, Math.min(1000, Number(input.height) || 360)),
-    palette: Array.isArray(input.palette) ? input.palette.slice(0, 12).filter((color) => /^#[0-9a-f]{6}$/i.test(color)) : [],
-    thresholds: Array.isArray(input.thresholds) ? input.thresholds.slice(0, 6).map(Number).filter(Number.isFinite) : [],
-    table: {
-      sort: ["asc", "desc"].includes(input.table?.sort) ? input.table.sort : "none",
-      sortBy: Math.max(0, Math.min(11, Number(input.table?.sortBy) || 0)),
-      limit: Math.max(1, Math.min(20, Number(input.table?.limit) || 8)),
-      summary: input.table?.summary === true,
-      formats: Array.isArray(input.table?.formats) ? input.table.formats.slice(0, 12).map((format) => ({ prefix: String(format?.prefix || "").slice(0, 12), suffix: String(format?.suffix || "").slice(0, 12), decimals: Math.max(0, Math.min(4, Number(format?.decimals) || 0)) })) : [],
-      conditional: input.table?.conditional === true
-    }
-  };
-}
-
-function chartOption({ type, labels, series, palette, mode, width, thresholds = [] }) {
-  const colors = palette.length ? palette : ["#5b8ff9", "#45b8d8", "#43c59e", "#96bf45", "#f3a83b", "#f06b72", "#de72b4", "#9270e8"];
-  const textStyle = { color: mode === "dark" ? "#aeb8c6" : "#71717a", fontFamily: "sans-serif", fontSize: 12 };
-  const axisColor = mode === "dark" ? "#46505f" : "#d4d4d8";
-  const gridColor = mode === "dark" ? "#303947" : "#e4e4e7";
-  const horizontalTypes = new Set(["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"]);
-  const horizontal = horizontalTypes.has(type);
-  const stacked = ["stacked-bar", "percent-stacked-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar"].includes(type);
-  const normalized = type === "percent-stacked-bar" || type === "percent-stacked-horizontal-bar";
-  if (type === "histogram") {
-    const samples = series[0].values.filter(Number.isFinite);
-    const minimum = Math.min(...samples, 0);
-    const maximum = Math.max(...samples, 1);
-    const binCount = Math.max(4, Math.min(12, Math.ceil(Math.sqrt(samples.length))));
-    const binWidth = (maximum - minimum || 1) / binCount;
-    const bins = Array.from({ length: binCount }, (_, index) => ({ start: minimum + index * binWidth, end: minimum + (index + 1) * binWidth, count: 0 }));
-    samples.forEach((value) => bins[Math.min(binCount - 1, Math.max(0, Math.floor((value - minimum) / binWidth)))].count += 1);
-    labels = bins.map(({ start, end }) => `${start.toFixed(1)}-${end.toFixed(1)}`);
-    series = [{ name: series[0].name, values: bins.map(({ count }) => count) }];
-  }
-  if (type === "ranking-bar") {
-    const order = labels.map((label, index) => ({ label, value: Number(series[0]?.values[index]) || 0 })).sort((left, right) => left.value - right.value);
-    labels = order.map(({ label }) => label);
-    series = [{ ...series[0], values: order.map(({ value }) => value) }];
-  }
-  if (type === "diverging-bar") series = series.slice(0, 2).map((item, index) => ({ ...item, values: item.values.map((value) => index === 0 ? -Math.abs(value) : Math.abs(value)) }));
-  if (["pie", "sector-pie", "rose"].includes(type)) {
-    const values = series[0].values;
-    const compact = width < 420;
-    return {
-      animation: false,
-      color: colors,
-      textStyle,
-      tooltip: { show: false },
-      legend: compact ? { show: true, bottom: 0, left: "center", width: "92%", itemWidth: 8, itemHeight: 8, textStyle } : { show: false },
-      series: [{
-        type: "pie",
-        radius: type === "sector-pie" ? (compact ? "56%" : "72%") : type === "rose" ? (compact ? ["18%", "56%"] : ["20%", "72%"]) : compact ? ["34%", "56%"] : ["48%", "72%"],
-        roseType: type === "rose" ? "radius" : undefined,
-        center: compact ? ["50%", "42%"] : ["50%", "50%"],
-        label: compact ? { show: false } : { color: textStyle.color, formatter: "{b}  {d}%" },
-        labelLine: { show: !compact },
-        data: values.map((value, index) => ({ name: labels[index] || `Item ${index + 1}`, value }))
-      }]
-    };
-  }
-  if (type === "radar") {
-    const maximum = Math.max(1, ...series.flatMap(({ values }) => values.map((value) => Number(value) || 0)));
-    return {
-      animation: false, color: colors, textStyle, tooltip: { show: false },
-      legend: { show: series.length > 1, top: 0, textStyle },
-      radar: { center: ["50%", series.length > 1 ? "57%" : "52%"], radius: width < 420 ? "55%" : "66%", splitNumber: 4, indicator: labels.map((name) => ({ name, max: maximum })), axisName: textStyle, splitLine: { lineStyle: { color: gridColor } }, splitArea: { show: false }, axisLine: { lineStyle: { color: axisColor } } },
-      series: [{ type: "radar", symbolSize: 5, areaStyle: { opacity: 0.12 }, data: series.map(({ name, values }) => ({ name, value: labels.map((_, index) => Number(values[index]) || 0) })) }]
-    };
-  }
-  if (type === "funnel") {
-    const values = series[0].values;
-    return {
-      animation: false, color: colors, textStyle, tooltip: { show: false }, legend: { show: false },
-      series: [{ type: "funnel", left: width < 420 ? "8%" : "16%", width: width < 420 ? "84%" : "68%", top: 12, bottom: 12, minSize: "20%", maxSize: "100%", sort: "descending", gap: 2, label: { color: textStyle.color, formatter: "{b}  {c}" }, itemStyle: { borderColor: mode === "dark" ? "#20242c" : "#fff", borderWidth: 1 }, data: values.map((value, index) => ({ name: labels[index] || `Stage ${index + 1}`, value })) }]
-    };
-  }
-  return {
-    animation: false,
-    color: colors,
-    textStyle,
-    tooltip: { show: false },
-    legend: { show: series.length > 1, top: 0, textStyle },
-    grid: horizontal ? { left: width < 420 ? 78 : 110, right: width < 420 ? 14 : 24, top: series.length > 1 ? 42 : 18, bottom: 20 } : { left: width < 420 ? 42 : 48, right: width < 420 ? 12 : 20, top: series.length > 1 ? 42 : 20, bottom: 34 },
-    xAxis: horizontal ? { type: "value", max: normalized ? 100 : undefined, splitLine: { lineStyle: { color: gridColor } }, axisLabel: normalized ? { ...textStyle, formatter: "{value}%" } : type === "diverging-bar" ? { ...textStyle, formatter: (value) => Math.abs(value) } : textStyle } : type === "time-series" ? { type: "time", axisLine: { lineStyle: { color: axisColor } }, axisLabel: { ...textStyle, hideOverlap: true } } : { type: "category", data: labels, axisLine: { lineStyle: { color: axisColor } }, axisTick: { show: false }, axisLabel: { ...textStyle, hideOverlap: true } },
-    yAxis: horizontal ? { type: "category", data: labels, axisLine: { lineStyle: { color: axisColor } }, axisTick: { show: false }, axisLabel: { ...textStyle, width: width < 420 ? 62 : 92, overflow: "truncate" } } : { type: "value", max: normalized ? 100 : undefined, splitLine: { lineStyle: { color: gridColor } }, axisLabel: normalized ? { ...textStyle, formatter: "{value}%" } : textStyle },
-    series: series.map(({ name, values }) => ({
-      name,
-      type: type === "bar" || type === "grouped-bar" || stacked || type === "histogram" || horizontal ? "bar" : "line",
-      stack: stacked || type === "diverging-bar" || type === "gantt" ? "total" : undefined,
-      data: type === "time-series" ? values.map((value, index) => [labels[index], value]) : normalized ? values.map((value, index) => {
-        const total = series.reduce((sum, item) => sum + (Number(item.values[index]) || 0), 0);
-        return total ? Number(value) / total * 100 : 0;
-      }) : values,
-      smooth: type === "area",
-      symbol: "circle",
-      symbolSize: 6,
-      lineStyle: { width: 2 },
-      areaStyle: type === "area" ? { opacity: 0.18 } : undefined,
-      barGap: type === "histogram" ? "0%" : undefined,
-      barCategoryGap: type === "histogram" ? "0%" : undefined,
-      barMaxWidth: horizontal ? 24 : type === "histogram" ? 56 : 32,
-      itemStyle: type === "gantt" && name === series[0]?.name ? { color: "transparent" } : type === "ranking-bar" ? { borderRadius: [0, 4, 4, 0] } : type === "bar" || type === "grouped-bar" || type === "histogram" ? { borderRadius: type === "histogram" ? 0 : [4, 4, 0, 0] } : horizontal ? { borderRadius: [0, 4, 4, 0] } : undefined,
-      label: type === "ranking-bar" ? { show: true, position: "insideLeft", formatter: ({ dataIndex }) => `${labels.length - dataIndex}` } : undefined
-      ,markLine: type === "time-series" && thresholds.length ? { silent: true, symbol: "none", lineStyle: { type: "dashed" }, data: thresholds.map((yAxis) => ({ yAxis })) } : undefined
-    }))
-  };
-}
 
 function renderChartSvg(input) {
-  const config = normalizeChartRequest(input);
+  const spec = normalizeChartSpec(input, { chartTypes: chartCatalog.map(({ type }) => type), defaultPalette: dashboardPalette.categorical });
+  const config = chartSpecRenderConfig(spec);
   if (config.type === "data-table") {
     const escapeXml = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
     const background = config.mode === "dark" ? "#20242c" : "#ffffff"; const text = config.mode === "dark" ? "#f4f6f8" : "#27272a"; const muted = config.mode === "dark" ? "#aeb8c6" : "#71717a"; const line = config.mode === "dark" ? "#343b47" : "#e4e4e7";
@@ -414,7 +348,7 @@ function renderChartSvg(input) {
   }
   const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: config.width, height: config.height });
   try {
-    chart.setOption(chartOption(config));
+    chart.setOption(createEchartsOption(spec));
     return chart.renderToSVGString()
       .replace(/<script\b[\s\S]*?<\/script>/gi, "")
       .replace(/<foreignObject\b[\s\S]*?<\/foreignObject>/gi, "")
@@ -443,6 +377,12 @@ async function serveFile(response, filePath, cacheControl = null) {
 }
 
 async function serveStatic(response, pathname, studioWebRoot = null) {
+  if (pathname === "/vendor/echarts.mjs") {
+    const vendorPath = studioWebRoot
+      ? path.join(studioWebRoot, "vendor/echarts.mjs")
+      : path.join(rootDir, "node_modules/echarts/dist/echarts.esm.min.mjs");
+    return serveFile(response, vendorPath, "public, max-age=31536000, immutable");
+  }
   if (studioWebRoot && (pathname === "/" || pathname.startsWith("/studio/"))) {
     const decoded = decodeURIComponent(pathname);
     const requested = pathname === "/" ? "/index.html" : pathname === "/studio/resources" ? "/studio/resources.html" : decoded;
@@ -712,7 +652,13 @@ export async function handlePreviewRequest(request, response, { provider = defau
       return svg ? sendJson(response, 200, { name, weight, svg }) : sendJson(response, 404, { error: "Icon not found" });
     }
     if (url.pathname === "/api/charts/catalog") {
-      return sendJson(response, 200, { charts: searchCharts(url.searchParams.get("q") || "") });
+      return sendJson(response, 200, {
+        charts: searchCharts(url.searchParams.get("q") || ""),
+        palette: {
+          version: dashboardPalette.version,
+          categorical: dashboardPalette.categorical
+        }
+      });
     }
     if (url.pathname === "/api/components/catalog" && request.method === "GET") {
       return sendJson(response, 200, {
@@ -835,7 +781,7 @@ export async function handlePreviewRequest(request, response, { provider = defau
       const shareToken = body.visibility === "unlisted" ? createShareToken() : null;
       const now = new Date().toISOString();
       const requiresApproval = publicationApprovalPolicy.requiresApproval(actor);
-      const publication = createPublication({ id: body.id, project, revisionId, dataSources, visibility: body.visibility, shareToken, status: requiresApproval ? "pending" : "published", approval: requiresApproval ? { requestedAt: now, requestedBy: actor.id } : null, now });
+      const publication = createPublication({ id: body.id, project, revisionId, dataSources, visibility: body.visibility, shareToken, status: requiresApproval ? "pending" : "published", approval: requiresApproval ? { requestedAt: now, requestedBy: actor.id } : null, renderChartSvg, now });
       await publicationRepository.put(publication, { outbox: ({ next }) => createAuditEvent({ action: requiresApproval ? "publication.submitted" : "publication.published", actor, projectId: next.projectId, organizationId: project.organizationId || actor.organizationId, details: { publicationId: next.id, revisionId: next.revisionId, visibility: next.access.visibility } }) });
       await publicationAuditOutbox?.flush().catch(() => {});
       const sharePath = body.visibility === "private" ? null : `/p/${encodeURIComponent(publication.id)}${shareToken ? `?token=${encodeURIComponent(shareToken)}` : ""}`;
@@ -1006,6 +952,10 @@ export async function handlePreviewRequest(request, response, { provider = defau
       dataAccessPolicyService.scope(source, actor);
       return sendJson(response, 200, { schedule: await refreshScheduleService.upsert({ ...(await readJsonBody(request)), datasetId }) });
     }
+    if (url.pathname.startsWith("/api/data-sources/") && url.pathname.endsWith("/events") && request.method === "GET") {
+      const datasetId = decodeURIComponent(url.pathname.slice("/api/data-sources/".length, -"/events".length));
+      return sendDatasetEventStream(request, response, dataSourceRepository, dataAccessPolicyService, datasetId, actor);
+    }
     if (url.pathname.startsWith("/api/data-sources/") && url.pathname.endsWith("/query") && request.method === "POST") {
       const id = decodeURIComponent(url.pathname.slice("/api/data-sources/".length, -"/query".length));
       const source = await dataSourceRepository.get(id);
@@ -1038,7 +988,35 @@ export async function handlePreviewRequest(request, response, { provider = defau
       const stored = await projectRepository.update(project.id, {
         expectedRevisionId: null,
         seed: project,
+        uniqueName: { organizationId: actor.organizationId },
         outbox: ({ next }) => createAuditEvent({ action: "project.copied", actor, projectId: next.id, organizationId: next.organizationId, details: { sourceProjectId: source.id, sourceRevisionId: body.revisionId || source.currentRevisionId } })
+      }, (seed) => seed);
+      await auditOutbox.flush().catch(() => {});
+      return sendJson(response, 201, { project: stored, accessRole: projectAccessRole(stored, actor) });
+    }
+    if (url.pathname.startsWith("/api/projects/") && url.pathname.endsWith("/report-copy") && request.method === "POST") {
+      const sourceId = decodeURIComponent(url.pathname.slice("/api/projects/".length, -"/report-copy".length));
+      const source = await projectRepository.get(sourceId);
+      if (!source) return sendJson(response, 404, { error: "Project not found" });
+      authorizeProject(source, actor, "read");
+      const body = await readJsonBody(request);
+      if (await projectRepository.get(body.id)) throw new ContractError("Project id already exists", [{ path: "/id", code: "conflict", message: "Choose another project id" }]);
+      const project = await createReportProjectCopy(source, {
+        id: body.id,
+        name: body.name,
+        ownerId: actor.id,
+        organizationId: actor.organizationId,
+        revisionId: body.revisionId,
+        resolveDataset: async (datasetId) => {
+          const dataset = await dataSourceRepository.get(datasetId);
+          return dataset ? dataAccessPolicyService.scope(dataset, actor).source : null;
+        }
+      });
+      const stored = await projectRepository.update(project.id, {
+        expectedRevisionId: null,
+        seed: project,
+        uniqueName: { organizationId: actor.organizationId },
+        outbox: ({ next }) => createAuditEvent({ action: "project.report-created", actor, projectId: next.id, organizationId: next.organizationId, details: { sourceProjectId: source.id, sourceRevisionId: body.revisionId || source.currentRevisionId } })
       }, (seed) => seed);
       await auditOutbox.flush().catch(() => {});
       return sendJson(response, 201, { project: stored, accessRole: projectAccessRole(stored, actor) });
@@ -1060,6 +1038,21 @@ export async function handlePreviewRequest(request, response, { provider = defau
       await auditOutbox.flush().catch(() => {});
       return sendJson(response, 200, { project, accessRole: projectAccessRole(project, actor) });
     }
+    if (url.pathname.startsWith("/api/projects/") && request.method === "DELETE") {
+      const projectId = decodeURIComponent(url.pathname.slice("/api/projects/".length));
+      const existing = await projectRepository.get(projectId);
+      if (!existing) return sendJson(response, 404, { error: "Project not found" });
+      authorizeProject(existing, actor, "manage");
+      const body = await readJsonBody(request);
+      for (const publication of (await publicationRepository.list()).filter((item) => item.projectId === projectId && item.status !== "revoked")) {
+        await publicationRepository.update(publication.id, {
+          outbox: ({ next }) => createAuditEvent({ action: "publication.revoked", actor, projectId, organizationId: existing.organizationId || actor.organizationId, details: { publicationId: next.id, reason: "project-deleted" } })
+        }, (current) => revokePublication(current));
+      }
+      const deleted = await projectRepository.remove(projectId, { expectedUpdatedAt: body.expectedUpdatedAt });
+      await auditRepository.append(createAuditEvent({ action: "project.deleted", actor, projectId: deleted.id, organizationId: deleted.organizationId || actor.organizationId, details: { name: deleted.name } })).catch(() => {});
+      return sendJson(response, 200, { deleted: { id: deleted.id, name: deleted.name } });
+    }
     if (url.pathname.startsWith("/api/projects/") && request.method === "PATCH") {
       const projectId = decodeURIComponent(url.pathname.slice("/api/projects/".length));
       const existing = await projectRepository.get(projectId);
@@ -1070,6 +1063,7 @@ export async function handlePreviewRequest(request, response, { provider = defau
       const action = body.status === "archived" ? "project.archived" : body.status === "active" ? "project.restored" : "project.renamed";
       const project = await projectRepository.update(projectId, {
         expectedUpdatedAt: body.expectedUpdatedAt,
+        uniqueName: body.name !== undefined ? { organizationId: existing.organizationId || actor.organizationId } : null,
         outbox: ({ next }) => createAuditEvent({ action, actor, projectId: next.id, organizationId: next.organizationId || actor.organizationId, details: body.name !== undefined ? { name: next.name } : { status: next.status } })
       }, (current) => updateProjectMetadata(current, body));
       await auditOutbox.flush().catch(() => {});
@@ -1086,6 +1080,7 @@ export async function handlePreviewRequest(request, response, { provider = defau
       const project = await projectRepository.update(projectId, {
         expectedRevisionId: body.expectedRevisionId,
         seed,
+        uniqueName: !existing ? { organizationId: actor.organizationId } : null,
         outbox: !existing ? ({ next }) => createAuditEvent({ action: "project.created", actor, projectId: next.id, organizationId: next.organizationId || actor.organizationId, details: { source: "manual" } }) : null
       }, (projectBase) => appendProjectRevision(projectBase, {
         id: body.revisionId,
@@ -1123,7 +1118,7 @@ export async function handlePreviewRequest(request, response, { provider = defau
       if (!project) return sendJson(response, 404, { error: "Project not found" });
       authorizeProject(project, actor, "read");
       const { revisionId } = await readJsonBody(request);
-      return sendArtifact(response, exportProjectRevision(project, revisionId || project.currentRevisionId));
+      return sendArtifact(response, exportProjectRevision(project, revisionId || project.currentRevisionId, { renderChartSvg }));
     }
     if (url.pathname.startsWith("/api/projects/") && request.method === "GET") {
       const project = await projectRepository.get(decodeURIComponent(url.pathname.slice("/api/projects/".length)));
@@ -1156,6 +1151,7 @@ export async function handlePreviewRequest(request, response, { provider = defau
       const project = await projectRepository.update(id, {
         expectedRevisionId,
         seed,
+        uniqueName: !storedProject ? { organizationId: actor.organizationId } : null,
         outbox: !storedProject ? ({ next }) => createAuditEvent({ action: "project.created", actor, projectId: next.id, organizationId: next.organizationId || actor.organizationId, details: { source: "agent" } }) : null
       }, (projectBase) => {
         if (projectBase.currentRevisionId) committed.revision.parentRevisionId = projectBase.currentRevisionId;

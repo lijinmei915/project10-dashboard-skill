@@ -50,7 +50,10 @@ const domainProfiles = [
 ];
 
 const explicitChartTypeRules = [
+  ["combo-bar-line", /柱(?:状)?图.{0,8}(?:叠加|加上|搭配|和).{0,8}折线图|折线图.{0,8}(?:叠加|加上|搭配|和).{0,8}柱(?:状)?图|柱线(?:复合|组合)图|组合图|复合图|双轴图|combo\s*(?:bar|column)\s*[-+&/]\s*line/i],
   ["data-table", /数据表|明细表|表格图表|data\s*table/i],
+  ["bullet", /子弹图|目标达成图|bullet\s*chart/i],
+  ["gauge", /仪表盘图?|进度仪表|gauge\s*chart/i],
   ["radar", /雷达图|蛛网图|radar\s*chart/i],
   ["funnel", /漏斗图|转化漏斗|funnel\s*chart/i],
   ["time-series", /时序图|时间序列图|time\s*series/i],
@@ -74,7 +77,10 @@ const explicitChartTypeRules = [
 ];
 
 const semanticChartTypeRules = [
+  ["combo-bar-line", /柱线复合|柱线组合|柱状.{0,8}折线|折线.{0,8}柱状|双指标.{0,8}(?:柱|折线)|双轴/],
   ["data-table", /精确值|多字段对照|明细数据|逐行查看/],
+  ["bullet", /实际.{0,6}目标|目标.{0,6}实际|绩效区间|目标达成对比/],
+  ["gauge", /单个(?:完成率|达成率|健康分|风险等级|目标进度)|(?:完成率|达成率|健康分|风险等级|目标进度).{0,8}(?:区间|阈值|目标)/],
   ["radar", /能力模型|能力画像|多维对比|指标画像/],
   ["funnel", /转化路径|阶段流失|销售漏斗|逐层转化/],
   ["time-series", /时间轴|监控趋势|阈值趋势|按时间戳/],
@@ -426,7 +432,8 @@ function selectProfile(prompt) {
 }
 
 function inferPageType(prompt, requested) {
-  if (["dashboard", "report"].includes(requested)) return requested;
+  if (["dashboard", "analysis-report", "report"].includes(requested)) return requested;
+  if (/在线分析报告|在线报告|可刷新报告|实时报告/.test(prompt)) return "analysis-report";
   return /报告|复盘|总结|分析/.test(prompt) && !/看板|监控/.test(prompt) ? "report" : "dashboard";
 }
 
@@ -501,11 +508,11 @@ function buildSampleRecords(profile) {
 
 function buildDocument(profile, request, pageType, dataContexts = []) {
   const requestedTitle = request.prompt.match(/(?:叫做|标题为|名称为)[“‘"']?([^。，“”‘’"']{2,30})/)?.[1]?.trim();
-  const title = requestedTitle || `${profile.title}${pageType === "report" ? "报告" : ""}`;
+  const title = requestedTitle || `${profile.title}${["analysis-report", "report"].includes(pageType) ? "报告" : ""}`;
   const sampleDataLabel = request.dataInputs.some(({ kind }) => kind !== "sample") ? undefined : "示例数据";
   const dataRef = request.dataInputs[0]?.id || "primary-data";
   const importedContext = dataContexts[0];
-  const bindData = request.dataInputs.every(({ kind }) => kind === "sample") || Boolean(importedContext?.portableDataset);
+  const bindData = request.dataInputs.every(({ kind }) => kind === "sample") || Boolean(importedContext?.portableDataset) || (["dashboard", "analysis-report"].includes(pageType) && Boolean(importedContext));
   const semanticMetrics = importedContext?.context.semanticModel?.metrics ?? [];
   const semanticDimensions = importedContext?.context.semanticModel?.dimensions ?? [];
   const metricFields = semanticMetrics.length ? semanticMetrics : [{ fieldId: "priorityCustomers", aggregation: "sum", format: { suffix: " 家" } }, { fieldId: "opportunityValue", aggregation: "sum", format: { suffix: " 万" } }, { fieldId: "conversionRate", aggregation: "average", format: { suffix: "%", maximumFractionDigits: 1 } }];
@@ -514,16 +521,27 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
   const chartCategoryFieldFromData = semanticDimensions[0]?.fieldId || "periodLabel";
   const tableFields = importedContext?.context.fields.slice(0, 4) ?? [];
   const chartType = inferChartType(request.prompt);
+  const supportsSingleMetricBinding = !["bullet", "combo-bar-line"].includes(chartType);
   const asksForTimeSeries = /最近|趋势|走势|时间|周|月|季度|年度/.test(request.prompt);
-  const usesCompositionCategories = ["pie", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "radar", "funnel"].includes(chartType)
+  const usesCompositionCategories = ["pie", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "bullet", "radar", "funnel"].includes(chartType)
     || (!asksForTimeSeries && /渠道|来源|分类|排行|排名|对比|分布/.test(request.prompt));
   const chartCategoryField = importedContext ? chartCategoryFieldFromData : usesCompositionCategories ? "sourceName" : "periodLabel";
-  const chartTitle = chartType === "pie" ? profile.rankingTitle.replace(/\s*Top\s*5/i, "构成") : usesCompositionCategories ? profile.rankingTitle : profile.trendTitle;
-  const chartSubtitle = chartType === "pie" ? "本周期贡献占比" : usesCompositionCategories ? "各分类对比" : "最近 7 个周期";
+  const chartTitle = chartType === "combo-bar-line" ? "收入与转化率趋势" : chartType === "gauge" ? "目标完成率" : chartType === "bullet" ? "目标达成对比" : chartType === "pie" ? profile.rankingTitle.replace(/\s*Top\s*5/i, "构成") : usesCompositionCategories ? profile.rankingTitle : profile.trendTitle;
+  const chartSubtitle = chartType === "combo-bar-line" ? "金额柱状图与转化率折线图" : chartType === "gauge" ? "当前进度与目标区间" : chartType === "bullet" ? "实际值、目标线与绩效区间" : chartType === "pie" ? "本周期贡献占比" : usesCompositionCategories ? "各分类对比" : "最近 7 个周期";
   const metricBindings = [
     { kind: "aggregate", operation: metricFields[0].aggregation, field: metricFields[0].fieldId, format: metricFields[0].format },
     { kind: "aggregate", operation: chartMetric.aggregation, field: chartMetric.fieldId, format: chartMetric.format },
     { kind: "aggregate", operation: (metricFields[2] || metricFields[0]).aggregation, field: (metricFields[2] || metricFields[0]).fieldId, format: (metricFields[2] || metricFields[0]).format }
+  ];
+  const trendCategoryField = importedContext ? semanticDimensions[0]?.fieldId : "periodLabel";
+  const trendBindings = metricFields.slice(0, 3).map((metric) => trendCategoryField ? ({
+    kind: "series", categoryField: trendCategoryField, valueField: metric.fieldId, operation: metric.aggregation, limit: 7
+  }) : null);
+  const sampleSparklineLabels = ["第 1 周", "第 2 周", "第 3 周", "第 4 周", "第 5 周", "第 6 周", "第 7 周"];
+  const sampleSparklineValues = [
+    [52, 56, 55, 61, 63, 65, 68],
+    [720, 810, 780, 890, 940, 1030, 1110],
+    [23.4, 24.8, 24.1, 26.2, 27.5, 28.4, 29.7]
   ];
   const totals = importedContext?.context.querySnapshots?.totals?.rows?.[0] || [];
   const totalColumns = importedContext?.context.querySnapshots?.totals?.columns || [];
@@ -547,9 +565,12 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
   const seriesValueIndex = snapshotColumnIndex(seriesColumns, chartMetric.id, 1);
   const seriesValues = seriesRows.map((row) => Number(row[seriesValueIndex]) || 0);
   const seriesLabels = seriesRows.map((row) => String(row[seriesCategoryIndex] ?? ""));
-  const multiSeriesChart = ["grouped-bar", "stacked-bar", "percent-stacked-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "radar"].includes(chartType);
-  const sampleChartLabels = ["华东", "华南", "华北", "西部"];
-  const sampleChartSeries = multiSeriesChart ? [
+  const multiSeriesChart = ["grouped-bar", "stacked-bar", "percent-stacked-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "bullet", "radar", "combo-bar-line"].includes(chartType);
+  const sampleChartLabels = chartType === "gauge" ? ["完成率"] : ["华东", "华南", "华北", "西部"];
+  const sampleChartSeries = chartType === "combo-bar-line" ? [{ name: "收入", values: [128, 156, 142, 188, 214, 246, 268] }, { name: "转化率", values: [18, 21, 20, 25, 27, 30, 33] }] : chartType === "gauge" ? [{ name: "目标完成率", values: [76.8] }] : chartType === "bullet" ? [
+    { name: "实际", values: [82, 68, 91, 74] },
+    { name: "目标", values: [90, 75, 88, 85] }
+  ] : multiSeriesChart ? [
     { name: "本期", values: [42, 36, 31, 24] },
     { name: "上期", values: [34, 29, 27, 21] },
     { name: "目标", values: [18, 22, 16, 20] }
@@ -575,14 +596,23 @@ function buildDocument(profile, request, pageType, dataContexts = []) {
         id: "metrics",
         title: "核心指标",
         subtitle: sampleDataLabel || "当前周期",
-        components: profile.metrics.map(([id, titleText, value, trend], index) => ({ id, type: "kpi", title: metricFields[index]?.label || titleText, subtitle: trend, dataRef, ...(bindData ? { binding: metricBindings[index] } : {}), props: { value: importedContext ? metricValue(index, value) : value, trend } }))
+        components: profile.metrics.map(([id, titleText, value, trend], index) => ({
+          id, type: "kpi", title: metricFields[index]?.label || titleText, subtitle: trend, dataRef,
+          ...(bindData ? { binding: metricBindings[index] } : {}),
+          ...(bindData && trendBindings[index] ? { trendBinding: trendBindings[index] } : {}),
+          props: {
+            value: importedContext ? metricValue(index, value) : value,
+            trend,
+            ...(sampleDataLabel ? { sparkline: { labels: sampleSparklineLabels, values: sampleSparklineValues[index] || sampleSparklineValues[0], unit: metricFields[index]?.format?.suffix?.trim() || "" } } : {})
+          }
+        }))
       },
       {
         id: "trends",
         title: "趋势与来源",
         subtitle: sampleDataLabel || "最近周期",
         components: [
-          { id: "opportunity-trend", type: "chart", title: chartTitle, subtitle: chartSubtitle, dataRef, ...(bindData ? { binding: { kind: "series", categoryField: chartCategoryField, valueField: chartValueField, operation: chartMetric.aggregation } } : {}), props: { chartType, labels: importedContext ? seriesLabels : sampleChartLabels, values: importedContext ? seriesValues : sampleChartSeries?.[0]?.values || [], ...(sampleChartSeries ? { series: sampleChartSeries } : {}) } },
+          { id: "opportunity-trend", type: "chart", title: chartTitle, subtitle: chartSubtitle, ...(supportsSingleMetricBinding ? { dataRef, ...(bindData ? { binding: { kind: "series", categoryField: chartCategoryField, valueField: chartValueField, operation: chartMetric.aggregation } } : {}) } : {}), props: { chartType, labels: supportsSingleMetricBinding && importedContext ? seriesLabels : sampleChartLabels, values: supportsSingleMetricBinding && importedContext ? seriesValues : sampleChartSeries?.[0]?.values || [], ...(sampleChartSeries ? { series: sampleChartSeries } : {}), ...(chartType === "combo-bar-line" ? { combo: { dualAxis: true, barUnit: "万元", lineUnit: "%" } } : {}), ...(chartType === "gauge" ? { gauge: { min: 0, max: 100, unit: "%", precision: 1, thresholds: [60, 85] } } : {}), ...(chartType === "bullet" ? { bullet: { min: 0, max: 120, unit: "%", precision: 0, ranges: [60, 85, 100] } } : {}) } },
           { id: "source-ranking", type: "list", title: profile.rankingTitle, subtitle: "本周期贡献占比", dataRef, ...(bindData ? { binding: { kind: "ranking", labelField: chartCategoryField, valueField: chartValueField, operation: chartMetric.aggregation, limit: 5 } } : {}), props: { items: importedContext && seriesRows.length ? groundedRankingItems.slice(0, 5) : profile.rankingItems.map((label, index) => ({ label, value: [92, 78, 66, 57, 44][index] })) } }
         ]
       },
@@ -639,12 +669,36 @@ export function createDeterministicDraft(input, baseWorkspace, { dataContexts = 
   const portableDataset = request.dataInputs.every(({ kind }) => kind === "sample")
     ? { [dataRef]: { portable: true, records: buildSampleRecords(profile) } }
     : dataContexts[0]?.portableDataset ? { [dataRef]: dataContexts[0].portableDataset } : null;
+  const onlineDataset = !portableDataset && ["dashboard", "analysis-report"].includes(pageType) && dataContexts[0]
+    ? { [dataRef]: { portable: false } }
+    : null;
+  if (onlineDataset) for (const component of document.sections.flatMap(({ components }) => components)) {
+    if (component.binding && component.dataRef === dataRef) component.props.refreshPolicy = { mode: "dataset-event", pauseWhenHidden: true };
+  }
   const cardOverrides = Object.fromEntries(Object.entries(baseline.theme.cardOverrides ?? {}).map(([cardId, override]) => {
     const next = { ...override };
     delete next.chartType;
     return [cardId, next];
   }).filter(([, override]) => Object.keys(override).length));
   const generatedChart = document.sections.flatMap(({ components }) => components).find(({ type }) => type === "chart");
+  if (pageType === "dashboard" && generatedChart && /点击.*联动|图表联动|交叉筛选|cross.?filter/i.test(request.prompt)) {
+    generatedChart.props.selection = {
+      enabled: true,
+      targetScope: /当前图表|仅.*图表/.test(request.prompt) ? "component" : /当前分组|分组内/.test(request.prompt) ? "section" : "page"
+    };
+  }
+  if (pageType === "dashboard" && generatedChart && /下钻|层级分析|drill.?down/i.test(request.prompt)) {
+    const semantic = dataContexts[0]?.context?.semanticModel;
+    const hierarchy = semantic?.hierarchies?.[0];
+    const dimensions = new Map((semantic?.dimensions || []).map((dimension) => [dimension.id, dimension]));
+    const levels = hierarchy?.levels?.map((id) => dimensions.get(id)).filter(Boolean) || [];
+    if (hierarchy && levels.length === hierarchy.levels.length && generatedChart.binding?.categoryField === levels[0].fieldId) generatedChart.props.drilldown = {
+      enabled: true,
+      hierarchyId: hierarchy.id,
+      targetScope: /整页|全局/.test(request.prompt) ? "page" : /当前分组|分组内/.test(request.prompt) ? "section" : "component",
+      levels: levels.map(({ fieldId, label }) => ({ field: fieldId, label }))
+    };
+  }
   if (["pie", "sector-pie", "rose", "radar", "funnel"].includes(generatedChart?.props.chartType) && !cardOverrides[generatedChart.id]?.chartPalette) {
     cardOverrides[generatedChart.id] = { ...(cardOverrides[generatedChart.id] ?? {}), chartPalette: "categorical" };
   }
@@ -662,7 +716,7 @@ export function createDeterministicDraft(input, baseWorkspace, { dataContexts = 
   };
   const preservedResources = { ...(baseline.resources ?? {}) };
   delete preservedResources.datasets;
-  if (portableDataset) workspace.resources = { ...preservedResources, datasets: portableDataset };
+  if (portableDataset || onlineDataset) workspace.resources = { ...preservedResources, datasets: portableDataset || onlineDataset };
   else if (Object.keys(preservedResources).length) workspace.resources = preservedResources;
   else delete workspace.resources;
   if (!document.controls?.length) delete workspace.interactions;

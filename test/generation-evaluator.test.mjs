@@ -84,7 +84,7 @@ test("generation evaluator rejects unknown bindings and ungrounded visible value
   assert.equal(rejected.checks.find(({ name }) => name === "grounding-visible-values").passed, false);
 });
 
-test("generation evaluator keeps non-portable data snapshot-only and rejects record leakage", () => {
+test("generation evaluator keeps non-portable Dashboard data online without record leakage", () => {
   const source = parseDataSource({
     id: "secure-sales",
     name: "Secure sales",
@@ -112,8 +112,9 @@ test("generation evaluator keeps non-portable data snapshot-only and rejects rec
     expect: { pageType: "dashboard", provenance: "real", grounding: { dataRef: "secure-sales", portable: false } }
   };
   const components = run.preview.workspace.document.sections.flatMap(({ components: items }) => items);
-  assert.equal(components.some(({ binding }) => binding), false);
-  assert.equal(run.preview.workspace.resources?.datasets, undefined);
+  assert.equal(components.every(({ type, binding }) => !["kpi", "chart", "list", "table"].includes(type) || binding), true);
+  assert.equal(components.filter(({ binding }) => binding).every(({ props }) => JSON.stringify(props.refreshPolicy) === JSON.stringify({ mode: "dataset-event", pauseWhenHidden: true })), true);
+  assert.deepEqual(run.preview.workspace.resources?.datasets?.["secure-sales"], { portable: false });
   assert.equal(scoreGenerationCase(definition, run, { dataContext }).passed, true);
 
   const leaked = structuredClone(run);

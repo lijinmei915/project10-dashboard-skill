@@ -44,6 +44,7 @@
                     "subtitle": { "type": "string", "maxLength": 240 },
                     "dataRef": { "type": "string", "minLength": 1 },
                     "binding": { "$ref": "#/$defs/dataBinding" },
+                    "trendBinding": { "$ref": "#/$defs/seriesBinding" },
                     "props": { "type": "object" }
                   },
                   "allOf": [
@@ -54,6 +55,17 @@
                           "props": {
                             "type": "object",
                             "properties": { "chartType": { "$ref": "#/$defs/chartType" } }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": { "properties": { "type": { "const": "kpi" } }, "required": ["type"] },
+                      "then": {
+                        "properties": {
+                          "props": {
+                            "type": "object",
+                            "properties": { "sparkline": { "$ref": "#/$defs/kpiSparkline" } }
                           }
                         }
                       }
@@ -74,7 +86,7 @@
       "required": ["preset", "pageType", "language", "accent", "mode"],
       "properties": {
         "preset": { "type": "string", "minLength": 1 },
-        "pageType": { "enum": ["dashboard", "report"] },
+        "pageType": { "enum": ["dashboard", "analysis-report", "report"] },
         "language": { "enum": ["zh", "en"] },
         "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "mode": { "enum": ["light", "dark"] },
@@ -149,13 +161,13 @@
     },
     "resources": {
       "type": "object",
-      "description": "Optional portable resource metadata. Heavy indexes and libraries never belong here.",
+      "description": "Optional portable datasets or online dataset identities. Heavy indexes and libraries never belong here.",
       "properties": {
         "datasets": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
-            "required": ["records", "portable"],
+            "required": ["portable"],
             "properties": {
               "portable": { "type": "boolean" },
               "records": {
@@ -167,6 +179,13 @@
                 }
               }
             },
+            "allOf": [
+              {
+                "if": { "properties": { "portable": { "const": true } }, "required": ["portable"] },
+                "then": { "required": ["records"] },
+                "else": { "properties": { "records": { "maxItems": 0 } } }
+              }
+            ],
             "additionalProperties": false
           }
         },
@@ -214,6 +233,19 @@
             "type": "object",
             "additionalProperties": { "type": "boolean" }
           }
+        },
+        "chartSelections": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "drilldowns": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["path"],
+            "properties": { "path": { "type": "array", "maxItems": 7, "items": { "type": ["string", "number", "boolean"] } } },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
@@ -221,7 +253,7 @@
   },
   "additionalProperties": false,
   "$defs": {
-    "chartType": { "enum": ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"] },
+    "chartType": { "enum": ["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"] },
     "identifier": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "numberFormat": {
       "type": "object",
@@ -251,7 +283,18 @@
         "kind": { "const": "series" },
         "categoryField": { "$ref": "#/$defs/identifier" },
         "valueField": { "$ref": "#/$defs/identifier" },
-        "operation": { "enum": ["sum", "average", "min", "max", "count"] }
+        "operation": { "enum": ["sum", "average", "min", "max", "count"] },
+        "limit": { "type": "integer", "enum": [7, 12, 30] }
+      },
+      "additionalProperties": false
+    },
+    "kpiSparkline": {
+      "type": "object",
+      "required": ["labels", "values"],
+      "properties": {
+        "labels": { "type": "array", "minItems": 2, "maxItems": 30, "items": { "type": "string" } },
+        "values": { "type": "array", "minItems": 2, "maxItems": 30, "items": { "type": "number" } },
+        "unit": { "type": "string", "maxLength": 20 }
       },
       "additionalProperties": false
     },

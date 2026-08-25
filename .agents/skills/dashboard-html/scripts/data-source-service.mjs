@@ -199,7 +199,7 @@ export function inferSemanticModel(fields, { version = 1 } = {}) {
       });
     }
   }
-  return { version, dimensions, metrics };
+  return { version, dimensions, metrics, hierarchies: [] };
 }
 
 function strictCoerce(value, type, field) {
@@ -266,7 +266,18 @@ export function normalizeSemanticModel(input, fields, version = 1) {
     const format = normalizeMetricFormat(metric.format, metricFormat(field));
     return { id: semanticId("metric", field.id), fieldId: field.id, label: String(metric.label || field.label).slice(0, 80), aggregation, format };
   });
-  return { version, dimensions, metrics };
+  const dimensionIds = new Set(dimensions.map(({ id }) => id));
+  const hierarchyIds = new Set();
+  const hierarchies = (input.hierarchies || []).map((hierarchy, index) => {
+    const id = String(hierarchy.id || "");
+    if (!/^[a-z][a-z0-9-]*$/.test(id) || hierarchyIds.has(id)) fail("层级 ID 无效或重复", `/semanticModel/hierarchies/${index}/id`, "unique");
+    hierarchyIds.add(id);
+    const levels = Array.isArray(hierarchy.levels) ? hierarchy.levels.map(String) : [];
+    if (levels.length < 2 || levels.length > 8 || new Set(levels).size !== levels.length) fail("层级必须包含 2 到 8 个不重复维度", `/semanticModel/hierarchies/${index}/levels`, "range");
+    for (const [levelIndex, dimensionId] of levels.entries()) if (!dimensionIds.has(dimensionId)) fail(`层级维度 ${dimensionId} 不存在`, `/semanticModel/hierarchies/${index}/levels/${levelIndex}`, "reference");
+    return { id, label: String(hierarchy.label || id).slice(0, 80), levels };
+  });
+  return { version, dimensions, metrics, hierarchies };
 }
 
 function qualityIssues(field, rowCount) {

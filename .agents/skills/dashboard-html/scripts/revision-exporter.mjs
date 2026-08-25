@@ -22,7 +22,7 @@ function points(values, width = 640, height = 220) {
   ]);
 }
 
-function chartSvg(component, workspace) {
+function chartSvg(component, workspace, renderChartSvg) {
   const resource = workspace.resources?.charts?.[component.id] ?? {};
   const type = component.props.chartType || resource.type || "bar";
   const labels = component.props.labels ?? resource.labels ?? [];
@@ -30,6 +30,24 @@ function chartSvg(component, workspace) {
   const visibility = workspace.interactions?.chartSeriesVisibility?.[component.id] ?? {};
   const visibleSeries = allSeries.filter(({ name }) => visibility[name] !== false);
   const series = visibleSeries.length ? visibleSeries : allSeries;
+  if (typeof renderChartSvg === "function" && type !== "data-table") {
+    try {
+      const svg = renderChartSvg({
+        type,
+        labels,
+        series,
+        thresholds: component.props.thresholds ?? resource.thresholds ?? [],
+        gauge: component.props.gauge ?? resource.gauge ?? {},
+        bullet: component.props.bullet ?? resource.bullet ?? {},
+        mode: workspace.theme.mode,
+        width: 640,
+        height: 220
+      });
+      if (/^<svg\b/i.test(svg)) return svg.replace(/^<svg\b/, `<svg class="chart" role="img" aria-label="${escapeHtml(component.title)}" data-chart-renderer="echarts-ssr"`);
+    } catch {
+      // Portable exports keep the deterministic local SVG fallback when host SSR is unavailable.
+    }
+  }
   let values = series[0]?.values ?? [];
   let chartLabels = labels;
   if (type === "histogram" && values.length) {
@@ -44,7 +62,18 @@ function chartSvg(component, workspace) {
   const horizontalTypes = ["horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt"];
   const labelNodes = horizontalTypes.includes(type) ? "" : chartLabels.map((label, index) => `<text x="${coords[index]?.[0] ?? 28}" y="212" text-anchor="middle">${escapeHtml(label)}</text>`).join("");
   let shape;
-  if (type === "data-table") {
+  if (type === "gauge") {
+    const config = component.props.gauge ?? resource.gauge ?? {};
+    const min = Number.isFinite(Number(config.min)) ? Number(config.min) : 0;
+    const max = Number.isFinite(Number(config.max)) && Number(config.max) > min ? Number(config.max) : min + 100;
+    const value = Math.max(min, Math.min(max, Number(values[0]) || 0));
+    const progress = (value - min) / (max - min); const cx = 320; const cy = 142; const radius = 88;
+    const point = (angle) => [cx + Math.cos(angle * Math.PI / 180) * radius, cy + Math.sin(angle * Math.PI / 180) * radius];
+    const arc = (from, to) => { const [x1, y1] = point(from); const [x2, y2] = point(to); return `M${x1} ${y1} A${radius} ${radius} 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2}`; };
+    const background = `<path d="${arc(150, 390)}" fill="none" stroke="var(--line)" stroke-width="16" stroke-linecap="round"/>`;
+    const pointer = point(150 + progress * 240); const precision = Math.max(0, Math.min(4, Number(config.precision) || 0));
+    shape = `${background}<path d="${arc(150, 150 + progress * 240)}" fill="none" stroke="var(--chart-1)" stroke-width="16" stroke-linecap="round"/><line x1="${cx}" y1="${cy}" x2="${pointer[0]}" y2="${pointer[1]}" stroke="var(--text)" stroke-width="4" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="7" fill="var(--text)"/><text x="${cx}" y="102" text-anchor="middle" fill="var(--text)" font-size="28" font-weight="700">${escapeHtml(`${value.toFixed(precision)}${config.unit || ""}`)}</text><text x="${cx}" y="198" text-anchor="middle">${escapeHtml(series[0]?.name || chartLabels[0] || "当前值")}</text>`;
+  } else if (type === "data-table") {
     const rowHeight = Math.min(34, 164 / Math.max(chartLabels.length, 1)); const columnWidth = 420 / Math.max(series.length, 1);
     shape = `<text x="28" y="18">分类</text>${series.map((item, index) => `<text x="${190 + columnWidth * (index + .5)}" y="18" text-anchor="middle">${escapeHtml(item.name)}</text>`).join("")}${chartLabels.map((label, row) => { const y = 28 + row * rowHeight; return `<rect x="20" y="${y}" width="600" height="${rowHeight}" fill="${row % 2 ? "transparent" : "var(--page)"}"/><text x="28" y="${y + rowHeight / 2 + 4}">${escapeHtml(label)}</text>${series.map((item, index) => `<text x="${190 + columnWidth * (index + .5)}" y="${y + rowHeight / 2 + 4}" text-anchor="middle">${escapeHtml(String(item.values[row] ?? ""))}</text>`).join("")}<line x1="20" x2="620" y1="${y + rowHeight}" y2="${y + rowHeight}" stroke="var(--line)"/>`; }).join("")}`;
   } else if (["pie", "sector-pie", "rose"].includes(type)) {
@@ -115,16 +144,36 @@ function chartSvg(component, workspace) {
   return `<svg class="chart" viewBox="0 0 640 220" role="img" aria-label="${escapeHtml(component.title)}"><g class="chart-shape">${shape}</g><g class="chart-labels">${labelNodes}</g></svg>`;
 }
 
-function renderComponent(component, workspace, span) {
+function renderComponent(component, workspace, span, renderChartSvg) {
   const subtitle = component.subtitle ? `<p class="component-subtitle">${escapeHtml(component.subtitle)}</p>` : "";
   const headerControls = (workspace.document.controls ?? []).filter(({ type, props }) => type === "filter-bar" && props.placement?.kind === "component-header" && props.placement.targetId === component.id).map((control) => `<div class="component-header-controls">${control.props.controls.map((filter) => { const value = workspace.interactions?.filters?.[filter.id] ?? filter.defaultValue; return `<label class="dashboard-filter"><span class="sr-only">${escapeHtml(filter.label)}</span><select data-dashboard-filter="${escapeHtml(filter.id)}" data-filter-field="${escapeHtml(filter.field)}">${filter.options.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label>`; }).join("")}</div>`).join("");
   let body = "";
-  if (component.type === "kpi") body = `<strong class="kpi-value">${escapeHtml(component.props.value)}</strong>${component.props.trend ? `<span class="trend">${escapeHtml(component.props.trend)}</span>` : ""}`;
+  if (component.type === "kpi") {
+    const sparkline = component.props.sparkline;
+    const pointLimit = [7, 12, 30].includes(Number(workspace.theme.kpiSparklinePoints)) ? Number(workspace.theme.kpiSparklinePoints) : 7;
+    const labels = Array.isArray(sparkline?.labels) ? sparkline.labels.slice(-pointLimit) : [];
+    const values = Array.isArray(sparkline?.values) ? sparkline.values.slice(-pointLimit).map(Number) : [];
+    let sparklineSvg = "";
+    if (workspace.theme.kpiSparklineDisplay !== "hidden" && labels.length >= 2 && labels.length === values.length && values.every(Number.isFinite)) {
+      const min = Math.min(...values); const max = Math.max(...values); const range = max - min || 1;
+      const points = values.map((value, index) => [4 + index * 172 / (values.length - 1), 5 + (max - value) * 48 / range]);
+      const line = points.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+      const [firstPoint, ...remainingPoints] = points;
+      const smoothPath = `M ${firstPoint[0].toFixed(2)} ${firstPoint[1].toFixed(2)} ${remainingPoints.map(([x, y], index) => { const [previousX, previousY] = points[index]; return `Q ${((previousX + x) / 2).toFixed(2)} ${previousY.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)}`; }).join(" ")}`;
+      const gradientId = `kpi-sparkline-fill-${component.id.replace(/[^a-z0-9_-]+/gi, "-")}`;
+      const area = workspace.theme.kpiSparklineStyle === "area" ? `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".24"/><stop offset=".72" stop-color="var(--accent)" stop-opacity=".06"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs><path class="kpi-sparkline-area-shape" d="${smoothPath} L 176 57 L 4 57 Z" fill="url(#${gradientId})"/>` : "";
+      const lineShape = workspace.theme.kpiSparklineStyle === "line" ? `<polyline class="kpi-sparkline-line-shape" points="${line}" fill="none"/>` : `<path class="kpi-sparkline-line-shape" d="${smoothPath}" fill="none"/>`;
+      sparklineSvg = `<svg class="kpi-sparkline-static" viewBox="0 0 180 60" role="img" aria-label="${escapeHtml(component.title)}最近 ${values.length} 个周期趋势">${area}<g stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${lineShape}</g></svg>`;
+    }
+    body = `<strong class="kpi-value">${escapeHtml(component.props.value)}</strong>${component.props.trend ? `<span class="trend">${escapeHtml(component.props.trend)}</span>` : ""}${sparklineSvg}`;
+  }
   else if (component.type === "chart") {
-    const series = component.props.series ?? workspace.resources?.charts?.[component.id]?.series ?? [{ name: component.title, values: component.props.values ?? [] }];
+    const chartResource = workspace.resources?.charts?.[component.id] ?? {};
+    const chartType = component.props.chartType || chartResource.type || "bar";
+    const series = component.props.series ?? chartResource.series ?? [{ name: component.title, values: component.props.values ?? [] }];
     const visibility = workspace.interactions?.chartSeriesVisibility?.[component.id] ?? {};
-    const legend = series.length > 1 && component.props.legend?.visible !== false ? `<div class="chart-legend" aria-label="图例">${series.map((item, index) => `<button type="button" data-chart-series="${escapeHtml(item.name)}" aria-pressed="${visibility[item.name] !== false}" style="--legend-color:var(--chart-${index % 8 + 1})"><i></i><span>${escapeHtml(item.name)}</span></button>`).join("")}</div>` : "";
-    body = `${legend}${chartSvg(component, workspace)}`;
+    const legend = !["gauge", "bullet"].includes(chartType) && series.length > 1 && component.props.legend?.visible !== false ? `<div class="chart-legend" aria-label="图例">${series.map((item, index) => `<button type="button" data-chart-series="${escapeHtml(item.name)}" aria-pressed="${visibility[item.name] !== false}" style="--legend-color:var(--chart-${index % 8 + 1})"><i></i><span>${escapeHtml(item.name)}</span></button>`).join("")}</div>` : "";
+    body = `${legend}${chartSvg(component, workspace, renderChartSvg)}`;
   }
   else if (component.type === "list") body = component.props.empty ? `<div class="empty">暂无数据</div>` : `<ul>${(component.props.items ?? []).map((item) => `<li><span>${escapeHtml(item.label ?? item)}</span><strong>${escapeHtml(item.value ?? "")}</strong></li>`).join("")}</ul>`;
   else if (component.type === "table") body = component.props.empty ? `<div class="empty">暂无数据</div>` : `<div class="table-wrap"><table><thead><tr>${(component.props.columns ?? []).map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead><tbody>${(component.props.rows ?? []).map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -148,15 +197,17 @@ function portableRuntime() {
     const values = grouped.map(({ value }) => Number(value) || 0); const max = Math.max(...values, 1); const min = Math.min(...values, 0); const range = max - min || 1;
     const points = values.map((value,index)=>[28+(values.length===1?292:index*584/(values.length-1)),18+(max-value)*172/range]);
     const type = component.props.chartType || "bar"; let shape = "";
-    if (type === "horizontal-bar") shape = grouped.map(({label,value},index)=>{ const rowHeight=Math.max(18,164/grouped.length); const y=18+index*rowHeight; const width=Math.max(0,Number(value)||0)/max*504; return `<rect x="108" y="${y}" width="${width}" height="${Math.max(10,rowHeight-7)}" rx="4" fill="var(--chart-1)"/><text x="100" y="${y+rowHeight/2+4}" text-anchor="end">${escape(label)}</text>`; }).join("");
+    if (type === "gauge") { const config=component.props.gauge||{}; const gaugeMin=Number.isFinite(Number(config.min))?Number(config.min):0; const gaugeMax=Number.isFinite(Number(config.max))&&Number(config.max)>gaugeMin?Number(config.max):gaugeMin+100; const value=Math.max(gaugeMin,Math.min(gaugeMax,Number(values[0])||0)); const progress=(value-gaugeMin)/(gaugeMax-gaugeMin); const cx=320,cy=142,radius=88; const point=(angle)=>[cx+Math.cos(angle*Math.PI/180)*radius,cy+Math.sin(angle*Math.PI/180)*radius]; const arc=(from,to)=>{const [x1,y1]=point(from),[x2,y2]=point(to);return `M${x1} ${y1} A${radius} ${radius} 0 ${to-from>180?1:0} 1 ${x2} ${y2}`;}; const pointer=point(150+progress*240); const precision=Math.max(0,Math.min(4,Number(config.precision)||0)); shape=`<path d="${arc(150,390)}" fill="none" stroke="var(--line)" stroke-width="16" stroke-linecap="round"/><path d="${arc(150,150+progress*240)}" fill="none" stroke="var(--chart-1)" stroke-width="16" stroke-linecap="round"/><line x1="${cx}" y1="${cy}" x2="${pointer[0]}" y2="${pointer[1]}" stroke="var(--text)" stroke-width="4"/><circle cx="${cx}" cy="${cy}" r="7" fill="var(--text)"/><text x="${cx}" y="102" text-anchor="middle" fill="var(--text)" font-size="28" font-weight="700">${escape(`${value.toFixed(precision)}${config.unit||""}`)}</text>`; }
+    else if (type === "horizontal-bar") shape = grouped.map(({label,value},index)=>{ const rowHeight=Math.max(18,164/grouped.length); const y=18+index*rowHeight; const width=Math.max(0,Number(value)||0)/max*504; return `<rect x="108" y="${y}" width="${width}" height="${Math.max(10,rowHeight-7)}" rx="4" fill="var(--chart-1)"/><text x="100" y="${y+rowHeight/2+4}" text-anchor="end">${escape(label)}</text>`; }).join("");
     else if (type === "bar") shape = points.map(([x,y])=>`<rect x="${x-18}" y="${y}" width="36" height="${190-y}" rx="4" fill="var(--chart-1)"/>`).join("");
     else shape = `<polyline points="${points.map(([x,y])=>`${x},${y}`).join(" ")}" fill="none" stroke="var(--chart-1)" stroke-width="3"/>`;
-    return `<svg class="chart" viewBox="0 0 640 220" role="img" aria-label="${escape(component.title)}"><g>${shape}</g><g class="chart-labels">${type === "horizontal-bar" ? "" : grouped.map(({label},index)=>`<text x="${points[index][0]}" y="212" text-anchor="middle">${escape(label)}</text>`).join("")}</g></svg>`;
+    return `<svg class="chart" viewBox="0 0 640 220" role="img" aria-label="${escape(component.title)}"><g>${shape}</g><g class="chart-labels">${type === "horizontal-bar" || type === "gauge" ? "" : grouped.map(({label},index)=>`<text x="${points[index][0]}" y="212" text-anchor="middle">${escape(label)}</text>`).join("")}</g></svg>`;
   };
   const render = () => state.document.sections.flatMap(({ components }) => components).filter(({ binding }) => binding).forEach((component) => {
     const card = root.querySelector(`[data-component-id="${CSS.escape(component.id)}"]`); if (!card) return;
     const rows = recordsFor(component); const binding = component.binding;
     if (binding.kind === "aggregate") { const value = aggregate(rows, binding.operation, binding.field); const format = binding.format || {}; card.querySelector(".kpi-value").textContent = `${format.prefix || ""}${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: format.maximumFractionDigits ?? 0 }).format(value * (format.multiplier ?? 1))}${format.suffix || ""}`; }
+    if (component.trendBinding && card.querySelector(".kpi-sparkline-static")) { const trend = group(rows, component.trendBinding.categoryField, component.trendBinding.valueField, component.trendBinding.operation).slice(-(component.trendBinding.limit || 30)); const values = trend.map(({value})=>Number(value)||0); const min=Math.min(...values); const max=Math.max(...values); const range=max-min||1; const coordinates=values.map((value,index)=>[4+index*172/Math.max(values.length-1,1),5+(max-value)*48/range]); const points=coordinates.map(([x,y])=>`${x.toFixed(2)},${y.toFixed(2)}`).join(" "); const [first,...rest]=coordinates; const smooth=`M ${first[0].toFixed(2)} ${first[1].toFixed(2)} ${rest.map(([x,y],index)=>{const [previousX,previousY]=coordinates[index];return `Q ${((previousX+x)/2).toFixed(2)} ${previousY.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)}`;}).join(" ")}`; const lineShape=card.querySelector(".kpi-sparkline-line-shape"); if(lineShape?.tagName==="polyline") lineShape.setAttribute("points",points); else lineShape?.setAttribute("d",smooth); card.querySelector(".kpi-sparkline-area-shape")?.setAttribute("d",`${smooth} L 176 57 L 4 57 Z`); }
     if (binding.kind === "ranking") card.querySelector("ul").innerHTML = group(rows, binding.labelField, binding.valueField, binding.operation).sort((a,b)=>b.value-a.value).slice(0,binding.limit||10).map((item)=>`<li><span>${escape(item.label)}</span><strong>${escape(item.value)}</strong></li>`).join("");
     if (binding.kind === "rows") card.querySelector("tbody").innerHTML = rows.slice(0,binding.limit||100).map((row)=>`<tr>${binding.columns.map(({field})=>`<td>${escape(row[field])}</td>`).join("")}</tr>`).join("");
     if (binding.kind === "series") card.querySelector(".chart")?.replaceWith(Object.assign(document.createElement("template"), { innerHTML: chart(component, rows) }).content.firstElementChild);
@@ -169,11 +220,11 @@ function portableRuntime() {
 }
 
 const styles = `
-:root{--accent:#e8590c;--page:#f5f7fa;--surface:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--shadow:0 2px 8px rgb(15 23 42/.06);--radius:8px;--gap:16px;--chart-1:#5b8ff9;--chart-2:#45b8d8;--chart-3:#43c59e;--chart-4:#96bf45;--chart-5:#f3a83b;--chart-6:#f06b72;--chart-7:#de72b4;--chart-8:#9270e8}*{box-sizing:border-box}html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark;--page:#14171d;--surface:#20242c;--text:#f4f6f8;--muted:#aab2c0;--line:#343b47;--shadow:0 6px 18px rgb(0 0 0/.28)}body{margin:0;background:var(--page);color:var(--text);font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}.dashboard{width:min(100%,1440px);margin:auto;padding:28px}.dashboard[data-page-type="report"]{width:min(calc(100% - 32px),1000px);margin:24px auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}.page-header{margin-bottom:24px}.page-header h1{margin:0;font-size:30px;line-height:1.2}.page-header p,.section-header p,.component-subtitle{margin:6px 0 0;color:var(--muted)}.sample-label{display:inline-block;margin-top:10px;color:var(--accent);font-size:12px}.dashboard-controls{margin-bottom:20px}.section{margin-top:24px}.section-header{margin-bottom:12px}.section-header h2{margin:0;font-size:17px}.component-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--gap)}.card{grid-column:span var(--span);min-width:0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.card h3{margin:0;font-size:14px}.component-body{margin-top:16px}.kpi-value{display:block;font-size:28px}.trend{display:block;margin-top:7px;color:var(--accent);font-size:13px}.chart{display:block;width:100%;min-height:180px}.chart text{fill:var(--muted);font-size:11px}ul{display:grid;gap:10px;margin:0;padding:0;list-style:none}li{display:flex;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--line)}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{color:var(--muted)}.prose{white-space:pre-wrap;line-height:1.7}.empty{padding:28px;text-align:center;color:var(--muted)}[hidden]{display:none!important}@media(max-width:760px){.dashboard{padding:18px}.card{grid-column:1/-1}.page-header h1{font-size:25px}}
+:root{--accent:#e8590c;--page:#f5f7fa;--surface:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--shadow:0 2px 8px rgb(15 23 42/.06);--radius:8px;--gap:16px;--chart-1:#5b8ff9;--chart-2:#45b8d8;--chart-3:#43c59e;--chart-4:#96bf45;--chart-5:#f3a83b;--chart-6:#f06b72;--chart-7:#de72b4;--chart-8:#9270e8}*{box-sizing:border-box}html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark;--page:#14171d;--surface:#20242c;--text:#f4f6f8;--muted:#aab2c0;--line:#343b47;--shadow:0 6px 18px rgb(0 0 0/.28)}body{margin:0;background:var(--page);color:var(--text);font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}.dashboard{width:min(100%,1440px);margin:auto;padding:28px}.dashboard[data-page-type="report"]{width:min(calc(100% - 32px),1000px);margin:24px auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}.page-header{margin-bottom:24px}.page-header h1{margin:0;font-size:30px;line-height:1.2}.page-header p,.section-header p,.component-subtitle{margin:6px 0 0;color:var(--muted)}.sample-label{display:inline-block;margin-top:10px;color:var(--accent);font-size:12px}.dashboard-controls{margin-bottom:20px}.section{margin-top:24px}.section-header{margin-bottom:12px}.section-header h2{margin:0;font-size:17px}.component-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--gap)}.card{grid-column:span var(--span);min-width:0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.card h3{margin:0;font-size:14px}.component-body{position:relative;margin-top:16px}.kpi-value{display:block;font-size:28px}.trend{display:block;margin-top:7px;color:var(--accent);font-size:13px}.kpi-sparkline-static{position:absolute;right:0;bottom:0;width:min(46%,180px);height:60px}.component-kpi .component-body:has(.kpi-sparkline-static){min-height:72px}.component-kpi .component-body:has(.kpi-sparkline-static)>:is(.kpi-value,.trend){max-width:50%}.chart{display:block;width:100%;min-height:180px}.chart text{fill:var(--muted);font-size:11px}ul{display:grid;gap:10px;margin:0;padding:0;list-style:none}li{display:flex;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--line)}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{color:var(--muted)}.prose{white-space:pre-wrap;line-height:1.7}.empty{padding:28px;text-align:center;color:var(--muted)}[hidden]{display:none!important}@media(max-width:760px){.dashboard{padding:18px}.card{grid-column:1/-1}.page-header h1{font-size:25px}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.card>header{position:relative}.component-header-controls{position:absolute;top:0;right:0}.component-header-controls select{min-width:124px;height:34px;padding:0 30px 0 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font:inherit}.chart-legend{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;margin:0 0 10px}.chart-legend button{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:2px 0;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}.chart-legend button[aria-pressed="false"]{opacity:.42;text-decoration:line-through}.chart-legend button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}.chart-legend i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--legend-color)}@media(max-width:760px){.component-header-controls{position:static;display:flex;justify-content:flex-end;margin-top:10px}.chart-legend{overflow-x:auto;flex-wrap:nowrap}}
 ${interactionStyles}`;
 
-export function renderStandaloneWorkspace(workspace) {
+export function renderStandaloneWorkspace(workspace, { renderChartSvg = null } = {}) {
   const document = materializeWorkspaceDocument(workspace);
   const layout = new Map(workspace.layout.sections.map((section) => [section.id, section]));
   const portableDatasets = Object.fromEntries(Object.entries(workspace.resources?.datasets ?? {}).filter(([, dataset]) => dataset.portable === true));
@@ -183,7 +234,7 @@ export function renderStandaloneWorkspace(workspace) {
   const sections = document.sections.map((section) => {
     const sectionLayout = layout.get(section.id);
     const spans = new Map(sectionLayout?.items.map(({ id, span }) => [id, span]) ?? []);
-    const cards = section.components.map((component) => renderComponent(component, workspace, spans.get(component.id) ?? 12)).join("");
+    const cards = section.components.map((component) => renderComponent(component, workspace, spans.get(component.id) ?? 12, renderChartSvg)).join("");
     return `<section class="section" data-section-id="${escapeHtml(section.id)}"><header class="section-header"><h2>${escapeHtml(section.title)}</h2>${section.subtitle ? `<p>${escapeHtml(section.subtitle)}</p>` : ""}</header><div class="component-grid">${cards}</div></section>`;
   }).join("");
   const state = hasPortableData ? `<script type="application/json" id="dashboard-state">${safeJson({ document: workspace.document, resources: { datasets: portableDatasets }, interactions: workspace.interactions ?? { filters: {} } })}</script><script>(${portableRuntime.toString()})()</script>` : "";
@@ -191,10 +242,10 @@ export function renderStandaloneWorkspace(workspace) {
   return `<!DOCTYPE html>\n<html lang="${workspace.theme.language === "en" ? "en" : "zh-CN"}" data-theme="${workspace.theme.mode}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(document.title)}</title><style>:root{--accent:${accent}}${styles}</style></head><body><main class="dashboard" data-dashboard-root data-page-type="${workspace.theme.pageType}"><header class="page-header"><h1>${escapeHtml(document.title)}</h1>${document.subtitle ? `<p>${escapeHtml(document.subtitle)}</p>` : ""}${document.sampleDataLabel ? `<span class="sample-label">${escapeHtml(document.sampleDataLabel)}</span>` : ""}</header>${controls ? `<div class="dashboard-controls">${controls}</div>` : ""}${sections}</main>${state}</body></html>`;
 }
 
-export function exportProjectRevision(project, revisionId = project?.currentRevisionId) {
+export function exportProjectRevision(project, revisionId = project?.currentRevisionId, options = {}) {
   assertProject(project);
   const workspace = restoreProjectRevision(project, revisionId);
-  const html = renderStandaloneWorkspace(workspace);
+  const html = renderStandaloneWorkspace(workspace, options);
   return {
     version: 1,
     projectId: project.id,

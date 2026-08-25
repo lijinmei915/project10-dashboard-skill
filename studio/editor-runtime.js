@@ -3,6 +3,11 @@ import { createWorkspaceSession, PROJECT_STATE_SCRIPT_ID } from "/studio/workspa
 import { createWorkspaceRenderer } from "/studio/workspace-renderer.mjs";
 import { createWorkspaceControlRenderer } from "/studio/workspace-control-renderer.mjs";
 import { automaticChartPaletteMode, createWorkspaceChartAdapter } from "/studio/workspace-chart-adapter.mjs";
+import { createKpiSparklineRuntime, createStaticKpiSparklineSvg } from "/studio/kpi-sparkline-runtime.mjs";
+import { createOnlineDataRuntime } from "/studio/online-data-runtime.mjs";
+import { createLiveDataRefreshRuntime, normalizeRefreshPolicy } from "/studio/live-data-refresh-runtime.mjs";
+import { applyChartSelection, chartSelectionFilters } from "/studio/analysis-state.mjs";
+import { applyDrilldown, drilldownContext } from "/studio/drilldown-state.mjs";
 import { LAYOUT_SPAN_STEPS, layoutDropSide, nearestLayoutSpan, reorderCanvasIds, shouldInsertBefore, shouldStartPointerDrag } from "/studio/workspace-layout-interaction.mjs";
 import { createWorkspaceLayoutController } from "/studio/workspace-layout-controller.mjs";
 import { createWorkspaceStructureSynchronizer } from "/studio/workspace-structure-synchronizer.mjs";
@@ -15,8 +20,8 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     });
     const presets = {
       "fx-orange": { label: "标准看板", accent: "#ff8000", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "title", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, radius: 10, cardGap: 12, cardTitleFont: 16, cardSubtitle: "none", chartPalette: "auto", font: 14, shadow: "weak", spacing: "standard", light: { page: "#f5f7fa", surface: "#ffffff", mutedSurface: "#f8fafc", text: "#172033", secondary: "#667085", muted: "#98a2b3", line: "rgba(15, 23, 42, .08)" } },
-      "enterprise-blue": { label: "企业分析", accent: "#2563eb", mode: "light", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 8, cardGap: 12, font: 14, shadow: "none", spacing: "standard", light: { page: "#f4f7fb", surface: "#ffffff", mutedSurface: "#f7faff", text: "#172033", secondary: "#60708a", muted: "#91a0b5", line: "rgba(37, 99, 235, .14)" } },
-      "report-light": { label: "阅读简洁", accent: "#147d72", mode: "light", header: "plain", headerAlign: "center", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "none", sectionSurface: "none", sectionFont: 16, radius: 6, cardGap: 16, font: 15, shadow: "none", spacing: "relaxed", light: { page: "#f7f5ef", surface: "#fffefa", mutedSurface: "#f1eee6", text: "#20251f", secondary: "#6d746b", muted: "#92998d", line: "rgba(32, 37, 31, .10)" } },
+      "enterprise-blue": { label: "企业分析", accent: "#2563eb", mode: "light", header: "plain", headerBackgroundType: "solid", headerSolidMode: "accent-soft", headerAlign: "left", headerTitleFont: 30, subtitle: "above", headerMetaStyle: "surface", headerMetaSeparator: "line", headerDecoration: "sheen", pageBackground: "neutral", pageTexture: "none", contentWidth: "fluid", sectionLeading: "marker-glow", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "outline", sectionFont: 15, sectionWeight: 700, frame: "hairline", radius: 8, cardGap: 12, cardTitleFont: 15, cardSubtitle: "below", cardTitleLeading: "marker", chartPalette: "monochrome", font: 14, shadow: "none", spacing: "compact", light: { page: "#f4f7fb", surface: "#ffffff", mutedSurface: "#f7faff", text: "#172033", secondary: "#60708a", muted: "#91a0b5", line: "rgba(37, 99, 235, .14)" } },
+      "report-light": { label: "阅读简洁", accent: "#147d72", mode: "light", header: "plain", headerBackgroundType: "gradient", headerGradientMode: "accent-soft", headerAlign: "center", headerTitleFont: 34, subtitle: "below", headerMetaStyle: "plain", headerMetaSeparator: "dot", headerDecoration: "aurora", pageBackground: "accent-soft", pageTexture: "grain", contentWidth: "readable", sectionLeading: "marker", sectionCopy: "title", sectionDivider: "none", sectionSurface: "soft", sectionFont: 17, sectionWeight: 600, frame: "none", radius: 6, cardGap: 20, cardTitleFont: 16, cardSubtitle: "below", cardTitleLeading: "none", chartPalette: "categorical", font: 15, shadow: "weak", spacing: "relaxed", light: { page: "#f7f5ef", surface: "#fffefa", mutedSurface: "#f1eee6", text: "#20251f", secondary: "#6d746b", muted: "#92998d", line: "rgba(32, 37, 31, .10)" } },
       "operations-dark": { label: "运营深色", accent: "#ff9b54", mode: "dark", header: "plain", headerAlign: "left", sectionLeading: "none", sectionCopy: "bilingual", sectionDivider: "trailing", sectionSurface: "none", sectionFont: 15, radius: 6, cardGap: 8, font: 13, shadow: "medium", spacing: "compact", light: { page: "#f4f6f8", surface: "#ffffff", mutedSurface: "#f7f8fa", text: "#172033", secondary: "#64748b", muted: "#94a3b8", line: "rgba(15, 23, 42, .09)" } },
       "diagnostic-report": { label: "诊断风格", accent: "#4f8fe8", mode: "light", header: "brand", headerAlign: "center", sectionLeading: "number", sectionCopy: "bilingual", sectionDivider: "none", sectionSurface: "none", sectionFont: 15, frame: "none", radius: 8, cardGap: 12, font: 14, shadow: "weak", spacing: "standard", light: { page: "#fbfdff", surface: "#ffffff", mutedSurface: "#edf4ff", text: "#102754", secondary: "#64748b", muted: "#8da0bc", line: "#e6edf7" } }
     };
@@ -31,7 +36,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           headerAlign: "left",
           headerTitleFont: 32,
           subtitle: "none",
-          headerMetaStyle: "plain",
+          headerMetaStyle: "surface",
           headerMetaSeparator: "dot",
           headerDecoration: "none",
           pageBackground: "neutral",
@@ -42,9 +47,24 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           radius: 10,
           cardGap: 12,
           cardTitleFont: 16,
-          cardSubtitle: "none",
+          cardSubtitle: "title-right",
           cardTitleStyle: "none",
-          cardTitleLeading: "none",
+          cardTitleLeading: "marker",
+          cardTitleDecoration: "line",
+          cardTitleColor: "neutral",
+          kpiIcon: "outline",
+          kpiIconWeight: "regular",
+          kpiIconColor: "colorful",
+          kpiIconContainer: "glow",
+          kpiGlowStyleVersion: 1,
+          kpiIconShape: "rect",
+          kpiIconSize: "medium",
+          kpiLayout: "right-top",
+          kpiCardOrganization: "joined",
+          kpiCardBackground: "multi",
+          kpiSparklineDisplay: "auto",
+          kpiSparklinePoints: 7,
+          kpiSparklineStyle: "area",
           chartPalette: "auto",
           font: 14,
           shadow: "weak",
@@ -61,6 +81,10 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       report: {
         allowed: ["fx-orange", "enterprise-blue", "report-light", "diagnostic-report"],
         labels: { "fx-orange": "品牌报告", "enterprise-blue": "企业报告", "report-light": "简洁报告", "operations-dark": "深色报告", "diagnostic-report": "诊断报告" }
+      },
+      "analysis-report": {
+        allowed: ["fx-orange", "enterprise-blue", "report-light", "diagnostic-report"],
+        labels: { "fx-orange": "在线品牌报告", "enterprise-blue": "在线企业报告", "report-light": "在线简洁报告", "operations-dark": "在线深色报告", "diagnostic-report": "在线诊断报告" }
       }
     };
 
@@ -133,6 +157,9 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     };
 
     const dashboard = document.querySelector("#dashboardPreview");
+    const dashboardRefreshTools = document.querySelector("#dashboardRefreshTools");
+    const dashboardRefreshButton = document.querySelector("#dashboardRefreshButton");
+    const dashboardRefreshStatus = document.querySelector("#dashboardRefreshStatus");
     const designDrawer = document.querySelector("#designDrawer");
     const designDrawerClose = document.querySelector("#designDrawerClose");
     const mobileCanvasToggle = document.querySelector("#mobileCanvasToggle");
@@ -194,7 +221,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     const kpiSizeField = document.querySelector("#kpiSizeField");
     const kpiSizeControl = document.querySelector("#kpiSizeControl");
     const kpiLayoutControl = document.querySelector("#kpiLayoutControl");
+    const kpiCardOrganizationControl = document.querySelector("#kpiCardOrganizationControl");
     const kpiCardBackgroundControl = document.querySelector("#kpiCardBackgroundControl");
+    const kpiSparklineDisplayControl = document.querySelector("#kpiSparklineDisplayControl");
+    const kpiSparklinePointsControl = document.querySelector("#kpiSparklinePointsControl");
+    const kpiSparklineStyleControl = document.querySelector("#kpiSparklineStyleControl");
     const kpiStyleSamples = document.querySelector("#kpiStyleSamples");
     const chartPaletteControl = document.querySelector("#chartPaletteControl");
     const cardChartLegendField = document.querySelector("#cardChartLegendField");
@@ -380,8 +411,9 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     kpiBand.remove();
     const groupKpiIconComposer = kpiIconControl.closest(".kpi-icon-composer");
     const groupKpiLayoutField = kpiLayoutControl.closest(".control-group");
+    const groupKpiOrganizationField = kpiCardOrganizationControl.closest(".control-group");
     const groupKpiBackgroundField = kpiCardBackgroundControl.closest(".control-group");
-    kpiStyleSamples.after(groupKpiIconComposer, groupKpiLayoutField, groupKpiBackgroundField);
+    kpiStyleSamples.after(groupKpiIconComposer, groupKpiLayoutField, groupKpiOrganizationField, groupKpiBackgroundField);
     function createContextGroupLabel(text, className = "") {
       const label = document.createElement("div");
       label.className = `context-settings-group-label ${className}`.trim();
@@ -392,11 +424,15 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     const sectionLayoutGroupLabel = createContextGroupLabel("分组布局");
     const groupKpiIconGroupLabel = createContextGroupLabel("指标图标", "kpi-icon-group-label");
     const groupKpiCardGroupLabel = createContextGroupLabel("卡片外观", "kpi-card-group-label");
+    const groupKpiTrendGroupLabel = createContextGroupLabel("趋势线", "kpi-trend-group-label");
     const cardKpiIconGroupLabel = createContextGroupLabel("指标图标", "kpi-icon-group-label");
     const cardKpiCardGroupLabel = createContextGroupLabel("卡片外观", "kpi-card-group-label");
     sectionWidthField.before(sectionLayoutGroupLabel);
     kpiStyleSamples.before(groupKpiIconGroupLabel);
     groupKpiBackgroundField.before(groupKpiCardGroupLabel);
+    const groupKpiTrendFields = [kpiSparklineDisplayControl, kpiSparklinePointsControl, kpiSparklineStyleControl]
+      .map((control) => control.closest(".control-group"));
+    groupKpiBackgroundField.after(groupKpiTrendGroupLabel, ...groupKpiTrendFields);
     cardKpiStyleSamples.before(cardKpiIconGroupLabel);
     cardKpiBackgroundField.before(cardKpiCardGroupLabel);
     [cardKpiIconOverrideControl, cardKpiWeightControl, cardIconColorControl, cardKpiContainerControl, cardKpiShapeControl, cardKpiSizeControl, cardKpiLayoutControl].forEach((control) => {
@@ -422,8 +458,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     });
     let state = {};
     let workspaceDocument = null;
+    let dashboardRefreshMessage = "未刷新";
+    let dashboardRefreshInFlight = false;
     let workspaceInteractions = null;
     let workspaceResources = null;
+    const onlineComponentResults = new Map();
     let currentRevision = null;
     let currentProject = null;
     const aiComposer = document.querySelector("#aiComposer");
@@ -698,9 +737,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (!documentModel?.sections) return;
       workspaceDocument = JSON.parse(JSON.stringify(documentModel));
       renderWorkspaceControls();
-      documentModel = materializeWorkspaceDocumentForPreview();
-      workspaceRenderer.render(documentModel);
-      renderWorkspaceCharts(documentModel);
+      renderMaterializedWorkspace();
       documentModel.sampleDataLabel
         ? aiGenerationStatus.setAttribute("data-sample", "true")
         : aiGenerationStatus.removeAttribute("data-sample");
@@ -728,6 +765,15 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       return (workspaceDocument?.controls || []).filter(({ type, props }) => type === "filter-bar" && props.targets.some((target) => target === componentId || target === sectionId)).flatMap(({ props }) => props.controls);
     }
 
+    function effectiveWorkspaceFilters(componentId, sectionId) {
+      const controls = workspaceFilterDefinitions(componentId, sectionId);
+      const selected = chartSelectionFilters(workspaceDocument, workspaceInteractions, componentId);
+      return {
+        definitions: [...controls, ...selected.filters],
+        values: { ...(workspaceInteractions?.filters || {}), ...selected.values }
+      };
+    }
+
     function aggregateWorkspaceRecords(records, operation, field) {
       if (operation === "count") return records.length;
       const values = records.map((record) => Number(record[field])).filter(Number.isFinite);
@@ -743,12 +789,23 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       const result = JSON.parse(JSON.stringify(workspaceDocument));
       result.sections.forEach((section) => section.components.forEach((component) => {
         if (!component.binding || !component.dataRef) return;
-        const filters = workspaceFilterDefinitions(component.id, section.id);
-        const records = (workspaceResources?.datasets?.[component.dataRef]?.records || []).filter((record) => filters.every((filter) => {
-          const selected = workspaceInteractions?.filters?.[filter.id] ?? filter.defaultValue;
+        const online = onlineComponentResults.get(component.id);
+        const bindingKey = JSON.stringify({ binding: component.binding, trendBinding: component.trendBinding || null });
+        if (online?.meta.datasetId === component.dataRef && online.meta.bindingKey === bindingKey) Object.assign(component.props, online.props);
+        const filters = effectiveWorkspaceFilters(component.id, section.id);
+        const drilldown = drilldownContext(workspaceDocument, workspaceInteractions, component.id);
+        if (drilldown) drilldown.path.forEach((value, index) => {
+          const id = `drilldown-${component.id}-${index}`;
+          filters.definitions.push({ id, field: drilldown.levels[index].field, defaultValue: value });
+          filters.values[id] = value;
+        });
+        const dataset = workspaceResources?.datasets?.[component.dataRef];
+        if (!dataset?.portable || !Array.isArray(dataset.records)) return;
+        const records = dataset.records.filter((record) => filters.definitions.every((filter) => {
+          const selected = filters.values[filter.id] ?? filter.defaultValue;
           return selected === "" || selected === null || selected === undefined || String(record[filter.field]) === String(selected);
         }));
-        const binding = component.binding;
+        const binding = drilldown ? { ...component.binding, categoryField: drilldown.current.field } : component.binding;
         const group = (labelField, valueField, operation) => {
           const groups = new Map();
           records.forEach((record) => groups.set(String(record[labelField] ?? ""), [...(groups.get(String(record[labelField] ?? "")) || []), record]));
@@ -767,12 +824,22 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         } else if (binding.kind === "ranking") {
           component.props.items = group(binding.labelField, binding.valueField, binding.operation).sort((left, right) => right.value - left.value).slice(0, binding.limit || 10);
         }
+        if (component.trendBinding?.kind === "series") {
+          const trend = component.trendBinding;
+          const points = group(trend.categoryField, trend.valueField, trend.operation).slice(-(trend.limit || 30));
+          if (points.length >= 2) component.props.sparkline = {
+            labels: points.map(({ label }) => label),
+            values: points.map(({ value }) => value),
+            ...(component.props.sparkline?.unit ? { unit: component.props.sparkline.unit } : {})
+          };
+          else delete component.props.sparkline;
+        }
         component.props.empty = records.length === 0;
       }));
       return result;
     }
 
-    function createPortableChartSvg({ type, labels, values, colors, title, width: requestedWidth = 720 }) {
+    function createPortableChartSvg({ type, labels, values, colors, title, width: requestedWidth = 720, gauge = {} }) {
       const namespace = "http://www.w3.org/2000/svg";
       const width = Math.max(280, Math.min(1200, Number(requestedWidth) || 720));
       const height = 260;
@@ -791,8 +858,26 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         return node;
       };
       append("title", {}, title || "数据图表");
-      if (!safeValues.length || !safeValues.some((value) => value > 0)) {
+      if (!safeValues.length || (type !== "gauge" && !safeValues.some((value) => value > 0))) {
         append("text", { x: width / 2, y: height / 2, "text-anchor": "middle", fill: "currentColor", "font-size": 13 }, "暂无可绘制数据");
+        return svg;
+      }
+      if (type === "gauge") {
+        const min = Number.isFinite(Number(gauge.min)) ? Number(gauge.min) : 0;
+        const max = Number.isFinite(Number(gauge.max)) && Number(gauge.max) > min ? Number(gauge.max) : min + 100;
+        const value = Math.max(min, Math.min(max, Number(values[0]) || 0));
+        const progress = (value - min) / (max - min);
+        const centerX = width / 2; const centerY = 145; const radius = Math.min(96, width * .27);
+        const point = (angle) => [centerX + Math.cos(angle * Math.PI / 180) * radius, centerY + Math.sin(angle * Math.PI / 180) * radius];
+        const arc = (from, to) => { const [x1, y1] = point(from); const [x2, y2] = point(to); return `M ${x1} ${y1} A ${radius} ${radius} 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2}`; };
+        append("path", { d: arc(150, 390), fill: "none", stroke: "var(--line)", "stroke-width": 16, "stroke-linecap": "round" });
+        if (progress > 0) append("path", { d: arc(150, 150 + progress * 240), fill: "none", stroke: safeColors[0], "stroke-width": 16, "stroke-linecap": "round" });
+        const pointerAngle = 150 + progress * 240; const pointer = point(pointerAngle);
+        append("line", { x1: centerX, y1: centerY, x2: pointer[0], y2: pointer[1], stroke: "var(--text-main)", "stroke-width": 4, "stroke-linecap": "round" });
+        append("circle", { cx: centerX, cy: centerY, r: 7, fill: "var(--text-main)" });
+        const precision = Math.max(0, Math.min(4, Number(gauge.precision) || 0));
+        append("text", { x: centerX, y: 105, "text-anchor": "middle", fill: "var(--text-main)", "font-size": 28, "font-weight": 700 }, `${value.toFixed(precision)}${String(gauge.unit || "")}`);
+        append("text", { x: centerX, y: 196, "text-anchor": "middle", fill: "currentColor", "font-size": 12 }, String(labels[0] || title || "当前值"));
         return svg;
       }
       if (type === "pie") {
@@ -887,7 +972,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
 
     function effectiveChartType(card, component = workspaceComponentModelById(card?.dataset.itemId)) {
       const type = component?.props?.chartType || state.cardOverrides?.[card?.dataset.itemId]?.chartType || card?.dataset.chartType || "bar";
-      return ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"].includes(type) ? type : "bar";
+      return ["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"].includes(type) ? type : "bar";
     }
 
     function chartPaletteForCard(card, component, type) {
@@ -917,6 +1002,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       resolveType: effectiveChartType,
       resolvePalette: chartPaletteForCard,
       getMode: () => state.mode,
+      getPageType: () => state.pageType,
       getSeriesVisibility: (componentId) => workspaceInteractions?.chartSeriesVisibility?.[componentId] || {},
       onSeriesVisibilityChange({ componentId, seriesName, visible }) {
         workspaceInteractions ||= { filters: {} };
@@ -926,20 +1012,290 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         renderWorkspaceCharts();
         scheduleWorkspaceSave();
       },
+      onSelectionIntent({ componentId, value }) {
+        const result = applyChartSelection(workspaceDocument, workspaceInteractions, { componentId, value });
+        if (result.status === "ignored") return;
+        workspaceInteractions = result.interactions;
+        dashboard.dispatchEvent(new CustomEvent("dashboard:selection-change", { bubbles: true, detail: {
+          componentId,
+          value: result.selection?.value ?? null,
+          affectedIds: result.affectedIds,
+          status: result.status
+        } }));
+        renderMaterializedWorkspace();
+        scheduleWorkspaceSave();
+      },
+      onDrilldownIntent({ componentId, value }) {
+        const result = applyDrilldown(workspaceDocument, workspaceInteractions, { componentId, type: "advance", value });
+        if (result.status !== "advanced") return;
+        workspaceInteractions = result.interactions;
+        dashboard.dispatchEvent(new CustomEvent("dashboard:drilldown-change", { bubbles: true, detail: { componentId, context: result.context } }));
+        renderMaterializedWorkspace();
+        scheduleWorkspaceSave();
+      },
       createFallbackSvg: createPortableChartSvg
     });
+    const kpiSparklineRuntime = createKpiSparklineRuntime();
+    const sampleKpiSparklines = Object.freeze({
+      "priority-customers": Object.freeze({
+        labels: ["第 1 周", "第 2 周", "第 3 周", "第 4 周", "第 5 周", "第 6 周", "第 7 周"],
+        values: [104, 109, 107, 114, 118, 123, 128],
+        unit: "家"
+      }),
+      "opportunity-value": Object.freeze({
+        labels: ["第 1 周", "第 2 周", "第 3 周", "第 4 周", "第 5 周", "第 6 周", "第 7 周"],
+        values: [1980, 2050, 2180, 2130, 2270, 2350, 2460],
+        unit: "万"
+      }),
+      "conversion-rate": Object.freeze({
+        labels: ["第 1 周", "第 2 周", "第 3 周", "第 4 周", "第 5 周", "第 6 周", "第 7 周"],
+        values: [27.4, 28.1, 29.6, 28.9, 30.5, 31.4, 32.8],
+        unit: "%"
+      })
+    });
+
+    function renderWorkspaceKpiSparklines(documentModel) {
+      const components = documentModel?.sections
+        ? documentModel.sections.flatMap(({ components: items }) => items).filter(({ type }) => type === "kpi")
+        : Object.keys(sampleKpiSparklines).map((id) => {
+            const card = dashboard.querySelector(`[data-item-id="${CSS.escape(id)}"]`);
+            return { id, type: "kpi", title: card ? cardLabel(card) : id, props: {} };
+          });
+      const active = [];
+      for (const component of components) {
+        const card = dashboard.querySelector(`[data-item-id="${CSS.escape(component.id)}"]`);
+        if (!card) continue;
+        let container = card.querySelector(":scope > .kpi-sparkline");
+        const mockData = (!documentModel || documentModel.sampleDataLabel) ? sampleKpiSparklines[component.id] : null;
+        const data = component.props?.sparkline || mockData;
+        const usesMockData = !component.props?.sparkline && Boolean(mockData);
+        const visible = state.kpiSparklineDisplay !== "hidden" && Array.isArray(data?.values) && data.values.length >= 2;
+        if (!visible) {
+          if (container) { kpiSparklineRuntime.dispose(container); container.remove(); }
+          continue;
+        }
+        if (!container) {
+          container = document.createElement("div");
+          container.className = "kpi-sparkline";
+          card.append(container);
+        }
+        container.dataset.dataSource = usesMockData ? "mock" : "bound";
+        container.title = usesMockData ? "模拟趋势数据" : "";
+        active.push(container);
+        const styles = getComputedStyle(card);
+        const color = resolveCssColor(styles.getPropertyValue("--accent-structure").trim() || state.accent);
+        const ariaLabel = `${component.title} · 最近 ${Math.min(state.kpiSparklinePoints, data.values.length)} 个周期趋势`;
+        if (["report", "analysis-report"].includes(state.pageType)) {
+          kpiSparklineRuntime.dispose(container);
+          container.classList.add("is-static");
+          container.removeAttribute("aria-busy");
+          container.setAttribute("role", "img");
+          container.setAttribute("aria-label", ariaLabel);
+          container.style.color = color;
+          container.innerHTML = createStaticKpiSparklineSvg(data, { points: state.kpiSparklinePoints, style: state.kpiSparklineStyle, id: component.id });
+          active.push(container);
+          continue;
+        }
+        if (container.classList.contains("is-static")) container.replaceChildren();
+        container.classList.remove("is-static");
+        container.style.removeProperty("color");
+        container.setAttribute("aria-busy", "true");
+        kpiSparklineRuntime.render(container, data, {
+          color,
+          mode: state.mode,
+          points: state.kpiSparklinePoints,
+          style: state.kpiSparklineStyle,
+          title: component.title,
+          onIntent: (intent) => dashboard.dispatchEvent(new CustomEvent("dashboard:kpi-trend-select", { bubbles: true, detail: { componentId: component.id, ...intent } }))
+        }).then((result) => {
+          if (result.status === "stale" || !container.isConnected) return;
+          container.removeAttribute("aria-busy");
+          container.setAttribute("role", "img");
+          container.setAttribute("aria-label", ariaLabel);
+        }).catch(() => {
+          kpiSparklineRuntime.dispose(container);
+          container.remove();
+        });
+      }
+      kpiSparklineRuntime.disposeMissing(active);
+    }
+
+    function renderChartSelectionIndicators() {
+      dashboard.querySelectorAll(".chart-selection-status").forEach((node) => node.remove());
+      for (const [componentId, value] of Object.entries(workspaceInteractions?.chartSelections || {})) {
+        const card = dashboard.querySelector(`[data-item-id="${CSS.escape(componentId)}"]`);
+        const heading = card?.querySelector(":scope > .card-heading");
+        if (!heading) continue;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chart-selection-status";
+        button.textContent = `筛选：${value}`;
+        button.title = "清除图表联动";
+        button.addEventListener("click", () => {
+          const result = applyChartSelection(workspaceDocument, workspaceInteractions, { componentId, value });
+          if (result.status === "ignored") return;
+          workspaceInteractions = result.interactions;
+          renderMaterializedWorkspace();
+          scheduleWorkspaceSave();
+        });
+        heading.append(button);
+      }
+    }
+
+    function renderDrilldownBreadcrumbs() {
+      dashboard.querySelectorAll(".chart-drilldown-breadcrumb").forEach((node) => node.remove());
+      for (const component of workspaceDocument?.sections?.flatMap(({ components }) => components) || []) {
+        const context = drilldownContext(workspaceDocument, workspaceInteractions, component.id);
+        if (!context) continue;
+        const card = dashboard.querySelector(`[data-item-id="${CSS.escape(component.id)}"]`);
+        const heading = card?.querySelector(":scope > .card-heading");
+        if (!heading) continue;
+        const nav = document.createElement("nav");
+        nav.className = "chart-drilldown-breadcrumb";
+        nav.setAttribute("aria-label", "图表下钻路径");
+        const values = [context.levels[0].label, ...context.path];
+        values.forEach((label, depth) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = String(label);
+          button.disabled = depth === context.path.length;
+          button.addEventListener("click", () => {
+            const result = applyDrilldown(workspaceDocument, workspaceInteractions, { componentId: component.id, type: "back", depth });
+            workspaceInteractions = result.interactions;
+            renderMaterializedWorkspace();
+            scheduleWorkspaceSave();
+          });
+          nav.append(button);
+        });
+        heading.after(nav);
+      }
+    }
+
+    function setOnlineDataStatus({ componentId, status, meta, error }) {
+      const card = dashboard.querySelector(`[data-item-id="${CSS.escape(componentId)}"]`);
+      if (!card) return;
+      card.dataset.dataStatus = status;
+      if (status === "loading") card.setAttribute("aria-busy", "true");
+      else card.removeAttribute("aria-busy");
+      let indicator = card.querySelector(":scope > .card-heading .card-data-status");
+      const heading = card.querySelector(":scope > .card-heading");
+      if (!indicator && heading) {
+        indicator = document.createElement("span");
+        indicator.className = "card-data-status";
+        heading.append(indicator);
+      }
+      if (!indicator) return;
+      if (status === "loading") indicator.textContent = onlineComponentResults.has(componentId) ? "正在更新" : "正在查询数据";
+      else if (status === "ready") indicator.textContent = meta?.datasetUpdatedAt ? `数据更新于 ${new Date(meta.datasetUpdatedAt).toLocaleString(state.language === "en" ? "en" : "zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : "数据已更新";
+      else if (status === "stale") indicator.textContent = "连接异常，使用上次数据";
+      else if (status === "error") indicator.textContent = "数据查询失败";
+      indicator.title = error || "";
+    }
+
+    const onlineDataRuntime = createOnlineDataRuntime({
+      onResult({ componentId, value }) {
+        const current = workspaceComponentModelById(componentId);
+        const bindingKey = JSON.stringify({ binding: current?.binding, trendBinding: current?.trendBinding || null });
+        if (!current || current.dataRef !== value.meta.datasetId || bindingKey !== value.meta.bindingKey) return;
+        onlineComponentResults.set(componentId, value);
+        renderMaterializedWorkspace(false);
+      },
+      onStatus: setOnlineDataStatus
+    });
+
+    function resolveOnlineComponent(component, sectionId) {
+      const filters = effectiveWorkspaceFilters(component.id, sectionId);
+      return onlineDataRuntime.resolve(component, {
+        filterDefinitions: filters.definitions,
+        filterValues: filters.values,
+        drilldown: drilldownContext(workspaceDocument, workspaceInteractions, component.id)
+      });
+    }
+
+    const liveDataRefreshRuntime = createLiveDataRefreshRuntime({
+      async onRefresh({ datasetId, componentIds }) {
+        onlineDataRuntime.invalidateDataset(datasetId);
+        const requested = new Set(componentIds);
+        const pending = [];
+        for (const section of workspaceDocument?.sections || []) for (const component of section.components) {
+          if (component.dataRef === datasetId && requested.has(component.id)) pending.push(resolveOnlineComponent(component, section.id));
+        }
+        return Promise.all(pending);
+      }
+    });
+
+    function syncDashboardRefreshControl() {
+      if (!dashboardRefreshTools || !dashboardRefreshButton) return;
+      const online = ["dashboard", "analysis-report"].includes(state.pageType) && liveDataRefreshRuntime.inspect().length > 0;
+      const supportedPage = ["dashboard", "analysis-report", "report"].includes(state.pageType);
+      dashboardRefreshTools.hidden = !supportedPage;
+      dashboardRefreshButton.disabled = dashboardRefreshInFlight || !online;
+      dashboardRefreshButton.title = state.pageType === "report" ? "报告为快照，不支持刷新" : online ? "刷新数据" : "当前没有在线数据";
+      dashboardRefreshButton.dataset.state = dashboardRefreshInFlight ? "loading" : "ready";
+      if (dashboardRefreshStatus) dashboardRefreshStatus.textContent = state.pageType === "report" ? "快照报告" : online ? dashboardRefreshMessage : "暂无在线数据";
+    }
+
+    async function refreshDashboardData() {
+      if (dashboardRefreshInFlight || !["dashboard", "analysis-report"].includes(state.pageType) || !liveDataRefreshRuntime.inspect().length) return;
+      dashboardRefreshInFlight = true;
+      dashboardRefreshMessage = "正在刷新...";
+      syncDashboardRefreshControl();
+      try {
+        const results = await liveDataRefreshRuntime.refreshNow();
+        const failed = results.some((result) => result.some?.((item) => item === false || item?.status === "error" || item?.status === "last-known-good"));
+        dashboardRefreshMessage = failed ? "刷新失败，已保留上次数据" : `更新于 ${new Date().toLocaleTimeString(state.language === "en" ? "en" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
+      } catch {
+        dashboardRefreshMessage = "刷新失败，已保留上次数据";
+      } finally {
+        dashboardRefreshInFlight = false;
+        syncDashboardRefreshControl();
+      }
+    }
+
+    dashboardRefreshButton?.addEventListener("click", () => refreshDashboardData());
+
+    function refreshOnlineComponents() {
+      const online = [];
+      const refreshTargets = [];
+      if (["dashboard", "analysis-report"].includes(state.pageType)) {
+        for (const section of workspaceDocument?.sections || []) for (const component of section.components) {
+          const dataset = workspaceResources?.datasets?.[component.dataRef];
+          if (!component.binding || !component.dataRef || dataset?.portable !== false) continue;
+          online.push(component);
+          refreshTargets.push({ componentId: component.id, datasetId: component.dataRef, policy: normalizeRefreshPolicy(component.props?.refreshPolicy) });
+          resolveOnlineComponent(component, section.id);
+        }
+      }
+      onlineDataRuntime.prune(online.map(({ id }) => id));
+      liveDataRefreshRuntime.configure(refreshTargets);
+      syncDashboardRefreshControl();
+    }
+
+    function renderMaterializedWorkspace(refreshOnline = true) {
+      if (!workspaceDocument) return;
+      const documentModel = materializeWorkspaceDocumentForPreview();
+      workspaceRenderer.render(documentModel);
+      renderChartSelectionIndicators();
+      renderDrilldownBreadcrumbs();
+      renderWorkspaceCharts(documentModel);
+      if (refreshOnline) refreshOnlineComponents();
+    }
 
     function renderWorkspaceCharts(documentModel = null) {
+      if (workspaceIsRestoring) return;
       const charts = documentModel?.sections
         ? documentModel.sections.flatMap(({ components }) => components).filter(({ type }) => type === "chart")
         : workspaceDocument
           ? materializeWorkspaceDocumentForPreview().sections.flatMap(({ components }) => components).filter(({ type }) => type === "chart")
           : [staticChartModel()].filter(Boolean);
       charts.forEach((component) => workspaceChartAdapter.render(component));
+      workspaceChartAdapter.prune(charts.map(({ id }) => id));
+      const materialized = documentModel?.sections ? documentModel : workspaceDocument ? materializeWorkspaceDocumentForPreview() : null;
+      renderWorkspaceKpiSparklines(materialized);
     }
 
     function setSelectedChartType(type) {
-      if (!selectedCardId || !["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"].includes(type)) return;
+      if (!selectedCardId || !["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"].includes(type)) return;
       const component = workspaceComponentModelById(selectedCardId);
       if (!component || component.type !== "chart") {
         state.cardOverrides ||= {};
@@ -1075,6 +1431,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         workspaceIsRestoring = true;
         const restored = restoreWorkspaceState(JSON.parse(savedWorkspaceSnapshot));
         workspaceIsRestoring = false;
+        renderWorkspaceCharts();
         if (!restored) throw new Error("无法恢复已保存配置");
         setWorkspaceDirty(false);
         setSaveStatus("已放弃未保存修改");
@@ -1211,6 +1568,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       sectionLayoutGroupLabel.hidden = true;
       groupKpiIconGroupLabel.hidden = true;
       groupKpiCardGroupLabel.hidden = true;
+      groupKpiTrendGroupLabel.hidden = true;
       cardKpiIconGroupLabel.hidden = true;
       cardKpiCardGroupLabel.hidden = true;
       sectionWidthField.hidden = true;
@@ -1283,6 +1641,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           sectionLayoutGroupLabel.hidden = sectionWidthField.hidden && sectionLayoutField.hidden;
           groupKpiIconGroupLabel.hidden = !isKpiGroup;
           groupKpiCardGroupLabel.hidden = !isKpiGroup;
+          groupKpiTrendGroupLabel.hidden = !isKpiGroup;
           if (sectionGroup) {
             sectionLayoutControl.value = sectionGroup.dataset.layout || "responsive";
             syncCustomSelect(sectionLayoutControl);
@@ -1379,7 +1738,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         return;
       }
       const validation = validateChartApplication(event.data, {
-        chartTypes: ["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"],
+        chartTypes: ["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"],
         selectedTarget: target,
         session: resourceSession
       });
@@ -1540,7 +1899,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function renderCardTitleIconEffects() {
-      dashboard.querySelectorAll("[data-item-id]").forEach((card, index) => {
+      dashboard.querySelectorAll("[data-item-id], .section[data-section-id='metrics']").forEach((card, index) => {
         const svg = card.querySelector(".card-title-icon svg");
         if (!svg) return;
         const effect = card.dataset.cardTitleIconEffect || dashboard.dataset.cardTitleIconEffect;
@@ -1678,7 +2037,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         const override = state.cardOverrides[card.dataset.itemId];
         if (!override) return;
         if (["monochrome", "bichrome", "categorical"].includes(override.chartPalette)) card.dataset.chartPalette = override.chartPalette;
-        if (["line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "radar", "funnel", "data-table"].includes(override.chartType)) card.dataset.chartType = override.chartType;
+        if (["line", "combo-bar-line", "time-series", "area", "bar", "grouped-bar", "stacked-bar", "percent-stacked-bar", "histogram", "horizontal-bar", "grouped-horizontal-bar", "stacked-horizontal-bar", "percent-stacked-horizontal-bar", "diverging-bar", "ranking-bar", "gantt", "sector-pie", "pie", "rose", "bullet", "gauge", "radar", "funnel", "data-table"].includes(override.chartType)) card.dataset.chartType = override.chartType;
         if (cardTitleStylePresets[override.cardTitleStyle]) {
           const titleStyle = cardTitleStylePresets[override.cardTitleStyle];
           card.dataset.cardTitleIcon = titleStyle.cardTitleIcon;
@@ -2871,7 +3230,8 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function setPressed(group, value) {
-      document.querySelectorAll(`#${group} button`).forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.value === value || button.dataset.preset === value)));
+      const productValue = value === "analysis-report" ? "report" : value;
+      document.querySelectorAll(`#${group} button`).forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.value === productValue || button.dataset.preset === value)));
     }
 
     function syncRangeTrack(control) {
@@ -3132,12 +3492,17 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       return { accent: visibleAccent, soft, solid, onSolid: "#ffffff" };
     }
 
+    function deriveKpiGradientEnd(seed) {
+      const source = hexToHsl(seed);
+      return hslToHex(source.h, Math.min(94, Math.max(56, source.s * .88)), Math.min(82, Math.max(60, source.l + 18)));
+    }
+
     function deriveIconGradientAlternate(seed, mode, surface) {
       const source = hexToHsl(seed);
       if (source.s < 8) return mode === "dark" ? "#71717a" : "#3f3f46";
-      const reference = FX_UI_KPI_GRADIENTS.find(({ start }) => start.toLowerCase() === seed.toLowerCase());
+      const reference = KPI_CATEGORICAL_GRADIENTS.find(({ start }) => start.toLowerCase() === seed.toLowerCase());
       if (reference) return reference.end;
-      return hslToHex(source.h, Math.min(94, Math.max(56, source.s * .88)), Math.min(82, Math.max(60, source.l + 18)));
+      return deriveKpiGradientEnd(seed);
     }
 
     function deriveIconGradientAlternateAccent(seed, mode, surface) {
@@ -3146,13 +3511,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       return deriveIconGradientAlternate(seed, mode, surface);
     }
 
-    const FX_UI_KPI_GRADIENTS = Object.freeze([
-      { start: "#FF8000", end: "#FFB347" },
-      { start: "#2563EB", end: "#60A5FA" },
-      { start: "#16A34A", end: "#4ADE80" },
-      { start: "#8B5CF6", end: "#C4B5FD" }
-    ]);
     const DASHBOARD_CATEGORICAL_PALETTE = ["#5b8ff9","#45b8d8","#43c59e","#96bf45","#f3a83b","#f06b72","#de72b4","#9270e8"];
+    const KPI_CATEGORICAL_GRADIENTS = Object.freeze(DASHBOARD_CATEGORICAL_PALETTE.map((start) => ({
+      start,
+      end: deriveKpiGradientEnd(start)
+    })));
 
     function deriveChartPalette(seed) {
       const source = hexToHsl(seed);
@@ -3210,8 +3573,6 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     async function renderSectionIcons() {
-      const filled = state.sectionIconStyle === "filled" || state.sectionIconStyle.startsWith("filled-");
-      const weight = filled ? "fill" : state.sectionWeight >= 700 ? "bold" : "regular";
       const tasks = [...dashboard.querySelectorAll(".section[data-section-id]")].map(async (section) => {
         const heading = section.querySelector(":scope > .section-heading");
         if (!heading) return;
@@ -3222,6 +3583,12 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
           icon.setAttribute("aria-hidden", "true");
           heading.querySelector(":scope > .section-number").after(icon);
         }
+        const usesCardTitleStyle = section.dataset.sectionId === "metrics" && state.kpiCardOrganization === "joined";
+        icon.classList.toggle("card-title-icon", usesCardTitleStyle);
+        const filled = usesCardTitleStyle
+          ? state.cardTitleIconForm === "filled"
+          : state.sectionIconStyle === "filled" || state.sectionIconStyle.startsWith("filled-");
+        const weight = filled ? "fill" : usesCardTitleStyle ? "regular" : state.sectionWeight >= 700 ? "bold" : "regular";
         const iconName = state.sectionIcons?.[section.dataset.sectionId] || defaultSectionIcons[section.dataset.sectionId] || "circle";
         icon.dataset.iconName = iconName;
         const renderKey = `${iconName}:${weight}`;
@@ -3235,9 +3602,10 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
             icon.innerHTML = fallback?.[weight] ? `<svg viewBox="0 0 256 256" aria-hidden="true">${fallback[weight]}</svg>` : "";
           }
         }
-        if (icon.dataset.iconRenderKey === renderKey) applySectionIconGradient(icon, section.dataset.sectionId);
+        if (icon.dataset.iconRenderKey === renderKey && !usesCardTitleStyle) applySectionIconGradient(icon, section.dataset.sectionId);
       });
       await Promise.all(tasks);
+      renderCardTitleIconEffects();
     }
 
     async function renderCardTitleIcons() {
@@ -3311,7 +3679,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         state.cardTitleColor ||= migrated.color;
       }
       if (!state.cardTitleLeading) state.cardTitleLeading = state.cardTitleDecoration !== "none" || state.cardTitleIcon !== "none" ? "icon" : "none";
-      if (!["none", "marker", "icon", "number"].includes(state.cardTitleLeading)) state.cardTitleLeading = "none";
+      if (!["none", "marker", "marker-glow", "icon", "number"].includes(state.cardTitleLeading)) state.cardTitleLeading = "none";
       if (state.pageType === "dashboard" && state.cardTitleLeading === "number") state.cardTitleLeading = "none";
       if (state.cardTitleDecoration === "none") state.cardTitleDecoration = "line";
       if (!["none", "line", "filled", "line-soft", "filled-soft", "line-solid", "filled-solid"].includes(state.cardTitleDecoration)) state.cardTitleDecoration = "none";
@@ -3353,9 +3721,15 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       Object.values(state.cardOverrides || {}).forEach((override) => {
         if (override.kpiIconSize === "small") override.kpiIconSize = "medium";
       });
+      if (!["separate", "joined"].includes(state.kpiCardOrganization)) state.kpiCardOrganization = "separate";
       if (!["default", "white", "single", "multi"].includes(state.kpiCardBackground)) state.kpiCardBackground = "default";
+      if (!["auto", "show", "hidden"].includes(state.kpiSparklineDisplay)) state.kpiSparklineDisplay = "auto";
+      if (![7, 12, 30].includes(Number(state.kpiSparklinePoints))) state.kpiSparklinePoints = 7;
+      else state.kpiSparklinePoints = Number(state.kpiSparklinePoints);
+      if (!["line", "smooth", "area"].includes(state.kpiSparklineStyle)) state.kpiSparklineStyle = "area";
       if (!["none", "weak", "medium", "strong"].includes(state.shadow)) state.shadow = "weak";
       if (!["none", "grid", "grain", "diagonal"].includes(state.pageTexture)) state.pageTexture = "none";
+      if (!["none", "soft", "outline"].includes(state.sectionSurface)) state.sectionSurface = "none";
       const legacyHeader = ["plain", "auto"].includes(state.header) ? (state.pageType === "dashboard" ? "minimal" : "surface") : state.header;
       if (typeof state.headerVisible !== "boolean") state.headerVisible = legacyHeader !== "hidden";
       if (!["none", "solid", "gradient", "glass"].includes(state.headerBackgroundType)) {
@@ -3387,7 +3761,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       state.headerMetaDefaultVersion = 2;
       if (!["dot", "line"].includes(state.headerMetaSeparator)) state.headerMetaSeparator = "dot";
       if (!["none", "particles", "aurora", "sheen"].includes(state.headerDecoration)) state.headerDecoration = "none";
-      if (!["left", "center"].includes(state.headerAlign)) state.headerAlign = state.pageType === "report" ? "center" : "left";
+      if (!["left", "center"].includes(state.headerAlign)) state.headerAlign = ["report", "analysis-report"].includes(state.pageType) ? "center" : "left";
       state.headerTitleFont = Math.max(20, Math.min(48, Number(state.headerTitleFont) || 32));
       if (!["title", "subtitle", "bilingual"].includes(state.sectionCopy)) state.sectionCopy = "title";
       if (state.sectionLeading === "accent") state.sectionLeading = "marker";
@@ -3444,7 +3818,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         : state.cardTitleIconColor === "colorful"
           ? { accent: chartPalette.categorical[0], soft: mixHex(chartPalette.categorical[0], resolvedSurface, state.mode === "dark" ? .16 : .10), onSolid: "#ffffff" }
           : iconTokens;
-      kpiColorContext = { surface: resolvedSurface, gradients: FX_UI_KPI_GRADIENTS };
+      kpiColorContext = { surface: resolvedSurface, gradients: KPI_CATEGORICAL_GRADIENTS };
       const resolvedHeaderSolidColor = state.headerSolidLinkedToMode ? resolvedSurface : state.headerSolidColor;
       let headerBackground = state.headerBackgroundType === "none" ? "transparent" : resolvedSurface;
       let headerText = state.headerBackgroundType === "none" ? pageText : deriveReadableText(resolvedSurface);
@@ -3468,7 +3842,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       const frameWidth = frameToken.width;
       const frameLine = state.frame === "none" ? colors.line : `color-mix(in srgb, var(--text-main) ${frameToken.contrast}, transparent)`;
       const vars = {
-        "--outer-bg": state.pageType === "report" ? (state.pageBackground === "accent-soft" ? softThemeSurfaces.outer : surfaceTokens.outer) : resolvedPageBackground,
+        "--outer-bg": ["report", "analysis-report"].includes(state.pageType) ? (state.pageBackground === "accent-soft" ? softThemeSurfaces.outer : surfaceTokens.outer) : resolvedPageBackground,
         "--page-bg": resolvedPageBackground, "--surface": resolvedSurface, "--surface-muted": resolvedMutedSurface,
         "--hero-bg": headerBackground, "--header-text-main": headerText.main, "--header-text-secondary": headerText.secondary,
         "--text-main": colors.text, "--text-secondary": colors.secondary, "--text-muted": colors.muted,
@@ -3510,11 +3884,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       designDrawer.style.setProperty("--card-title-colorful-alt-preview", chartPalette.categorical[1]);
       designDrawer.style.setProperty("--kpi-theme-preview", iconTokens.solid);
       designDrawer.style.setProperty("--kpi-theme-alt-preview", iconGradientAlternate);
-      FX_UI_KPI_GRADIENTS.forEach((gradient, index) => {
+      KPI_CATEGORICAL_GRADIENTS.filter((_, index) => index % 2 === 0).forEach((gradient, index) => {
         designDrawer.style.setProperty(`--kpi-colorful-preview-${index + 1}`, gradient.start);
         designDrawer.style.setProperty(`--kpi-colorful-preview-alt-${index + 1}`, gradient.end);
       });
-      document.body.style.background = state.pageType === "report"
+      document.body.style.background = ["report", "analysis-report"].includes(state.pageType)
         ? (state.pageBackground === "accent-soft" ? softThemeSurfaces.outer : surfaceTokens.outer)
         : resolvedPageBackground;
       document.body.style.setProperty("--texture-color", `color-mix(in srgb, ${colors.text} 4%, transparent)`);
@@ -3537,7 +3911,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       dashboard.dataset.sectionIconColor = state.sectionIconColor;
       dashboard.dataset.sectionCopy = state.sectionCopy;
       dashboard.dataset.sectionDivider = state.sectionDivider;
-      dashboard.dataset.sectionSurface = "none";
+      dashboard.dataset.sectionSurface = state.sectionSurface;
       dashboard.dataset.mode = state.mode;
       dashboard.dataset.frame = state.frame === "none" ? "none" : "wireframe";
       const sameSurface = resolveCssColor(resolvedPageBackground) === resolveCssColor(resolvedSurface);
@@ -3549,7 +3923,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       dashboard.dataset.kpiIconShape = state.kpiIconShape;
       dashboard.dataset.kpiIconSize = state.kpiIconSize;
       dashboard.dataset.kpiLayout = state.kpiLayout;
+      dashboard.dataset.kpiCardOrganization = state.kpiCardOrganization;
       dashboard.dataset.kpiCardBackground = state.kpiCardBackground;
+      dashboard.dataset.kpiSparklineDisplay = state.kpiSparklineDisplay;
+      dashboard.dataset.kpiSparklinePoints = String(state.kpiSparklinePoints);
+      dashboard.dataset.kpiSparklineStyle = state.kpiSparklineStyle;
       dashboard.dataset.cardTitleIcon = state.cardTitleIcon;
       dashboard.dataset.cardTitleLeading = state.cardTitleLeading;
       dashboard.dataset.cardTitleIconForm = state.cardTitleIconForm;
@@ -3593,7 +3971,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       kpiWeightControl.value = state.kpiIconWeight;
       kpiWeightField.closest(".kpi-icon-composer").dataset.showWeight = String(state.kpiIcon === "outline");
       kpiIconColorControl.value = state.kpiIconColor;
+      kpiCardOrganizationControl.value = state.kpiCardOrganization;
       kpiCardBackgroundControl.value = state.kpiCardBackground;
+      kpiSparklineDisplayControl.value = state.kpiSparklineDisplay;
+      kpiSparklinePointsControl.value = String(state.kpiSparklinePoints);
+      kpiSparklineStyleControl.value = state.kpiSparklineStyle;
       kpiIconColorField.hidden = state.kpiIcon === "none";
       kpiContainerControl.value = state.kpiIconContainer;
       kpiContainerField.hidden = state.kpiIcon === "none";
@@ -3665,6 +4047,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     }
 
     function selectPreset(name) {
+      // Preserve the versioned glow contract when a preset supplies it: kpiGlowStyleVersion: preset.kpiGlowStyleVersion ?? 1
       const customPreset = getCustomPreset(name);
       if (customPreset) {
         const pageType = state.pageType || "dashboard";
@@ -3678,7 +4061,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       const language = state.language || "zh";
       const pageType = state.pageType || "dashboard";
       const preset = { ...basePreset, ...(pagePresetDefaults[pageType]?.[name] || {}) };
-      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: preset.headerBackgroundType ?? (pageType === "report" ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid"), headerBackgroundDefaultVersion: 2, headerAlign: preset.headerAlign ?? (pageType === "report" ? "center" : "left"), headerTitleFont: preset.headerTitleFont ?? 32, subtitle: preset.subtitle ?? "none", headerMetaStyle: preset.headerMetaStyle ?? (pageType === "dashboard" ? "plain" : "surface"), headerMetaDefaultVersion: 2, headerMetaSeparator: preset.headerMetaSeparator ?? "dot", headerDecoration: preset.headerDecoration ?? "none", headerSolidLinkedToMode: true, pageBackground: preset.pageBackground ?? "neutral", customPageBackground: preset.light.page, pageTexture: preset.pageTexture ?? "none", contentWidth: preset.contentWidth ?? "auto", sectionVisibility: preset.sectionVisibility ?? "auto", sectionLeading: preset.sectionLeading ?? "none", sectionIconStyle: "line", sectionIconColor: "accent", sectionIcons: {}, sectionCopy: preset.sectionCopy ?? "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider ?? "none", sectionSurface: preset.sectionSurface ?? "none", sectionFont: preset.sectionFont ?? 15, sectionWeight: 700, frame: preset.frame ?? "none", kpiIcon: preset.kpiIcon ?? "outline", kpiIconWeight: "regular", kpiIconColor: "accent", kpiIconFollowCardVersion: 1, kpiIconContainer: "none", kpiIconShape: "rect", kpiIconSize: "medium", kpiLayout: "right-top", kpiCardBackground: "default", chartPalette: preset.chartPalette ?? "auto", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below", cardTitleStyle: preset.cardTitleStyle ?? "none", cardTitleLeading: preset.cardTitleLeading ?? "none", cardTitleDecoration: "line", cardTitleColor: "neutral", cardTitleIcon: "none", cardTitleIconForm: "line", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
+      state = { preset: name, pageType, language, accent: preset.accent, mode: preset.mode, header: preset.header, headerBackgroundType: preset.headerBackgroundType ?? (["report", "analysis-report"].includes(pageType) ? "solid" : ["plain", "auto"].includes(preset.header) ? "none" : preset.header === "brand" ? "gradient" : "solid"), headerBackgroundDefaultVersion: 2, headerAlign: preset.headerAlign ?? (["report", "analysis-report"].includes(pageType) ? "center" : "left"), headerTitleFont: preset.headerTitleFont ?? 32, subtitle: preset.subtitle ?? "none", headerMetaStyle: preset.headerMetaStyle ?? (pageType === "dashboard" ? "plain" : "surface"), headerMetaDefaultVersion: 2, headerMetaSeparator: preset.headerMetaSeparator ?? "dot", headerDecoration: preset.headerDecoration ?? "none", headerSolidLinkedToMode: true, pageBackground: preset.pageBackground ?? "neutral", customPageBackground: preset.light.page, pageTexture: preset.pageTexture ?? "none", contentWidth: preset.contentWidth ?? "auto", sectionVisibility: preset.sectionVisibility ?? "auto", sectionLeading: preset.sectionLeading ?? "none", sectionIconStyle: preset.sectionIconStyle ?? "line", sectionIconColor: preset.sectionIconColor ?? "accent", sectionIcons: {}, sectionCopy: preset.sectionCopy ?? "title", sectionSubtitles: {}, sectionDivider: preset.sectionDivider ?? "none", sectionSurface: preset.sectionSurface ?? "none", sectionFont: preset.sectionFont ?? 15, sectionWeight: preset.sectionWeight ?? 700, frame: preset.frame ?? "none", kpiIcon: preset.kpiIcon ?? "outline", kpiIconWeight: preset.kpiIconWeight ?? "regular", kpiIconColor: preset.kpiIconColor ?? "accent", kpiIconFollowCardVersion: 1, kpiIconContainer: preset.kpiIconContainer ?? "none", kpiGlowStyleVersion: 1, kpiIconShape: preset.kpiIconShape ?? "rect", kpiIconSize: preset.kpiIconSize ?? "medium", kpiLayout: preset.kpiLayout ?? "right-top", kpiCardOrganization: preset.kpiCardOrganization ?? "separate", kpiCardBackground: preset.kpiCardBackground ?? "default", kpiSparklineDisplay: preset.kpiSparklineDisplay ?? "auto", kpiSparklinePoints: preset.kpiSparklinePoints ?? 7, kpiSparklineStyle: preset.kpiSparklineStyle ?? "area", chartPalette: preset.chartPalette ?? "auto", cardOverrides: {}, radius: preset.radius, cardGap: preset.cardGap ?? 12, cardTitleFont: preset.cardTitleFont ?? 14, cardSubtitle: preset.cardSubtitle ?? "below", cardTitleStyle: preset.cardTitleStyle ?? "none", cardTitleLeading: preset.cardTitleLeading ?? "none", cardTitleDecoration: preset.cardTitleDecoration ?? "line", cardTitleColor: preset.cardTitleColor ?? "neutral", cardTitleIcon: "none", cardTitleIconForm: "line", cardTitleIconColor: "neutral", cardTitleIconEffect: "none", font: preset.font, shadow: preset.shadow, spacing: preset.spacing };
       applyState();
     }
 
@@ -3771,13 +4154,14 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
       if (!customPresetPopover.contains(event.target) && !event.target.closest("[data-custom-preset-more]")) closeCustomPresetMenu();
     });
     document.querySelector("#pageTypeControls").addEventListener("click", (event) => {
-      const nextPageType = event.target.dataset.value;
-      if (!nextPageType || nextPageType === state.pageType) return;
-      if (state.pageType === "dashboard" && nextPageType === "report" && state.headerBackgroundType === "none") {
+      const selectedPageType = event.target.dataset.value;
+      const nextPageType = selectedPageType === "report" ? "analysis-report" : selectedPageType;
+      if (!nextPageType || nextPageType === state.pageType || (selectedPageType === "report" && state.pageType === "report")) return;
+      if (state.pageType === "dashboard" && ["report", "analysis-report"].includes(nextPageType) && state.headerBackgroundType === "none") {
         state.headerBackgroundType = "solid";
         state.headerSolidLinkedToMode = true;
       }
-      state.headerAlign = nextPageType === "report" ? "center" : "left";
+      state.headerAlign = ["report", "analysis-report"].includes(nextPageType) ? "center" : "left";
       state.pageType = nextPageType;
       applyState();
     });
@@ -3816,7 +4200,11 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     kpiShapeControl.addEventListener("change", () => { state.kpiIconShape = kpiShapeControl.value; applyState(); });
     kpiSizeControl.addEventListener("change", () => { state.kpiIconSize = kpiSizeControl.value; applyState(); });
     kpiLayoutControl.addEventListener("change", () => { state.kpiLayout = kpiLayoutControl.value; applyState(); });
+    kpiCardOrganizationControl.addEventListener("change", () => { state.kpiCardOrganization = kpiCardOrganizationControl.value; applyState(); });
     kpiCardBackgroundControl.addEventListener("change", () => { state.kpiCardBackground = kpiCardBackgroundControl.value; applyState(); });
+    kpiSparklineDisplayControl.addEventListener("change", () => { state.kpiSparklineDisplay = kpiSparklineDisplayControl.value; applyState(); });
+    kpiSparklinePointsControl.addEventListener("change", () => { state.kpiSparklinePoints = Number(kpiSparklinePointsControl.value); applyState(); });
+    kpiSparklineStyleControl.addEventListener("change", () => { state.kpiSparklineStyle = kpiSparklineStyleControl.value; applyState(); });
     kpiDecorationControl.addEventListener("change", () => applyGlobalKpiDecoration(kpiDecorationControl.value));
     kpiStyleColorControl.addEventListener("change", () => { state.kpiIconColor = kpiStyleColorControl.value; applyState(); });
     chartPaletteControl.addEventListener("change", () => { state.chartPalette = chartPaletteControl.value; applyState(); });
@@ -4168,6 +4556,8 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
     if (!workspaceRestored) selectPreset("fx-orange");
     savedWorkspaceSnapshot = JSON.stringify(createWorkspaceState());
     workspaceIsRestoring = false;
+    const projectRouteIsRestoring = /^\/studio\/projects\/[^/]+$/.test(window.location.pathname);
+    if (!projectRouteIsRestoring) renderWorkspaceCharts();
     currentRevision = currentProject?.revisions?.find(({ id }) => id === currentProject.currentRevisionId) || null;
     syncAiComposerScope();
     clearWorkspaceHistory();
@@ -4212,7 +4602,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         workspaceIsRestoring = true;
         let restored = false;
         try { restored = restoreWorkspaceState(structuredClone(workspace)); }
-        finally { workspaceIsRestoring = false; }
+        finally { workspaceIsRestoring = false; renderWorkspaceCharts(); }
         if (!restored) throw new Error("AI 预览无法进入当前编辑器");
         if (target?.id) {
           selectedCardId = target.kind === "component" ? target.id : null;
@@ -4231,7 +4621,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         workspaceIsRestoring = true;
         let restored = false;
         try { restored = restoreWorkspaceState(structuredClone(payload.workspace)); }
-        finally { workspaceIsRestoring = false; }
+        finally { workspaceIsRestoring = false; renderWorkspaceCharts(); }
         if (!restored) throw new Error("撤销版本无法进入当前编辑器");
         currentProject = structuredClone(payload.project);
         currentRevision = structuredClone(payload.revision);
@@ -4250,7 +4640,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         workspaceIsRestoring = true;
         let restored = false;
         try { restored = restoreWorkspaceState(structuredClone(payload.workspace)); }
-        finally { workspaceIsRestoring = false; }
+        finally { workspaceIsRestoring = false; renderWorkspaceCharts(); }
         if (!restored) throw new Error("历史版本无法进入当前编辑器");
         currentProject = structuredClone(payload.project);
         currentRevision = structuredClone(payload.revision);
@@ -4292,7 +4682,7 @@ import { RESOURCE_CHANNEL, resourceCenterUrl, validateChartApplication, validate
         let restored = false;
         workspaceIsRestoring = true;
         try { restored = restoreWorkspaceState(revision.workspace); }
-        finally { workspaceIsRestoring = false; }
+        finally { workspaceIsRestoring = false; renderWorkspaceCharts(); }
         if (!restored) throw new Error("项目版本无法恢复");
         currentProject = project;
         currentRevision = revision;

@@ -184,6 +184,8 @@ job-service     -> asynchronous generation / export / refresh
 
 ## 当前优先队列
 
+交互式 BI 图表运行时 `M0-M7` 阶段门槛已全部通过：ChartSpec 与共享 Builder、客户端 ECharts 双渲染、在线语义查询、筛选与跨图联动、层级下钻、刷新与 Dataset SSE、Dashboard 生成固定 Report 副本，以及受控 Custom Series 与治理均有合同、故障和浏览器证据。详细产品边界、数据流和验收见 `docs/architecture/interactive-bi-runtime.md`；后续扩展继续复用同一门槛，不开放任意 Option 或 JavaScript。
+
 按依赖顺序推进：
 
 1. 在有效密钥环境验证远程 Provider Gateway 的真实首稿和局部命令质量

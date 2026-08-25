@@ -24,6 +24,19 @@ function staleProjectMetadata(expected, actual) {
   }]);
 }
 
+function projectNameKey(value) {
+  return String(value || "").trim().normalize("NFKC").toLocaleLowerCase("zh-CN");
+}
+
+function projectNameConflict(name, organizationId, projectId) {
+  return new ContractError("Project name already exists", [{
+    path: "/name",
+    code: "conflict",
+    message: "同一组织内已有同名项目，请使用其他名称",
+    ...(projectId ? { projectId } : {})
+  }]);
+}
+
 export function createProjectRepository({ directory }) {
   if (!directory) throw new Error("Project repository directory is required");
   const queues = new Map();
@@ -61,6 +74,12 @@ export function createProjectRepository({ directory }) {
     }
   }
 
+  async function listStoredProjects() {
+    await mkdir(directory, { recursive: true });
+    const files = (await readdir(directory)).filter((name) => name.endsWith(".json")).sort();
+    return (await Promise.all(files.map((name) => loadStored(name.slice(0, -5))))).filter(Boolean);
+  }
+
   function serialize(id, operation) {
     const key = projectId(id);
     const previous = queues.get(key) ?? Promise.resolve();
@@ -71,6 +90,11 @@ export function createProjectRepository({ directory }) {
     });
   }
 
+  function serializeProjectWrite(id, organizationId, operation) {
+    const organizationKey = `project-name-lock-${Buffer.from(String(organizationId || "default")).toString("hex")}`;
+    return serialize(organizationKey, () => serialize(id, operation));
+  }
+
   return {
     directory,
     get: async (id) => publicProject(await loadStored(id)),
@@ -78,12 +102,16 @@ export function createProjectRepository({ directory }) {
       await mkdir(directory, { recursive: true });
       const files = (await readdir(directory)).filter((name) => name.endsWith(".json")).sort();
       const projects = await Promise.all(files.map((name) => loadStored(name.slice(0, -5))));
-      return projects.filter(Boolean).map(({ id, name, createdAt, updatedAt, organizationId = null, access, status = "active", archivedAt, currentRevisionId, revisions }) => ({
-        id, name, createdAt, updatedAt, organizationId, access: access || { ownerId: null, members: [] }, status, ...(archivedAt ? { archivedAt } : {}), currentRevisionId, revisionCount: revisions.length
-      }));
+      return projects.filter(Boolean).map(({ id, name, createdAt, updatedAt, organizationId = null, access, status = "active", archivedAt, currentRevisionId, revisions }) => {
+        const currentRevision = revisions.find((revision) => revision.id === currentRevisionId);
+        return {
+          id, name, createdAt, updatedAt, organizationId, access: access || { ownerId: null, members: [] }, status, ...(archivedAt ? { archivedAt } : {}),
+          currentRevisionId, revisionCount: revisions.length, pageType: currentRevision?.workspace?.theme?.pageType ?? null
+        };
+      });
     },
-    update(id, { expectedRevisionId, expectedUpdatedAt, seed = null, outbox = null } = {}, updater) {
-      return serialize(id, async () => {
+    update(id, { expectedRevisionId, expectedUpdatedAt, seed = null, outbox = null, uniqueName = null } = {}, updater) {
+      const operation = async () => {
         const stored = await loadStored(id);
         if (expectedRevisionId !== undefined && (stored?.currentRevisionId ?? null) !== expectedRevisionId) {
           throw staleProject(expectedRevisionId, stored?.currentRevisionId ?? null);
@@ -92,11 +120,28 @@ export function createProjectRepository({ directory }) {
         const base = publicProject(stored) ?? publicProject(seed);
         const next = await updater(base ? structuredClone(base) : null);
         if (!next || next.id !== id) throw new ContractError("Project update changed its identity");
+        if (uniqueName) {
+          const projects = await listStoredProjects();
+          const key = projectNameKey(next.name);
+          const conflict = projects.find((project) => project.id !== id && project.organizationId === uniqueName.organizationId && projectNameKey(project.name) === key);
+          if (conflict) throw projectNameConflict(next.name, uniqueName.organizationId, conflict.id);
+        }
         const events = outbox ? await outbox({ before: publicProject(stored), next: structuredClone(next) }) : [];
         const pending = [...(stored?._outbox || []), ...(Array.isArray(events) ? events : events ? [events] : [])];
         if (pending.length) next._outbox = structuredClone(pending);
         await atomicWrite(next);
         return publicProject(next);
+      };
+      return uniqueName ? serializeProjectWrite(id, uniqueName.organizationId, operation) : serialize(id, operation);
+    },
+    remove(id, { expectedUpdatedAt } = {}) {
+      return serialize(id, async () => {
+        const stored = await loadStored(id);
+        if (!stored) return null;
+        if (!expectedUpdatedAt) throw new ContractError("expectedUpdatedAt is required", [{ path: "/expectedUpdatedAt", code: "required", message: "Project deletion requires optimistic concurrency" }]);
+        if (stored.updatedAt !== expectedUpdatedAt) throw staleProjectMetadata(expectedUpdatedAt, stored.updatedAt);
+        await unlink(fileFor(id));
+        return publicProject(stored);
       });
     },
     async listOutbox() {
